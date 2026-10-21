@@ -73,6 +73,7 @@ public final class PersonaFixtureCatalog {
                 throw new IllegalStateException("Persona fixture " + file + ": personaId " + fixture.personaId()
                         + " differs from the file name " + stem);
             }
+            checkReferences(file, fixture);
             loaded.put(stem, fixture);
             hashes.put(stem, sha256(bytes));
         }
@@ -125,6 +126,50 @@ public final class PersonaFixtureCatalog {
         } catch (JacksonException e) {
             throw new IllegalStateException("Persona fixture " + file + " cannot be read: " + e.getOriginalMessage(),
                     e);
+        }
+    }
+
+    /** Checks what the schema cannot: unique ids, references inside the fixture, one current account, no future data. */
+    private static void checkReferences(Path file, PersonaFixture fixture) {
+        java.util.Set<java.util.UUID> ids = new java.util.HashSet<>();
+        Stream.of(fixture.accounts().stream().map(PersonaFixture.Account::id),
+                fixture.contracts().stream().map(PersonaFixture.Contract::id),
+                fixture.transactions().stream().map(PersonaFixture.Transaction::id),
+                fixture.holdings().stream().map(PersonaFixture.Holding::id),
+                fixture.savingsPlans().stream().map(PersonaFixture.SavingsPlan::id))
+                .flatMap(s -> s)
+                .forEach(id -> require(ids.add(id), file, "duplicate id " + id));
+        java.util.Set<java.util.UUID> accounts = fixture.accounts().stream().map(PersonaFixture.Account::id)
+                .collect(Collectors.toSet());
+        java.util.Set<java.util.UUID> contracts = fixture.contracts().stream().map(PersonaFixture.Contract::id)
+                .collect(Collectors.toSet());
+        require(fixture.accounts().stream().filter(a -> a.type().equals("CURRENT")).count() == 1, file,
+                "exactly one CURRENT account required");
+        for (PersonaFixture.Contract c : fixture.contracts()) {
+            require(c.debitAccountId() == null || accounts.contains(c.debitAccountId()), file,
+                    "contract " + c.id() + " has unknown debitAccountId " + c.debitAccountId());
+        }
+        for (PersonaFixture.Transaction t : fixture.transactions()) {
+            require(accounts.contains(t.accountId()), file,
+                    "transaction " + t.id() + " has unknown accountId " + t.accountId());
+            require(t.contractId() == null || contracts.contains(t.contractId()), file,
+                    "transaction " + t.id() + " has unknown contractId " + t.contractId());
+            require(!t.bookingDate().isAfter(fixture.simulatedDate()), file,
+                    "transaction " + t.id() + " is dated after simulatedDate " + fixture.simulatedDate());
+        }
+        for (PersonaFixture.Holding h : fixture.holdings()) {
+            require(accounts.contains(h.accountId()), file,
+                    "holding " + h.id() + " has unknown accountId " + h.accountId());
+        }
+        for (PersonaFixture.SavingsPlan s : fixture.savingsPlans()) {
+            require(accounts.contains(s.accountId()) && accounts.contains(s.debitAccountId()), file,
+                    "savings plan " + s.id() + " has an unknown accountId or debitAccountId");
+        }
+    }
+
+    private static void require(boolean condition, Path file, String violation) {
+        if (!condition) {
+            throw new IllegalStateException("Persona fixture " + file + ": " + violation);
         }
     }
 

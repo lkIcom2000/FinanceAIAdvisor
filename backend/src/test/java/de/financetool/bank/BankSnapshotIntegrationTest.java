@@ -10,6 +10,7 @@ import de.financetool.shared.fixtures.PersonaFixture;
 import de.financetool.shared.fixtures.PersonaFixtureCatalog;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -38,9 +39,74 @@ class BankSnapshotIntegrationTest extends PostgresIntegrationTest {
     @Autowired
     TransactionTemplate tx;
 
+    static final PersonaId JONAS = new PersonaId("p-jonas");
+
     @AfterEach
     void restoreLena() {
-        tx.executeWithoutResult(status -> loader.load(LENA));
+        tx.executeWithoutResult(status -> {
+            loader.load(LENA);
+            loader.load(JONAS);
+        });
+    }
+
+    @Test
+    void holdingsSavingsPlansAndCoInsuredContractsAreReadAndFilteredByAsOf() {
+        BankSnapshot jonas = bank.snapshot(JONAS, START);
+        UUID depot = jonas.accounts().stream().filter(a -> a.type() == AccountType.DEPOT).findFirst().orElseThrow()
+                .id();
+
+        assertThat(jonas.holdings()).singleElement().satisfies(h -> {
+            assertThat(h.accountId()).isEqualTo(depot);
+            assertThat(h.units()).isEqualByComparingTo("17.842300");
+            assertThat(h.unitPrice().toPlainString()).isEqualTo("112.36");
+            assertThat(h.costBasis().toPlainString()).isEqualTo("1900.00");
+            assertThat(h.assetClass()).isEqualTo(AssetClass.EQUITY_ETF);
+        });
+        assertThat(jonas.savingsPlans()).singleElement().satisfies(p -> {
+            assertThat(p.accountId()).isEqualTo(depot);
+            assertThat(p.debitAccountId()).isEqualTo(current(jonas).id());
+            assertThat(p.dayOfMonth()).isEqualTo(15);
+            assertThat(p.amount().toPlainString()).isEqualTo("100.00");
+        });
+        assertThat(jonas.contracts()).filteredOn(c -> c.insuredRole() == InsuredRole.CO_INSURED).singleElement()
+                .satisfies(family -> {
+                    assertThat(family.coverage()).isEqualTo(Coverage.LIABILITY);
+                    assertThat(family.premium()).isNull();
+                    assertThat(family.paymentInterval()).isNull();
+                    assertThat(family.nextDueDate()).isNull();
+                    assertThat(family.debitAccountId()).isNull();
+                });
+
+        assertThat(bank.snapshot(JONAS, START.minusDays(1)).holdings()).as("before the valuation date").isEmpty();
+        assertThat(bank.snapshot(JONAS, LocalDate.of(2025, 4, 14)).savingsPlans()).as("before the plan start")
+                .isEmpty();
+        assertThat(bank.snapshot(JONAS, LocalDate.of(2024, 1, 31)).contracts()).as("before the own policy started")
+                .singleElement().satisfies(c -> assertThat(c.insuredRole()).isEqualTo(InsuredRole.CO_INSURED));
+    }
+
+    @Test
+    void invalidTransfersBookNothing() {
+        BankSnapshot before = bank.snapshot(JONAS, START);
+        UUID current = current(before).id();
+        UUID overnight = overnight(before).id();
+        UUID depot = before.accounts().stream().filter(a -> a.type() == AccountType.DEPOT).findFirst().orElseThrow()
+                .id();
+        record Attempt(String what, UUID from, UUID to, String amount, LocalDate date, String reference) {
+        }
+        List<Attempt> attempts = List.of(
+                new Attempt("same account", current, current, "10.00", START, "Same"),
+                new Attempt("depot", current, depot, "10.00", START, "Depot"),
+                new Attempt("scale > 2", overnight, current, "10.001", START, "Scale"),
+                new Attempt("blank reference", overnight, current, "10.00", START, "  "),
+                new Attempt("reference over 200", overnight, current, "10.00", START, "x".repeat(201)),
+                new Attempt("before opening", overnight, current, "10.00", LocalDate.of(2025, 6, 30), "Early"));
+        for (Attempt a : attempts) {
+            assertThatThrownBy(() -> tx.executeWithoutResult(status -> bankPort.transfer(JONAS, a.from(), a.to(),
+                    new BigDecimal(a.amount()), a.date(), a.reference())))
+                    .as(a.what()).isInstanceOf(IllegalArgumentException.class);
+        }
+
+        assertThat(bank.snapshot(JONAS, START)).as("nothing booked").isEqualTo(before);
     }
 
     @Test

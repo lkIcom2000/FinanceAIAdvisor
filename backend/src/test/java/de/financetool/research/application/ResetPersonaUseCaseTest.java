@@ -48,6 +48,15 @@ class ResetPersonaUseCaseTest {
     }
 
     @Test
+    void theLoaderSortsOwnersByTheResetOrder() {
+        List<String> calls = new ArrayList<>();
+        PersonaFixtureLoader loader = new PersonaFixtureLoader(
+                List.of(owner("personas", calls), owner("bank", calls), owner("monitoring", calls)));
+
+        assertThat(loader.order()).containsExactly("monitoring", "bank", "personas");
+    }
+
+    @Test
     void anUnknownPersonaResetsNothing() {
         List<String> calls = new ArrayList<>();
         ResetPersonaUseCase useCase = new ResetPersonaUseCase(mock(PersonaClock.class),

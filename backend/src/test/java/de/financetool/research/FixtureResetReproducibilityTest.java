@@ -88,39 +88,62 @@ class FixtureResetReproducibilityTest extends PostgresIntegrationTest {
     }
 
     void changeEverything(PersonaId personaId) {
-        BankSnapshot snapshot = bank.snapshot(personaId, LocalDate.of(2026, 10, 15));
-        tx.executeWithoutResult(status -> bankPort.transfer(personaId, account(snapshot, AccountType.OVERNIGHT),
-                account(snapshot, AccountType.CURRENT), new BigDecimal("75.00"), LocalDate.of(2026, 10, 15),
-                "Changed during the session"));
+        BankSnapshot snapshot = bank.snapshot(personaId, fixtures.fixture(personaId).simulatedDate());
+        if (snapshot.accounts().stream().anyMatch(a -> a.type() == AccountType.OVERNIGHT)) {
+            transfer(personaId, snapshot, "Changed during the session");
+        }
         jdbc.update("UPDATE persona_state SET simulated_date = DATE '2026-12-24' WHERE persona_id = ?",
                 personaId.value());
     }
 
+    BankPort.Transfer transfer(PersonaId personaId, BankSnapshot snapshot, String reference) {
+        return tx.execute(status -> bankPort.transfer(personaId, account(snapshot, AccountType.OVERNIGHT),
+                account(snapshot, AccountType.CURRENT), new BigDecimal("75.00"), snapshot.asOf(), reference));
+    }
+
     @Test
-    void freshInstallResetOnceAndResetTwiceGiveTheSameRows() {
-        wipeToFreshInstall(JONAS);
-        assertThat(seed.seedChanged()).containsExactly(JONAS);
-        Map<String, List<Map<String, Object>>> fresh = dump(JONAS);
+    void freshInstallResetOnceAndResetTwiceGiveTheSameRowsForEveryPersona() {
+        List<PersonaId> all = fixtures.personaIds();
+        all.forEach(this::wipeToFreshInstall);
+        assertThat(seed.seedChanged()).containsExactlyInAnyOrderElementsOf(all);
 
-        PersonaFixture fixture = fixtures.fixture(JONAS);
-        assertThat(fresh.get("accounts")).hasSize(fixture.accounts().size());
-        assertThat(fresh.get("contracts")).hasSize(fixture.contracts().size());
-        assertThat(fresh.get("transactions")).hasSize(fixture.transactions().size());
-        assertThat(fresh.get("holdings")).hasSize(fixture.holdings().size()).isNotEmpty();
-        assertThat(fresh.get("savings_plans")).hasSize(fixture.savingsPlans().size()).isNotEmpty();
-        assertThat(fresh.get("persona_state")).singleElement().satisfies(state -> assertThat(state)
-                .containsEntry("simulated_date", java.sql.Date.valueOf(fixture.simulatedDate()))
-                .containsEntry("fixture_version", fixtures.version(JONAS)));
+        for (PersonaId personaId : all) {
+            Map<String, List<Map<String, Object>>> fresh = dump(personaId);
+            PersonaFixture fixture = fixtures.fixture(personaId);
+            assertThat(fresh.get("accounts")).as("%s", personaId).hasSize(fixture.accounts().size());
+            assertThat(fresh.get("contracts")).as("%s", personaId).hasSize(fixture.contracts().size());
+            assertThat(fresh.get("transactions")).as("%s", personaId).hasSize(fixture.transactions().size());
+            assertThat(fresh.get("holdings")).as("%s", personaId).hasSize(fixture.holdings().size());
+            assertThat(fresh.get("savings_plans")).as("%s", personaId).hasSize(fixture.savingsPlans().size());
+            assertThat(fresh.get("persona_state")).singleElement().satisfies(state -> assertThat(state)
+                    .containsEntry("simulated_date", java.sql.Date.valueOf(fixture.simulatedDate()))
+                    .containsEntry("fixture_version", fixtures.version(personaId)));
 
-        changeEverything(JONAS);
-        assertThat(dump(JONAS)).isNotEqualTo(fresh);
-        resetPersona.reset(JONAS);
-        assertThat(dump(JONAS)).as("reset once").isEqualTo(fresh);
+            changeEverything(personaId);
+            assertThat(dump(personaId)).isNotEqualTo(fresh);
+            resetPersona.reset(personaId);
+            assertThat(dump(personaId)).as("%s reset once", personaId).isEqualTo(fresh);
 
-        changeEverything(JONAS);
+            changeEverything(personaId);
+            resetPersona.reset(personaId);
+            resetPersona.reset(personaId);
+            assertThat(dump(personaId)).as("%s reset twice", personaId).isEqualTo(fresh);
+        }
+    }
+
+    @Test
+    void bankPortBookingIdsAreReproducibleAfterReset() {
         resetPersona.reset(JONAS);
+        BankSnapshot snapshot = bank.snapshot(JONAS, fixtures.fixture(JONAS).simulatedDate());
+        BankPort.Transfer first = transfer(JONAS, snapshot, "Session transfer");
+
         resetPersona.reset(JONAS);
-        assertThat(dump(JONAS)).as("reset twice").isEqualTo(fresh);
+        BankPort.Transfer replayed = transfer(JONAS, snapshot, "Session transfer");
+        BankPort.Transfer second = transfer(JONAS, snapshot, "Session transfer");
+
+        assertThat(replayed).isEqualTo(first);
+        assertThat(List.of(second.debitTransactionId(), second.creditTransactionId()))
+                .doesNotContainAnyElementsOf(List.of(first.debitTransactionId(), first.creditTransactionId()));
     }
 
     @Test

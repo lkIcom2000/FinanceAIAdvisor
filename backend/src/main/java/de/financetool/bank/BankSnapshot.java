@@ -6,7 +6,11 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
-/** The persona's sandbox bank data as of {@link #asOf} (see {@link BankReadPort#snapshot}). Money has scale 2. */
+/**
+ * The persona's sandbox bank data filtered to {@link #asOf} (see {@link BankReadPort#snapshot}). Money has scale 2.
+ * Contracts carry their stored {@code nextDueDate}, holdings appear only from their single {@code valuationDate}, and
+ * a DEPOT account's balance is cash only (its value lies in the holdings).
+ */
 public record BankSnapshot(PersonaId personaId, LocalDate asOf, List<Account> accounts, List<Contract> contracts,
         List<Transaction> transactions, List<Holding> holdings, List<SavingsPlan> savingsPlans) {
 
@@ -18,12 +22,15 @@ public record BankSnapshot(PersonaId personaId, LocalDate asOf, List<Account> ac
         savingsPlans = List.copyOf(savingsPlans);
     }
 
-    /** {@code balance} = opening balance + transactions up to {@code asOf}. */
+    /** {@code balance} = opening balance + transactions up to {@code asOf}; cash only (0.00 for a DEPOT). */
     public record Account(UUID id, AccountType type, String name, String iban, LocalDate openingDate,
             BigDecimal openingBalance, BigDecimal balance) {
     }
 
-    /** {@code premium}, {@code paymentInterval}, {@code nextDueDate} and {@code debitAccountId} may be null. */
+    /**
+     * {@code premium}, {@code paymentInterval}, {@code nextDueDate} and {@code debitAccountId} may be null (e.g.
+     * co-insured on someone else's policy); {@code nextDueDate} is the stored one, not recomputed for {@code asOf}.
+     */
     public record Contract(UUID id, Coverage coverage, String provider, String policyNumber, String policyholder,
             InsuredRole insuredRole, BigDecimal premium, PaymentInterval paymentInterval, LocalDate nextDueDate,
             UUID debitAccountId, LocalDate startDate) {

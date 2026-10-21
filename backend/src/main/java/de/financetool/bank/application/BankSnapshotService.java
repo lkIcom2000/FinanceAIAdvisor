@@ -13,6 +13,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 
@@ -28,6 +29,8 @@ class BankSnapshotService implements BankReadPort {
 
     @Override
     public BankSnapshot snapshot(PersonaId personaId, LocalDate asOf) {
+        Objects.requireNonNull(personaId, "personaId");
+        Objects.requireNonNull(asOf, "asOf");
         String id = personaId.value();
         List<TransactionEntity> transactions = bank.transactions(id, asOf);
         Map<UUID, BigDecimal> movements = new HashMap<>();

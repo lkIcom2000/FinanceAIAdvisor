@@ -155,6 +155,17 @@ class PersonaFixtureCatalogTest {
     }
 
     @Test
+    void aDanglingAccountIdStopsLoadingNamingTheFile() throws IOException {
+        Path dir = copyFixtures();
+        Path tim = dir.resolve("p-tim.json");
+        Files.writeString(tim, Files.readString(tim).replaceFirst("\"accountId\": \"[0-9a-f-]{36}\"",
+                "\"accountId\": \"00000000-0000-0000-0000-000000000000\""));
+
+        assertThatThrownBy(() -> new PersonaFixtureCatalog(dir)).isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("p-tim.json").hasMessageContaining("unknown accountId");
+    }
+
+    @Test
     void invalidJsonStopsLoading() throws IOException {
         Path dir = copyFixtures();
         Files.writeString(dir.resolve("p-tim.json"), "{ not json");

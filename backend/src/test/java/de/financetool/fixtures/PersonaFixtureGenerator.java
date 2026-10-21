@@ -493,7 +493,9 @@ final class PersonaFixtureGenerator {
 
         private void oneOffBookings() {
             for (OneOffTransfer o : spec.oneOffTransfers()) {
-                bookings.add(new Booking(o.date(), CURRENT, -o.cents(), "TRANSFER", "Overnight deposit",
+                String target = spec.accounts().stream().filter(a -> a.key().equals(o.toAccount())).findFirst()
+                        .orElseThrow().name();
+                bookings.add(new Booking(o.date(), CURRENT, -o.cents(), "TRANSFER", target,
                         o.reference(), null, null, "one-off:" + o.date()));
                 bookings.add(new Booking(o.date(), o.toAccount(), o.cents(), "TRANSFER", "Current account",
                         o.reference(), null, null, "one-off-credit:" + o.date()));

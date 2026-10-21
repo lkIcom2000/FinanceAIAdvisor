@@ -57,6 +57,9 @@ class BankBookingService implements BankPort {
         }
         AccountEntity from = ownCashAccount(personaId, fromAccountId);
         AccountEntity to = ownCashAccount(personaId, toAccountId);
+        if (bookingDate.isBefore(from.getOpeningDate()) || bookingDate.isBefore(to.getOpeningDate())) {
+            throw new IllegalArgumentException("Booking date " + bookingDate + " is before an account was opened");
+        }
         BigDecimal value = amount.setScale(2, RoundingMode.UNNECESSARY);
         long booked = bank.countTransactions(personaId.value(), TransactionOrigin.BANK_PORT);
         UUID debitId = bookingId(personaId, booked);

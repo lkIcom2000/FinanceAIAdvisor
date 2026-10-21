@@ -59,7 +59,7 @@ development_status:
   epic-1-retrospective: done
 
   epic-2: in-progress  # [critical-path]
-  2-1-sandbox-bank-with-seeded-persona-fixtures-and-planted-ground: review  # start 2026-10-21T21:35+02:00; A3 done
+  2-1-sandbox-bank-with-seeded-persona-fixtures-and-planted-ground: done  # start 2026-10-21T21:35+02:00, end 2026-10-21T23:20+02:00; A3 done; full 4-layer review, 10 fixes
   2-2-core-gateway-figure-keys-and-the-why-dialog: backlog
   2-3-liquidity-tab-with-cash-flow-forecast-and-emergency-fund: backlog
   2-4-wealth-retirement-tab-with-goal-projection-ranges: backlog

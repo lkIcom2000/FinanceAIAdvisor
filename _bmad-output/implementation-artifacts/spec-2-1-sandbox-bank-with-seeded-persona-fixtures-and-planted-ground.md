@@ -2,14 +2,21 @@
 title: 'Story 2.1: Sandbox bank with seeded persona fixtures and Planted Ground Truth'
 type: 'feature'
 created: '2026-10-21'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'c31f595a4930653a53ffee54ce402c755045f2fd'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-2-context.md'
 warnings: ['oversized']
-deferred: []
+deferred:
+  - summary: >-
+      A snapshot after the fixture's simulatedDate keeps the stored contract nextDueDate (then in the past) and has no new bookings; the forecast must roll due dates forward.
+    evidence: |-
+      BankSnapshotService returns contracts.next_due_date as stored; the researcher can move the clock past it (e.g. Lena past 2026-11-01). Story 2.3's CashFlowForecast must derive the next due date after asOf from nextDueDate plus paymentInterval steps.
+    location: >-
+      backend/src/main/java/de/financetool/bank/application/BankSnapshotService.java
+    severity: medium
 ---
 
 <intent-contract>
@@ -95,6 +102,47 @@ deferred: []
 
 ## Review Triage Log
 
+### 2026-10-21 — Review pass
+- verdicts: 37 findings — high 0, medium 7, low 23, false 7, maybe-false 0
+- findings:
+  - `[false]` `[reject]` IA: A3 fixed in a startup loader, not in the V3 seed path — the intent allows "new migration and/or fixture loader"; V3 is immutable and the running system never serves the placeholder after the seeding patch.
+  - `[low]` `[patch]` IA: fresh = reset comparison only for p-jonas — comparison now runs for every persona in the catalog.
+  - `[false]` `[reject]` IA: equality holds by construction (one load path) — that is the chosen design ("one path"); the test still proves idempotence and removal of session changes.
+  - `[low]` `[reject]` IA: five-table check uses the use case, not HTTP — the live check reset p-lena twice over HTTP and compared full row hashes with the fresh install (identical).
+  - `[false]` `[reject]` IA: −90/−214/≤−50 checked by a test-side reference model — decided in Design Notes; Story 2.3 must reproduce it.
+  - `[false]` `[reject]` IA: BankFixtureResetter writes besides BankPort — AD-12 owner reset; "only BankPort" is the API for other modules (AD-10 execution path).
+  - `[false]` `[reject]` IA: verification evidence not in the diff — verify, frontend and live check ran (see Auto Run Result).
+  - `[false]` `[reject]` IA: p-harness keeps date 2026-10-20 — taken from the experiments persona deliberately.
+  - `[medium]` `[patch]` VG: holdings, savings plans, CO_INSURED contract and their asOf filters never read through BankReadPort — p-jonas snapshot test added.
+  - `[low]` `[patch]` VG: transfer rejection branches untested — one test per rejection with "nothing booked".
+  - `[low]` `[patch]` VG: deterministic booking ids not asserted — replay-after-reset test added.
+  - `[low]` `[reject]` VG other: contracts start before accounts open, so a pre-history snapshot has dangling debitAccountId — only for asOf before the history start, which no journey uses.
+  - `[low]` `[reject]` VG other: holdings absent before their valuation date — documented in BankSnapshot Javadoc (patch below); valuation history is out of scope.
+  - `[low]` `[reject]` EC: concurrent transfers for one persona collide on the derived id — fails loudly with a PK violation and rolls back; Actions run one per persona.
+  - `[low]` `[patch]` EC: bookingDate before account openingDate — rejected with IllegalArgumentException.
+  - `[low]` `[reject]` EC: amount beyond NUMERIC(14,2) — fails loudly in the DB; sandbox amounts are small.
+  - `[low]` `[patch]` EC: null asOf yields an empty snapshot — requireNonNull added.
+  - `[low]` `[reject]` EC: dangling references for accounts opened after asOf — same as the VG other finding above.
+  - `[medium]` `[patch]` EC: fixture cross-references unchecked, raw SQL error without file name — catalog now checks id uniqueness, references, one CURRENT account, no booking after simulatedDate.
+  - `[low]` `[reject]` EC: UTF-8 BOM breaks parsing — fixtures are generated LF/UTF-8 without BOM; a BOM fails loudly naming the file.
+  - `[medium]` `[patch]` EC: seeding runs after the web server accepts requests — moved before web server start (SmartInitializingSingleton).
+  - `[low]` `[patch]` EC: dead PersonaFixtureLoader.order() — asserted in a test or removed.
+  - `[low]` `[reject]` EC: ArchUnit bank-write rule narrow — Modulith already forbids other modules from bank.adapter; raw JDBC writes from other modules cannot be caught cheaply.
+  - `[low]` `[reject]` EC: completeness checked only by seeding — seeding is on in every runtime profile; off only in web-layer tests without a DB.
+  - `[false]` `[reject]` BH: generated fixtures excluded from the review diff — deliberate for size; generator, byte-equality and ground-truth tests cover them.
+  - `[medium]` `[defer]` BH: snapshot after simulatedDate keeps a past nextDueDate and no new bookings — the forecast (Story 2.3) must roll nextDueDate forward by paymentInterval; recorded in `deferred`.
+  - `[low]` `[patch]` BH: snapshot earlier than the fixture date shows the stored nextDueDate and no holding — semantics stated in BankReadPort/BankSnapshot Javadoc.
+  - `[medium]` `[patch]` BH: DEPOT balance 0.00 while holdings are worth ~2,005 EUR — Javadoc states that a depot balance is cash only and value lives in holdings.
+  - `[medium]` `[patch]` BH: fixtures not checked for internal consistency — same root cause as the EC cross-reference finding; patched there.
+  - `[low]` `[reject]` BH: fixture_version is only the file hash, so a new owner without fixture changes is not seeded on existing installs — new owner tables start empty and later fixture additions change the hash; a manual reset covers the rest.
+  - `[medium]` `[patch]` BH: seeding after server start — same root cause as the EC finding; patched there.
+  - `[low]` `[patch]` BH: bookingDate unvalidated — opening-date check patched; tying bookings to the persona clock is the caller's job (actions use asOf).
+  - `[low]` `[reject]` BH: booking ids reused after reset while audit is never reset — intended: a reset persona replays the same session (NFR2); audit evidence carries values, not just ids.
+  - `[low]` `[reject]` BH: ArchUnit write rule narrow — same as the EC finding.
+  - `[low]` `[patch]` BH: no integration tests for Jonas holdings/plans/co-insured contract — same as the VG finding; patched there.
+  - `[low]` `[patch]` BH: generator one-off counterparty hard-coded, one-off id key collides on equal dates — counterparty uses the target account name; a key collision would now fail loudly in the catalog's id-uniqueness check.
+  - `[low]` `[patch]` BH: epic-2-context still says −70 for p-shortfall; ≤4-day gap vs >5-day threshold; oversized warning; Dockerfile data copy unverified — context note added for −82.04; the other three are false (stricter test is fine, oversized is recorded, the live check loaded all fixtures from the image).
+
 ## Design Notes
 
 **Fixture shape** (all amounts decimal strings):
@@ -118,3 +166,19 @@ deferred: []
 
 **Manual checks (if no CLI):**
 - Live: `docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build`; `persona_state` shows fixture dates and 64-hex versions; row counts per persona match fixtures; research profile: reset p-lena → identical row dump; restart → no re-seed log.
+
+## Auto Run Result
+
+Status: done
+
+**Summary:** The `bank` module (V5: accounts, contracts, transactions, holdings, savings_plans; `BankReadPort.snapshot`, `BankPort.transfer`), seven seeded persona fixtures in `data/personas/` validated against `schema.json` with `fixtureVersion` = SHA-256 content hash, and one fixture-load path (`PersonaFixtureLoader`) shared by startup seeding and persona reset. Retro item A3 is done: the `pre-fixtures` placeholder is replaced by each fixture's start date and hash; reset twice = fresh install. A5 not triggered (no `AgentConfiguration`/`RequestContext` test touched).
+
+**Files changed (main):** `V5__bank.sql` (bank tables); `bank/*` (ports, snapshot records, enums, adapter, services); `shared/fixtures/*` (fixture records, catalog with schema + cross-reference checks); `personas/application/PersonaStateResetter` (fixture date/version); `research/application/{PersonaFixtureLoader,SeedPersonaFixturesUseCase,SeedFixturesOnStartup,ResetPersonaUseCase}`; `data/personas/*` (schema + 7 fixtures); `pom.xml` (networknt 3.0.8). Tests: generator + byte-equality, catalog, Planted Ground Truth, snapshot/transfer integration, reset reproducibility, seeding, ArchUnit bank-write rule.
+
+**Review:** 37 findings (4 layers). Patched 17 rows (medium 6, low 11) in 10 fixes: seeding before web server start; catalog cross-reference checks; transfer opening-date check; snapshot null checks; port Javadoc semantics (stored nextDueDate, holding valuation date, depot cash balance); loader order test; generator counterparty; Jonas snapshot and transfer-rejection tests; all-persona reproducibility and replayed booking ids; epic context −82.04. Deferred 1 (medium): due-date roll-forward for asOf after the fixture date belongs to Story 2.3's forecast. Rejected 19 (7 false, 12 low) with reasons in the triage log.
+
+**Follow-up review recommendation:** true by the rule (6 medium patches), naming the risk: the seeding move to `SmartInitializingSingleton` changes startup ordering; it is verified by the full suite and live (seed log before "Tomcat started"), so the residual risk is low.
+
+**Verification:** `./mvnw -B verify -Dfine.it.required=true` BUILD SUCCESS, 171 tests, 0 failures, 0 skipped (before patches 166). Frontend 18 Vitest tests and `npm run build` green, OpenAPI snapshot unchanged. Live (Compose, CPU): V5 applied on the Epic 1 volume; all 7 personas seeded from `pre-fixtures` to their fixture hash (p-lena hash = `sha256sum` of the file); restart re-seeded nothing; research profile: login, Lena mutated (date + 9 deleted bookings), reset twice over HTTP → row hash identical to the fresh install; stack back on the default profile; after the patch a forced re-seed of p-tim logs before "Tomcat started". The first image build failed once in `dependency:go-offline` (transient download); the rebuild succeeded unchanged.
+
+**Residual risks:** the forecast model is pinned only by the test-side `ReferenceForecast` until Story 2.3; `BankPort` booking ids repeat after a reset by design (replay).
