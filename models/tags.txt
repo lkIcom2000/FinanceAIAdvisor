@@ -1,0 +1,3 @@
+# Ollama tags bound in config/agent/*.yaml plus the embedding model (AD-18). One per line.
+llama3.1:8b-instruct-q4_K_M
+bge-m3

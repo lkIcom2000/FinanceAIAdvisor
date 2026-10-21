@@ -49,6 +49,11 @@ logging:
 # APP_HOME: repository root when run from backend/, /app in the image (set by the Dockerfile).
 app:
   home: ${APP_HOME:..}
+  ollama:
+    url: ${APP_OLLAMA_URL:http://localhost:11434}
+  llm:
+    # Lock and smoke checks at startup (AD-18); switched off only in tests without Ollama.
+    verify-on-startup: true
 
 management:
   endpoints:

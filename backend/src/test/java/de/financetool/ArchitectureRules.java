@@ -78,6 +78,8 @@ final class ArchitectureRules {
             .or().haveRawType(de.financetool.shared.config.ConfigFingerprint.class)
             .should().beDeclaredIn(de.financetool.shared.RequestContext.class)
             .orShould().beDeclaredIn("de.financetool.personas.application.RequestContextService")
+            // The model tag per role is infrastructure binding (AD-5, AD-18), resolved by the adapter itself.
+            .orShould().beDeclaredIn("de.financetool.llm.adapter.OllamaLlmAdapter")
             .because("AD-22: services receive configuration through the RequestContext, never by injection");
 
     private static ArchCondition<JavaCodeUnit> notBindAPersonaScopeFromTheRequest() {

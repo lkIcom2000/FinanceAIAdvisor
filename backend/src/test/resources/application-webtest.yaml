@@ -8,3 +8,8 @@ spring:
       - org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration
       - org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration
       - org.springframework.boot.data.jpa.autoconfigure.DataJpaRepositoriesAutoConfiguration
+
+# No Ollama in tests.
+app:
+  llm:
+    verify-on-startup: false

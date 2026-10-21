@@ -53,6 +53,8 @@ public abstract class PostgresIntegrationTest {
         registry.add("spring.datasource.password", () -> APP_DB_PASSWORD);
         registry.add("spring.flyway.user", POSTGRES::getUsername);
         registry.add("spring.flyway.password", POSTGRES::getPassword);
+        // No Ollama in tests; the adapter is tested against a mock server.
+        registry.add("app.llm.verify-on-startup", () -> "false");
     }
 
     @Autowired
