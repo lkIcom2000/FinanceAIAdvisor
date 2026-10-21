@@ -7,16 +7,22 @@ spring:
       - file:${APP_HOME:..}/config/agent/${APP_AGENT_CONFIG:reference}.yaml
       - file:${APP_HOME:..}/config/autonomy.yaml
       - file:${APP_HOME:..}/config/profile-minimums.yaml
+  # The application connects as the non-owner role fine_app (INSERT and SELECT only on audit tables, AD-13);
+  # Flyway migrates as the owner and sets fine_app's password from SPRING_DATASOURCE_PASSWORD.
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/fine}
-    username: ${SPRING_DATASOURCE_USERNAME:fine}
+    username: ${SPRING_DATASOURCE_USERNAME:fine_app}
     password: ${SPRING_DATASOURCE_PASSWORD:}
   jpa:
     open-in-view: false
     hibernate:
       ddl-auto: none
   flyway:
-    locations: classpath:db/migration
+    locations: classpath:db/migration,classpath:db/callback
+    user: ${SPRING_DATASOURCE_OWNER_USERNAME:fine}
+    password: ${SPRING_DATASOURCE_OWNER_PASSWORD:}
+    placeholders:
+      appDbPassword: ${spring.datasource.password}
   mvc:
     problemdetails:
       enabled: true

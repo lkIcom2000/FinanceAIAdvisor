@@ -5,7 +5,8 @@ import static org.springframework.security.test.web.servlet.setup.SecurityMockMv
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -22,6 +23,9 @@ import org.testcontainers.utility.DockerImageName;
  * {@code @Container} would be stopped after the first class while Spring's cached context still points at it.
  *
  * <p>{@code -Dfine.it.required=true} turns the skip into a failure, for review and release runs.
+ *
+ * <p>As in production, Flyway migrates as the owner (the container user) and the application connects as the
+ * non-owner role {@code fine_app} (AD-13).
  */
 @SpringBootTest
 @Testcontainers(disabledWithoutDocker = true)
@@ -29,8 +33,9 @@ public abstract class PostgresIntegrationTest {
 
     public static final String DEMO_PASSWORD = "fine-demo";
 
-    @ServiceConnection
-    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer(
+    public static final String APP_DB_PASSWORD = "fine-app-test";
+
+    protected static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer(
             DockerImageName.parse("pgvector/pgvector:0.8.2-pg17").asCompatibleSubstituteFor("postgres"));
 
     static {
@@ -39,6 +44,15 @@ public abstract class PostgresIntegrationTest {
         } else if (Boolean.getBoolean("fine.it.required")) {
             throw new IllegalStateException("fine.it.required is set but Docker is not available");
         }
+    }
+
+    @DynamicPropertySource
+    static void database(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
+        registry.add("spring.datasource.username", () -> "fine_app");
+        registry.add("spring.datasource.password", () -> APP_DB_PASSWORD);
+        registry.add("spring.flyway.user", POSTGRES::getUsername);
+        registry.add("spring.flyway.password", POSTGRES::getPassword);
     }
 
     @Autowired

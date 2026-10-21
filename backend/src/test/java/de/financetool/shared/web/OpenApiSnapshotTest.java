@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
@@ -39,6 +40,9 @@ class OpenApiSnapshotTest {
 
     @MockitoBean
     PersonaStateRepository personaStates;
+
+    @MockitoBean
+    JdbcClient jdbc;
 
     @Test
     void publishedDocumentMatchesCommittedSnapshot() throws Exception {

@@ -19,7 +19,7 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.annotation.DirtiesContext.MethodMode;
 import org.springframework.test.web.servlet.MvcResult;
 
-class AuthIntegrationTest extends PostgresIntegrationTest {
+public class AuthIntegrationTest extends PostgresIntegrationTest {
 
     static String credentials(String username, String password) {
         return "{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}";

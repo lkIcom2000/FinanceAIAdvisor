@@ -30,13 +30,17 @@ Requires Docker with Compose v2. One image and one compose file serve every envi
 in `SPRING_DATASOURCE_*`, `APP_OLLAMA_URL`, `APP_AGENT_CONFIG`, `SPRING_PROFILES_ACTIVE` and secrets.
 
 ```sh
-cp deploy/.env.example deploy/.env     # set FINE_DB_PASSWORD
+cp deploy/.env.example deploy/.env     # set FINE_DB_PASSWORD and FINE_APP_DB_PASSWORD
 docker compose -f deploy/docker-compose.yml up -d --build
 curl -s localhost:8080/actuator/health # {"status":"UP"}
 ```
 
 The app reads `config/`, `data/` and `models/` from `APP_HOME` (`/app` in the image, mounted read-only from the
 repository) and refuses to start if one of them is missing.
+
+Flyway migrates as the database owner (`FINE_DB_PASSWORD`); the app connects as the role `fine_app`
+(`FINE_APP_DB_PASSWORD`), which may only insert into and read the append-only audit tables. Flyway sets
+`fine_app`'s password on every start, so changing the secret needs only a restart.
 
 ### Demo accounts
 

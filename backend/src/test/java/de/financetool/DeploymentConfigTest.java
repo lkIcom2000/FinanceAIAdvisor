@@ -19,6 +19,7 @@ class DeploymentConfigTest {
 
     static final Set<String> ALLOWED_APP_VARIABLES = Set.of(
             "SPRING_DATASOURCE_URL", "SPRING_DATASOURCE_USERNAME", "SPRING_DATASOURCE_PASSWORD",
+            "SPRING_DATASOURCE_OWNER_USERNAME", "SPRING_DATASOURCE_OWNER_PASSWORD",
             "APP_OLLAMA_URL", "APP_AGENT_CONFIG", "SPRING_PROFILES_ACTIVE");
 
     /** A secret must be required from the environment: {@code ${NAME:?message}}. */
