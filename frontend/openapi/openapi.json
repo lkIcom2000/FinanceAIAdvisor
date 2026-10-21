@@ -96,7 +96,7 @@
             "content" : {
               "application/json" : {
                 "schema" : {
-                  "$ref" : "#/components/schemas/PersonaSummary"
+                  "$ref" : "#/components/schemas/PersonaResponse"
                 }
               }
             },
@@ -140,7 +140,7 @@
         },
         "required" : [ "amount", "currency" ]
       },
-      "PersonaSummary" : {
+      "PersonaResponse" : {
         "type" : "object",
         "properties" : {
           "displayName" : {
@@ -148,6 +148,11 @@
           },
           "id" : {
             "type" : "string"
+          },
+          "today" : {
+            "type" : "string",
+            "format" : "date",
+            "description" : "The persona's simulated date; present only under the research profile"
           }
         },
         "required" : [ "displayName", "id" ]

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
 import de.financetool.personas.adapter.PersonaRepository;
+import de.financetool.personas.adapter.PersonaStateRepository;
 import de.financetool.personas.adapter.UserRepository;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -35,6 +36,9 @@ class OpenApiSnapshotTest {
 
     @MockitoBean
     PersonaRepository personas;
+
+    @MockitoBean
+    PersonaStateRepository personaStates;
 
     @Test
     void publishedDocumentMatchesCommittedSnapshot() throws Exception {

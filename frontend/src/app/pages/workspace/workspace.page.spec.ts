@@ -18,8 +18,16 @@ describe('WorkspacePage', () => {
     await loaded;
   });
 
+  function answerPersona(today?: string): void {
+    TestBed.inject(HttpTestingController)
+      .expectOne('/api/persona')
+      .flush({ id: 'p-lena', displayName: 'Lena', ...(today ? { today } : {}) });
+  }
+
   it('shows the header and the four Overview tabs', async () => {
     const fixture = TestBed.createComponent(WorkspacePage);
+    fixture.detectChanges();
+    answerPersona();
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
 
@@ -30,11 +38,25 @@ describe('WorkspacePage', () => {
     const labels = Array.from(element.querySelectorAll('[role="tab"]')).map((t) => t.textContent?.trim());
     expect(labels).toEqual(['Home', 'Liquidity', 'Wealth & Retirement', 'Letters']);
     expect(element.querySelector('aside[aria-label="Chat with Fine"]')).not.toBeNull();
+    expect(element.querySelector('.date-chip')).toBeNull();
+  });
+
+  it('shows the simulated-date chip when the backend sends today (research profile)', async () => {
+    const fixture = TestBed.createComponent(WorkspacePage);
+    fixture.detectChanges();
+    answerPersona('2026-10-20');
+    await fixture.whenStable();
+
+    expect((fixture.nativeElement as HTMLElement).querySelector('.date-chip')?.textContent).toBe(
+      'Today: 20 Oct 2026',
+    );
   });
 
   it('selects the tab named in ?tab= and falls back to Home', async () => {
     const fixture = TestBed.createComponent(WorkspacePage);
     fixture.componentRef.setInput('tab', 'wealth');
+    fixture.detectChanges();
+    answerPersona();
     await fixture.whenStable();
     const selected = () =>
       (fixture.nativeElement as HTMLElement).querySelector('[role="tab"][aria-selected="true"]')?.textContent?.trim();
@@ -48,6 +70,8 @@ describe('WorkspacePage', () => {
   it('writes the chosen tab into the URL', async () => {
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     const fixture = TestBed.createComponent(WorkspacePage);
+    fixture.detectChanges();
+    answerPersona();
     await fixture.whenStable();
 
     ((fixture.nativeElement as HTMLElement).querySelectorAll('[role="tab"]')[1] as HTMLElement).click();

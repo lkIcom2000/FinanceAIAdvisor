@@ -1,0 +1,29 @@
+# Agent Configuration "reference" (AD-14). Selected with APP_AGENT_CONFIG=reference.
+# Holds the PRD's initial Reference Configuration (§8.1). Experiment results (E1–E4) change this
+# file only, and update derivedFrom accordingly (AD-25).
+agent:
+  id: reference
+  derivedFrom:
+    experiment: none
+    resultFile: none
+    date: 2026-10-20
+    note: PRD starting value (§8.1 initial Reference Configuration; decoding and seeds from experiments/finlab defaults)
+  llm:
+    phrasing: llama3.1:8b-instruct-q4_K_M
+    nlu: llama3.1:8b-instruct-q4_K_M
+    judge: llama3.1:8b-instruct-q4_K_M
+    embedding: bge-m3
+  retrieval: true
+  # File in config/prompts/ named role-<rolePrompt>.txt
+  rolePrompt: advisor
+  compliance: A+B+C
+  dataExposure: aggregated
+  decoding:
+    temperature: 0.0
+    topP: 0.9
+    seed: 42
+    numCtx: 4096
+    numPredict: 700
+  seeds:
+    core: 20261020
+    llm: 42

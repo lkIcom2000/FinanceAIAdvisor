@@ -30,6 +30,11 @@ class ArchitectureTest {
         ArchitectureRules.PERSONA_SCOPE_ONLY_FROM_PRINCIPAL.check(PRODUCTION);
     }
 
+    @Test
+    void configurationReachesServicesOnlyThroughTheRequestContext() {
+        ArchitectureRules.CONFIG_ONLY_THROUGH_REQUEST_CONTEXT.check(PRODUCTION);
+    }
+
     /** Proves the rules actually fire, using deliberately broken classes in {@code archfixture}. */
     @Nested
     class NegativeFixtures {
@@ -50,6 +55,13 @@ class ArchitectureTest {
             EvaluationResult result = ArchitectureRules.PERSONA_SCOPE_ONLY_FROM_PRINCIPAL.evaluate(fixtures);
             assertThat(result.getFailureReport().getDetails())
                     .anyMatch(line -> line.contains("ScopeFromRequest") && line.contains("PersonaScope.<init>"));
+        }
+
+        @Test
+        void injectedConfigurationIsAViolation() {
+            EvaluationResult result = ArchitectureRules.CONFIG_ONLY_THROUGH_REQUEST_CONTEXT.evaluate(fixtures);
+            assertThat(result.getFailureReport().getDetails())
+                    .anyMatch(line -> line.contains("ConfigReadingService.agentConfig"));
         }
 
         @Test

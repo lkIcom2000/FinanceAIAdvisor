@@ -12,7 +12,7 @@ import { StrictHttpResponse } from '../strict-http-response';
 
 import { current } from '../fn/persona/current';
 import { Current$Params } from '../fn/persona/current';
-import { PersonaSummary } from '../models/persona-summary';
+import { PersonaResponse } from '../models/persona-response';
 
 
 /**
@@ -37,7 +37,7 @@ export class PersonaService extends BaseService {
    *
    * This method doesn't expect any request body.
    */
-  current$Response(params?: Current$Params, context?: HttpContext): Observable<StrictHttpResponse<PersonaSummary>> {
+  current$Response(params?: Current$Params, context?: HttpContext): Observable<StrictHttpResponse<PersonaResponse>> {
     const obs = current(this.http, this.rootUrl, params, context);
     return obs;
   }
@@ -52,10 +52,10 @@ export class PersonaService extends BaseService {
    *
    * This method doesn't expect any request body.
    */
-  current(params?: Current$Params, context?: HttpContext): Observable<PersonaSummary> {
+  current(params?: Current$Params, context?: HttpContext): Observable<PersonaResponse> {
     const resp = this.current$Response(params, context);
     return resp.pipe(
-      map((r: StrictHttpResponse<PersonaSummary>): PersonaSummary => r.body)
+      map((r: StrictHttpResponse<PersonaResponse>): PersonaResponse => r.body)
     );
   }
 

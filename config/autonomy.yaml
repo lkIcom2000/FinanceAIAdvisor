@@ -1,0 +1,13 @@
+# Autonomy Gate thresholds (FR-35, Open Question 2). Starting values; calibrated empirically (AD-25).
+autonomy:
+  derivedFrom:
+    experiment: none
+    resultFile: none
+    date: 2026-10-20
+    note: PRD starting value (FR-35)
+  # Regulatory Class "investment": an Action above this share of liquid assets is capped at L2.
+  investmentShareOfLiquidAssets: 0.05
+  # Data Confidence is "low" (cap L1) when transaction coverage is below this share ...
+  dataConfidenceMinCoverage: 0.95
+  # ... or the longest gap in the transaction data exceeds this many days.
+  dataConfidenceMaxGapDays: 5

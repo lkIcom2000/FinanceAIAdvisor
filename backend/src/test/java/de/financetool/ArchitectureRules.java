@@ -1,6 +1,7 @@
 package de.financetool;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.fields;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 import com.tngtech.archunit.base.DescribedPredicate;
@@ -41,6 +42,15 @@ final class ArchitectureRules {
             .that().doNotHaveFullyQualifiedName("de.financetool.shared.web.PersonaScopeResolver")
             .should().callConstructor(de.financetool.shared.PersonaScope.class, de.financetool.shared.domain.PersonaId.class)
             .because("AD-11: the persona of a request comes only from the authenticated principal");
+
+    /** Configuration beans that reach services only through the RequestContext (AD-22). */
+    static final ArchRule CONFIG_ONLY_THROUGH_REQUEST_CONTEXT = fields()
+            .that().haveRawType(de.financetool.shared.config.AgentConfiguration.class)
+            .or().haveRawType(de.financetool.shared.config.AutonomyThresholds.class)
+            .or().haveRawType(de.financetool.shared.config.ConfigFingerprint.class)
+            .should().beDeclaredIn(de.financetool.shared.RequestContext.class)
+            .orShould().beDeclaredIn("de.financetool.personas.application.RequestContextService")
+            .because("AD-22: services receive configuration through the RequestContext, never by injection");
 
     private ArchitectureRules() {
     }

@@ -1,0 +1,36 @@
+# Minimum profile fields per recommendation topic (AD-23). Each topic is a list of groups:
+# every group must be satisfied (AND), any one field within a group suffices (OR).
+# If the minimum is not met, the outcome is ASK_PROFILE.
+profileMinimums:
+  derivedFrom:
+    experiment: none
+    resultFile: none
+    date: 2026-10-20
+    note: PRD starting value (experiments/data/rules/category_rules.yaml, experiments/finlab/profile.py)
+  # Fields a stored profile needs before a persisted recommendation in a persona workspace (FR-17).
+  strictSuitabilityFields:
+    - goal
+    - investment_horizon_years
+    - net_income
+    - monthly_expenses
+    - emergency_fund
+    - loss_bearing_capacity
+    - risk_tolerance
+    - knowledge_experience
+    - sustainability_preference
+  topics:
+    asset_allocation: [[risk_tolerance], [investment_horizon_years]]
+    savings_plan: [[monthly_surplus, net_income], [risk_tolerance, loss_aversion]]
+    investment_decision: [[risk_tolerance, loss_aversion], [investment_horizon_years], [emergency_fund, monthly_expenses]]
+    diversification: [[current_holdings]]
+    short_term_investment: [[investment_horizon_years], [amount]]
+    sustainability_fit: [[sustainability_preference]]
+    product_variant_tax: [[tax_allowance_unused]]
+    retirement_strategy: [[investment_horizon_years], [pension_situation]]
+    leverage_or_loan: [[net_income], [emergency_fund]]
+    fund_selection: [[risk_tolerance], [investment_horizon_years]]
+    liquidity_management: [[current_balance, emergency_fund], [monthly_expenses]]
+    subsidy_eligibility: [[employment_status], [net_income, gross_income], [children]]
+    contract_switch: [[existing_contract_details]]
+    protection_needs: [[household], [dependants], [occupation]]
+    protection_duplicate: [[existing_contracts]]

@@ -1,6 +1,12 @@
 spring:
   application:
     name: fine
+  # Versioned configuration files below APP_HOME (AD-14, AD-25). Not optional: a missing file stops startup.
+  config:
+    import:
+      - file:${APP_HOME:..}/config/agent/${APP_AGENT_CONFIG:reference}.yaml
+      - file:${APP_HOME:..}/config/autonomy.yaml
+      - file:${APP_HOME:..}/config/profile-minimums.yaml
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/fine}
     username: ${SPRING_DATASOURCE_USERNAME:fine}

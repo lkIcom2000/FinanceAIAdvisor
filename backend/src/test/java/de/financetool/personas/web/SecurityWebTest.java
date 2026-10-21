@@ -14,10 +14,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import de.financetool.personas.adapter.PersonaEntity;
 import de.financetool.personas.adapter.PersonaRepository;
+import de.financetool.personas.adapter.PersonaStateEntity;
+import de.financetool.personas.adapter.PersonaStateRepository;
 import de.financetool.personas.adapter.UserEntity;
 import de.financetool.personas.adapter.UserRepository;
 import de.financetool.shared.Role;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -50,6 +53,9 @@ class SecurityWebTest {
     @MockitoBean
     PersonaRepository personas;
 
+    @MockitoBean
+    PersonaStateRepository personaStates;
+
     @Autowired
     WebApplicationContext context;
 
@@ -67,6 +73,8 @@ class SecurityWebTest {
         when(users.findByUsername(anyString())).thenAnswer(i -> Optional.ofNullable(accounts.get(i.<String>getArgument(0))));
         when(personas.findById(anyString())).thenAnswer(i -> Optional.ofNullable(people.get(i.<String>getArgument(0))));
         when(personas.find(org.mockito.ArgumentMatchers.any())).thenCallRealMethod();
+        when(personaStates.findByPersonaId(anyString())).thenAnswer(i -> Optional.of(state(i.getArgument(0))));
+        when(personaStates.find(org.mockito.ArgumentMatchers.any())).thenCallRealMethod();
     }
 
     @Test
@@ -104,7 +112,8 @@ class SecurityWebTest {
         String body = mvc.perform(get("/api/persona").session(lena).param("personaId", "p-marco"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        assertThat(body).contains("p-lena").doesNotContain("p-marco").doesNotContain("Marco");
+        assertThat(body).contains("p-lena").doesNotContain("p-marco").doesNotContain("Marco")
+                .as("no simulated date without the research profile").doesNotContain("today");
     }
 
     @Test
@@ -140,6 +149,16 @@ class SecurityWebTest {
         when(user.getPersonaId()).thenReturn(personaId);
         when(user.getDisplayName()).thenReturn(displayName);
         return user;
+    }
+
+    static final LocalDate SIMULATED_DATE = LocalDate.of(2026, 10, 20);
+
+    private static PersonaStateEntity state(String personaId) {
+        PersonaStateEntity state = mock(PersonaStateEntity.class);
+        when(state.getPersonaId()).thenReturn(personaId);
+        when(state.getSimulatedDate()).thenReturn(SIMULATED_DATE);
+        when(state.getFixtureVersion()).thenReturn("pre-fixtures");
+        return state;
     }
 
     private static PersonaEntity persona(String id, String name) {

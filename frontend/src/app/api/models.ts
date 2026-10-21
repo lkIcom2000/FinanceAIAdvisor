@@ -3,7 +3,7 @@
 
 export type { LoginRequest } from './models/login-request';
 export type { Money } from './models/money';
-export type { PersonaSummary } from './models/persona-summary';
+export type { PersonaResponse } from './models/persona-response';
 export type { ProblemCode } from './models/problem-code';
 export type { ProblemDetail } from './models/problem-detail';
 export type { SessionInfo } from './models/session-info';

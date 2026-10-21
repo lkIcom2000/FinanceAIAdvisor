@@ -7,12 +7,12 @@ import { filter, map } from 'rxjs/operators';
 import { StrictHttpResponse } from '../../strict-http-response';
 import { RequestBuilder } from '../../request-builder';
 
-import { PersonaSummary } from '../../models/persona-summary';
+import { PersonaResponse } from '../../models/persona-response';
 
 export interface Current$Params {
 }
 
-export function current(http: HttpClient, rootUrl: string, params?: Current$Params, context?: HttpContext): Observable<StrictHttpResponse<PersonaSummary>> {
+export function current(http: HttpClient, rootUrl: string, params?: Current$Params, context?: HttpContext): Observable<StrictHttpResponse<PersonaResponse>> {
   const rb = new RequestBuilder(rootUrl, current.PATH, 'get');
   if (params) {
   }
@@ -22,7 +22,7 @@ export function current(http: HttpClient, rootUrl: string, params?: Current$Para
   ).pipe(
     filter((r: any): r is HttpResponse<any> => r instanceof HttpResponse),
     map((r: HttpResponse<any>) => {
-      return r as StrictHttpResponse<PersonaSummary>;
+      return r as StrictHttpResponse<PersonaResponse>;
     })
   );
 }
