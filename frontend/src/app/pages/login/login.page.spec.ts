@@ -31,6 +31,13 @@ describe('LoginPage', () => {
     return http.expectOne('/api/auth/login');
   }
 
+  it('shows no hint that research functions exist', async () => {
+    const fixture = TestBed.createComponent(LoginPage);
+    await fixture.whenStable();
+
+    expect((fixture.nativeElement as HTMLElement).textContent?.toLowerCase()).not.toMatch(/research|swagger/);
+  });
+
   it('shows the inline error for wrong credentials', async () => {
     const fixture = TestBed.createComponent(LoginPage);
     await fixture.whenStable();

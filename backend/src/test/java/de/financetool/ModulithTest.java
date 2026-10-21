@@ -3,7 +3,9 @@ package de.financetool;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import de.financetool.research.application.ResetPersonaUseCase;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -62,6 +64,23 @@ class ModulithTest {
         Map<String, Set<String>> expected = new TreeMap<>();
         AD12_GRAPH.forEach((k, v) -> expected.put(k, new TreeSet<>(v)));
         assertThat(declared).isEqualTo(expected);
+    }
+
+    /** Persona reset (AD-12): every owner runs before the modules it depends on; audit, knowledge, llm never. */
+    @Test
+    void theResetOrderRespectsTheModuleGraph() {
+        List<String> order = ResetPersonaUseCase.RESET_ORDER;
+        for (int i = 0; i < order.size(); i++) {
+            for (String dependency : AD12_GRAPH.get(order.get(i))) {
+                if (order.contains(dependency)) {
+                    assertThat(order.indexOf(dependency)).as(order.get(i) + " depends on " + dependency)
+                            .isGreaterThan(i);
+                }
+            }
+        }
+        assertThat(order).doesNotContain("audit", "knowledge", "llm", "research", "shared")
+                .containsAll(AD12_GRAPH.keySet().stream()
+                        .filter(m -> !Set.of("audit", "knowledge", "llm", "research", "shared").contains(m)).toList());
     }
 
     @Test

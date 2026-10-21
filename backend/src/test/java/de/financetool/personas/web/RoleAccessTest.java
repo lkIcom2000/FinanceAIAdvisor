@@ -52,6 +52,9 @@ class RoleAccessTest extends PostgresIntegrationTest {
     void researchPathIs404EvenWithoutSessionOrCsrfToken() throws Exception {
         mvc.perform(get("/api/research/anything")).andExpect(status().isNotFound());
         mvc.perform(post("/api/research/anything")).andExpect(status().isNotFound());
+        mvc.perform(post("/api/research/personas/p-lena/reset")).andExpect(status().isNotFound());
+        mvc.perform(post("/api/research/personas/p-lena/simulated-date")).andExpect(status().isNotFound());
+        mvc.perform(get("/api/research/audit/export")).andExpect(status().isNotFound());
     }
 
     /** With the research profile, research paths and the research Swagger group belong to the researcher. */

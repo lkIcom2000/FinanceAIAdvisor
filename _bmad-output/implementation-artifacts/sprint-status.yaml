@@ -42,7 +42,7 @@
 #   configuration with a derivedFrom block (AD-25). Check E3 before 3.9, E1 before 4.2/4.3.
 
 generated: 10-21-2026 13:52
-last_updated: 10-21-2026 19:05
+last_updated: 10-21-2026 19:30
 project: FinanceTool
 project_key: NOKEY
 tracking_system: file-system
@@ -55,7 +55,7 @@ development_status:
   1-4-simulated-clock-request-context-and-versioned-agent-configur: done  # start 2026-10-21T15:00+02:00, end 2026-10-21T15:12+02:00; PersonaStateMigrationTest green 2026-10-21
   1-5-append-only-audit-trail-and-evidence-store: review  # start 2026-10-21T18:10+02:00, end 2026-10-21T18:35+02:00; pending: joint review after 1.7
   1-6-llm-behind-one-port-served-by-a-pinned-ollama-model: review  # start 2026-10-21T18:40+02:00, end 2026-10-21T19:05+02:00; pending: joint review after 1.7
-  1-7-persona-reset-for-reproducible-sessions: backlog
+  1-7-persona-reset-for-reproducible-sessions: review  # start 2026-10-21T19:08+02:00, end 2026-10-21T19:30+02:00; pending: joint review
   epic-1-retrospective: optional
 
   epic-2: backlog  # [critical-path]
