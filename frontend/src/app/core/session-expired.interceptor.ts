@@ -10,7 +10,9 @@ export const sessionExpiredInterceptor: HttpInterceptorFn = (request, next) => {
   const router = inject(Router);
   return next(request).pipe(
     catchError((error: unknown) => {
-      if (error instanceof HttpErrorResponse && error.status === 401 && session.user() !== null) {
+      const expired = error instanceof HttpErrorResponse && error.status === 401
+        && session.user() !== null && !request.url.endsWith('/api/auth/login');
+      if (expired) {
         session.clear();
         void router.navigate(['/login'], { queryParams: { reason: 'expired' } });
       }

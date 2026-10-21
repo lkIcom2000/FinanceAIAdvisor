@@ -1,13 +1,15 @@
 package de.financetool.shared;
 
 import de.financetool.shared.domain.PersonaId;
+import java.io.Serializable;
 import java.util.Objects;
 import java.util.Optional;
 
 /**
  * Who is logged in. A {@code PERSONA} account always carries its persona id; advisor and researcher accounts never do.
  */
-public record AuthenticatedUser(String username, Role role, PersonaId personaId, String displayName) {
+public record AuthenticatedUser(String username, Role role, PersonaId personaId, String displayName)
+        implements Serializable {
 
     public AuthenticatedUser {
         Objects.requireNonNull(username, "username");

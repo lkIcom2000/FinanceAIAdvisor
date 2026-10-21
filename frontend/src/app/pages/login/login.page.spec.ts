@@ -46,6 +46,42 @@ describe('LoginPage', () => {
     );
   });
 
+  it('treats a failed login as wrong credentials even while a session is known', async () => {
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const fixture = TestBed.createComponent(LoginPage);
+    await fixture.whenStable();
+    (await submit(fixture, 'p-lena')).flush({ role: 'PERSONA', displayName: 'Lena' });
+    await flushMicrotasks();
+
+    (await submit(fixture, 'p-marco')).flush(
+      { code: 'BAD_CREDENTIALS' },
+      { status: 401, statusText: 'Unauthorized' },
+    );
+    await fixture.whenStable();
+
+    expect(navigate).not.toHaveBeenCalledWith(['/login'], { queryParams: { reason: 'expired' } });
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+      "That username and password don't match.",
+    );
+  });
+
+  it('does not send whitespace-only input', async () => {
+    const fixture = TestBed.createComponent(LoginPage);
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+    const [username, password] = Array.from(element.querySelectorAll('input'));
+    username.value = '   ';
+    username.dispatchEvent(new Event('input'));
+    password.value = 'secret';
+    password.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+    element.querySelector('form')!.dispatchEvent(new Event('submit'));
+    await flushMicrotasks();
+
+    http.expectNone('/api/auth/csrf');
+    http.expectNone('/api/auth/login');
+  });
+
   it('shows the inactivity message after an expired session', async () => {
     const fixture = TestBed.createComponent(LoginPage);
     fixture.componentRef.setInput('reason', 'expired');

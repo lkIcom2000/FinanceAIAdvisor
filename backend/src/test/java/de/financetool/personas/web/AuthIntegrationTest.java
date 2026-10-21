@@ -15,6 +15,8 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.annotation.DirtiesContext.MethodMode;
 import org.springframework.test.web.servlet.MvcResult;
 
 class AuthIntegrationTest extends PostgresIntegrationTest {
@@ -24,8 +26,7 @@ class AuthIntegrationTest extends PostgresIntegrationTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"p-lena, PERSONA, Lena", "p-marco, PERSONA, Marco", "advisor-kaya, ADVISOR, Kaya",
-            "researcher, RESEARCHER, Researcher"})
+    @CsvSource({"p-lena, PERSONA, Lena", "p-marco, PERSONA, Marco", "advisor-kaya, ADVISOR, Kaya"})
     void validLoginReturnsRoleAndDisplayNameAndANewSession(String username, String role, String name)
             throws Exception {
         MockHttpSession before = new MockHttpSession();
@@ -43,7 +44,7 @@ class AuthIntegrationTest extends PostgresIntegrationTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"p-lena, wrong-password", "nobody, fine-demo"})
+    @CsvSource({"p-lena, wrong-password", "nobody, fine-demo", "researcher, fine-demo"})
     void wrongCredentialsAre401JsonWithoutRedirect(String username, String password) throws Exception {
         mvc.perform(post("/api/auth/login").with(csrf())
                         .contentType(MediaType.APPLICATION_JSON).content(credentials(username, password)))
@@ -60,15 +61,26 @@ class AuthIntegrationTest extends PostgresIntegrationTest {
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
     }
 
+    /**
+     * Needs a fresh context: {@code with(csrf())} in any earlier test permanently swaps the cached context's
+     * cookie token repository for a session-based test repository, so no XSRF-TOKEN cookie would be issued.
+     */
     @Test
+    @DirtiesContext(methodMode = MethodMode.BEFORE_METHOD)
     void spaCsrfFlowWorksWithTheCookieValueAsHeader() throws Exception {
         Cookie xsrf = mvc.perform(get("/api/auth/csrf")).andExpect(status().isNoContent())
                 .andReturn().getResponse().getCookie("XSRF-TOKEN");
         assertThat(xsrf).isNotNull();
 
-        mvc.perform(post("/api/auth/login").cookie(xsrf).header("X-XSRF-TOKEN", xsrf.getValue())
+        Cookie[] cookies = mvc.perform(post("/api/auth/login").cookie(xsrf).header("X-XSRF-TOKEN", xsrf.getValue())
                         .contentType(MediaType.APPLICATION_JSON).content(credentials("p-lena", DEMO_PASSWORD)))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getCookies();
+        // The old token is cleared first, then the new one is set; a browser keeps the last one.
+        Cookie rotated = java.util.Arrays.stream(cookies).filter(c -> c.getName().equals("XSRF-TOKEN"))
+                .reduce((first, second) -> second).orElse(null);
+        assertThat(rotated).as("a new token after login").isNotNull();
+        assertThat(rotated.getValue()).isNotEmpty().isNotEqualTo(xsrf.getValue());
     }
 
     @Test

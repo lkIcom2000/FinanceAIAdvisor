@@ -31,8 +31,11 @@ public class ProblemDetailsAdvice extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(AuthenticationException.class)
     public ProblemDetail handleAuthentication(AuthenticationException ex) {
-        boolean failedLogin = ex instanceof BadCredentialsException || ex instanceof UsernameNotFoundException
-                || ex instanceof InternalAuthenticationServiceException;
+        if (ex instanceof InternalAuthenticationServiceException) {
+            // A server fault while loading the account (database down, inconsistent data), not wrong credentials.
+            return handleUnexpected(ex);
+        }
+        boolean failedLogin = ex instanceof BadCredentialsException || ex instanceof UsernameNotFoundException;
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED,
                 failedLogin ? "That username and password don't match." : "Please log in.");
         problem.setProperty(CODE_PROPERTY, failedLogin ? ProblemCode.BAD_CREDENTIALS : ProblemCode.UNAUTHENTICATED);

@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
@@ -46,14 +47,21 @@ class PersonaIsolationTest extends PostgresIntegrationTest {
                 String path = pattern.replaceAll("\\{[^}]+}", OTHER);
                 Set<RequestMethod> methods = info.getMethodsCondition().getMethods();
                 for (RequestMethod method : methods.isEmpty() ? Set.of(RequestMethod.GET) : methods) {
-                    String body = mvc.perform(request(HttpMethod.valueOf(method.name()), path)
-                                    .session(lena).with(csrf())
-                                    .param("personaId", OTHER)
-                                    .contentType(MediaType.APPLICATION_JSON)
-                                    .content("{\"personaId\":\"" + OTHER + "\"}"))
-                            .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+                    MockHttpServletResponse response = mvc.perform(
+                                    request(HttpMethod.valueOf(method.name()), path)
+                                            .session(lena).with(csrf())
+                                            .param("personaId", OTHER)
+                                            .contentType(MediaType.APPLICATION_JSON)
+                                            .content("{\"personaId\":\"" + OTHER + "\"}"))
+                            .andReturn().getResponse();
+                    String body = response.getContentAsString(StandardCharsets.UTF_8);
+                    assertThat(response.getStatus()).as("%s %s must not fail on the server", method, path)
+                            .isLessThan(500);
                     assertThat(body).as("%s %s", method, path).doesNotContain(OTHER).doesNotContain("Marco");
                     checked.add(method + " " + path);
+                    if (path.equals("/api/persona") && method == RequestMethod.GET) {
+                        assertThat(body).as("the scope was applied: Lena's own data").contains("p-lena");
+                    }
                 }
             }
         }

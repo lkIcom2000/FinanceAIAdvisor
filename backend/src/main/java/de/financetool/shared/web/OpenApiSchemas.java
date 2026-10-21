@@ -29,27 +29,19 @@ public class OpenApiSchemas {
         return new OpenAPI().info(new Info().title("Fine API").version("0.1.0"));
     }
 
-    /** Swagger UI group for the persona-facing API and login; the Angular client is generated from the full document. */
-    @Bean
-    GroupedOpenApi customerApi() {
-        return GroupedOpenApi.builder().group("customer")
-                .pathsToMatch("/api/**")
-                .pathsToExclude("/api/advisor/**", "/api/research/**")
-                .addOpenApiCustomizer(sharedSchemas())
-                .build();
-    }
-
     /** The advisor's Swagger UI landing group (AD-11: no advisor UI). */
     @Bean
     GroupedOpenApi advisorApi() {
-        return GroupedOpenApi.builder().group("advisor").pathsToMatch("/api/advisor/**", "/api/auth/**").build();
+        return GroupedOpenApi.builder().group("advisor").pathsToMatch("/api/advisor/**", "/api/auth/**")
+                .addOpenApiCustomizer(sharedSchemas()).build();
     }
 
     /** The researcher's Swagger UI landing group; registered only under the research profile. */
     @Bean
     @Profile(SecurityConfig.RESEARCH_PROFILE)
     GroupedOpenApi researchApi() {
-        return GroupedOpenApi.builder().group("research").pathsToMatch("/api/research/**", "/api/auth/**").build();
+        return GroupedOpenApi.builder().group("research").pathsToMatch("/api/research/**", "/api/auth/**")
+                .addOpenApiCustomizer(sharedSchemas()).build();
     }
 
     @Bean

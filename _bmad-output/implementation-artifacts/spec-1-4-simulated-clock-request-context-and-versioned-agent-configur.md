@@ -79,6 +79,7 @@ context:
 - Found by tests and fixed: the header chip formatted a date-only string in UTC and showed the previous day in CEST; now local time (tested in two time zones).
 - Verified: backend `./mvnw verify` 60 tests, 45 run green (fingerprint, binding incl. missing file / invalid values, context factory, ArchUnit, controller); frontend 13 tests and build green.
 - **Not verified (no Docker):** `PersonaStateMigrationTest` (V3 against PostgreSQL, use case on the stored date) and the 13 Story 1.3 Testcontainers tests were skipped.
+- Verified with Docker (2026-10-21): `PersonaStateMigrationTest` 2/2 green against pgvector 0.8.2-pg17 with Flyway V1–V3; full `./mvnw -B verify` 69 tests, 0 skipped. The shared-container fix in `PostgresIntegrationTest` is described in the Story 1.3 spec.
 
 ## Spec Change Log
 

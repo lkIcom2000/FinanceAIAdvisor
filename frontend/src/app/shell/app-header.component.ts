@@ -55,7 +55,8 @@ export class AppHeaderComponent {
   protected readonly persona = toSignal(inject(PersonaService).current().pipe(catchError(() => of(null))));
 
   protected async logout(): Promise<void> {
-    await this.session.logout();
+    // The local session is cleared even if the call fails; the user leaves the Workspace either way.
+    await this.session.logout().catch(() => undefined);
     await this.router.navigateByUrl('/login');
   }
 }

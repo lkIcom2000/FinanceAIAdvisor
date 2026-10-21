@@ -20,7 +20,10 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.security.web.csrf.CsrfAuthenticationStrategy;
+import org.springframework.security.web.csrf.CsrfLogoutHandler;
 import org.springframework.security.web.csrf.CsrfToken;
+import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -47,10 +50,13 @@ class AuthController {
 
     private final AuthenticationManager authenticationManager;
     private final SecurityContextRepository securityContextRepository;
+    private final CsrfTokenRepository csrfTokenRepository;
 
-    AuthController(AuthenticationManager authenticationManager, SecurityContextRepository securityContextRepository) {
+    AuthController(AuthenticationManager authenticationManager, SecurityContextRepository securityContextRepository,
+            CsrfTokenRepository csrfTokenRepository) {
         this.authenticationManager = authenticationManager;
         this.securityContextRepository = securityContextRepository;
+        this.csrfTokenRepository = csrfTokenRepository;
     }
 
     @Operation(summary = "Log in with username and password; starts a session")
@@ -65,6 +71,12 @@ class AuthController {
         } else {
             request.getSession(true);
         }
+        // A token issued before login must not stay valid after it (what formLogin's CsrfAuthenticationStrategy does).
+        new CsrfAuthenticationStrategy(csrfTokenRepository).onAuthentication(authentication, request, response);
+        // The replacement token is deferred; load it so its cookie goes out with this response.
+        if (request.getAttribute(CsrfToken.class.getName()) instanceof CsrfToken rotated) {
+            rotated.getToken();
+        }
         SecurityContext context = SecurityContextHolder.createEmptyContext();
         context.setAuthentication(authentication);
         SecurityContextHolder.setContext(context);
@@ -78,6 +90,7 @@ class AuthController {
     void logout(HttpServletRequest request, HttpServletResponse response,
             @Parameter(hidden = true) Authentication authentication) {
         new SecurityContextLogoutHandler().logout(request, response, authentication);
+        new CsrfLogoutHandler(csrfTokenRepository).logout(request, response, authentication);
     }
 
     @Operation(summary = "The logged-in account")

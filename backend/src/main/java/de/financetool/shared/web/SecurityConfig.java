@@ -17,6 +17,8 @@ import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -32,11 +34,18 @@ public class SecurityConfig {
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, Environment environment,
-            SecurityContextRepository securityContextRepository,
+            SecurityContextRepository securityContextRepository, CsrfTokenRepository csrfTokenRepository,
             @Qualifier("handlerExceptionResolver") HandlerExceptionResolver exceptionResolver) throws Exception {
         boolean research = environment.acceptsProfiles(Profiles.of(RESEARCH_PROFILE));
         http
-                .csrf(csrf -> csrf.spa())
+                .csrf(csrf -> {
+                    // The cookie repository spa() would create, shared with AuthController to rotate it on login.
+                    csrf.spa().csrfTokenRepository(csrfTokenRepository);
+                    if (!research) {
+                        // Unknown paths answer 404 for every method, not 403 for a missing token.
+                        csrf.ignoringRequestMatchers("/api/research/**");
+                    }
+                })
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
@@ -59,7 +68,8 @@ public class SecurityConfig {
                     }
                     auth.requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/swagger-config")
                             .hasAnyRole("ADVISOR", "RESEARCHER")
-                            .requestMatchers("/v3/api-docs", "/v3/api-docs/**").denyAll()
+                            .requestMatchers("/v3/api-docs", "/v3/api-docs/**", "/v3/api-docs.yaml",
+                                    "/v3/api-docs.yaml/**").denyAll()
                             .requestMatchers("/api/**").hasRole("PERSONA")
                             .anyRequest().permitAll();
                 });
@@ -69,6 +79,11 @@ public class SecurityConfig {
     @Bean
     SecurityContextRepository securityContextRepository() {
         return new HttpSessionSecurityContextRepository();
+    }
+
+    @Bean
+    CsrfTokenRepository csrfTokenRepository() {
+        return CookieCsrfTokenRepository.withHttpOnlyFalse();
     }
 
     @Bean

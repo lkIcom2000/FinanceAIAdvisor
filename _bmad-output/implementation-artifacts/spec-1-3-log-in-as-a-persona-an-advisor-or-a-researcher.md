@@ -73,6 +73,37 @@ context:
 - Given a login per role, when the SPA navigates, then `PERSONA` sees the header ("Atruvia" wordmark, divider, "Fine", name, Log out) and the shell with tabs Home, Liquidity, Wealth & Retirement, Letters (tab in `?tab=`); `ADVISOR`/`RESEARCHER` land on their Swagger UI group and cannot open `/`.
 - Given the login page, when credentials are wrong or a session expired, then the story's exact messages appear; logout clears the session.
 
+### Review Findings
+
+Code review 2026-10-21 (blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor) over commit 0543f41 plus the test-infrastructure fix. Decisions resolved with the recommended default (batch mode).
+
+- [x] [Review][Decision] Researcher can log in without the `research` profile and lands on a Swagger group that does not exist — resolved: without the profile the researcher account does not exist for login (401 `BAD_CREDENTIALS`), like `/api/research/**` answering 404.
+- [x] [Review][Decision] Swagger UI lists groups staff cannot open (`customer` is `denyAll` for everyone) — resolved: drop the unused `customer` group (the Angular client is generated from the full document); advisor/research cross-listing under the research profile is accepted, access stays enforced.
+- [x] [Review][Patch] Infrastructure failures at login (DB down, account without persona) answer 401 `BAD_CREDENTIALS` and are not logged [backend/src/main/java/de/financetool/shared/web/ProblemDetailsAdvice.java:33]
+- [x] [Review][Patch] `/v3/api-docs.yaml` bypasses the `/v3/api-docs/**` denyAll and serves the full spec anonymously [backend/src/main/java/de/financetool/shared/web/SecurityConfig.java:62]
+- [x] [Review][Patch] `PersonaScope` can still be built by data binding (`@RequestBody`/`@ModelAttribute` parameter or DTO field) without tripping the ArchUnit rule [backend/src/test/java/de/financetool/ArchitectureRules.java:41]
+- [x] [Review][Patch] `PersonaRepository.findById(String)` is a raw-id read any code can call [backend/src/main/java/de/financetool/personas/adapter/PersonaRepository.java:10]
+- [x] [Review][Patch] CSRF token is not rotated on login and not cleared on logout (custom login controller skips `CsrfAuthenticationStrategy`) [backend/src/main/java/de/financetool/personas/web/AuthController.java:58]
+- [x] [Review][Patch] Isolation sweep passes on 5xx responses and has no positive check that the scope was applied [backend/src/test/java/de/financetool/personas/web/PersonaIsolationTest.java:41]
+- [x] [Review][Patch] Without Docker the safety-critical integration tests are skipped silently; no switch makes a review run fail instead [backend/src/test/java/de/financetool/PostgresIntegrationTest.java:20]
+- [x] [Review][Patch] Header "Log out" leaves an unhandled rejection and no navigation when the logout call fails; untested [frontend/src/app/shell/app-header.component.ts:59]
+- [x] [Review][Patch] A failed login while a local session exists is treated as session expiry by the interceptor [frontend/src/app/core/session-expired.interceptor.ts:12]
+- [x] [Review][Patch] Whitespace-only username passes the client check and ends in the generic error [frontend/src/app/pages/login/login.page.ts:33]
+- [x] [Review][Patch] Session principal (`AuthenticatedUser`, `PersonaId`) is not `Serializable` [backend/src/main/java/de/financetool/shared/AuthenticatedUser.java:10]
+- [x] [Review][Patch] Advisor and research Swagger groups lack the shared `Money`/`ProblemCode`/`ProblemDetail` schemas [backend/src/main/java/de/financetool/shared/web/OpenApiSchemas.java:42]
+- [x] [Review][Patch] Without the research profile a non-GET `/api/research/**` answers 403 (CSRF) instead of 404 [backend/src/main/java/de/financetool/shared/web/SecurityConfig.java:38]
+- [x] [Review][Patch] Missing tests: logout without CSRF → 403, staff reach Swagger UI and `swagger-config`, `GET /login` forwards to the SPA [backend/src/test/java/de/financetool/personas/web/SecurityWebTest.java]
+- [x] [Review][Defer] Layout at 1366×768 and 1440 px has no automated verification [frontend/src/styles.scss] — deferred: manual check in the study dry run (Story 12.2).
+- [x] [Review][Defer] Isolation sweep: an error `ProblemDetail.instance` echoing `p-marco` from a path variable would fail falsely; ids in headers or nested bodies are not sent [backend/src/test/java/de/financetool/personas/web/PersonaIsolationTest.java] — deferred: revisit with the first data-bearing persona endpoint (Epic 2).
+- [x] [Review][Defer] Entry point / access-denied handler write nothing if the exception resolver returns null [backend/src/main/java/de/financetool/shared/web/SecurityConfig.java:44] — deferred: maybe-false; settle with a request that the advice cannot render (e.g. `Accept: text/html` without session).
+
+Rejected:
+- `changeSessionId()` keeps session attributes across a user switch — low: no persona state lives in the session; same as Spring's default strategy.
+- One public demo password, no login throttling — by design (synthetic personas, local study; documented in README).
+- Reload after expiry shows no expiry message / transient errors look like "logged out" — low: fix adds branches, rare in a local study.
+- CSRF test relies on `@DirtiesContext` — low: documented workaround, works.
+- Spec status, task names and the 13-test count disagree with the code — fix edits the spec under review.
+
 ## Implementation Notes
 
 - Timing: start 2026-10-21T14:39:44+02:00, end 2026-10-21T14:57+02:00.
@@ -87,6 +118,12 @@ context:
 - Frontend: Inter bundled via `@fontsource-variable/inter` 5.3.0 (CDN links from `ng add` removed); dev proxy `proxy.conf.json`; component style budget warning raised to 6 kB.
 - Verified: backend `./mvnw verify` 43 tests, 30 run green; frontend 12 Vitest tests green; `npm run build` green.
 - **Not verified (no Docker):** `AuthIntegrationTest`, `RoleAccessTest`, `PersonaIsolationTest` (13 tests: Flyway V2 seeds, session id change, full `/api/**` isolation sweep, research profile) were skipped. Story stays `review`; run `./mvnw verify` with Docker, then `bmad-code-review`.
+- Docker run 2026-10-21 (start 15:59): the first real run of the Testcontainers tests found two test-infrastructure defects, no application defect.
+  - Every database call in the second and later test classes timed out after 30 s (Hikari `connectionTimeout`, login answered 401). Cause: a per-class `@Container` is stopped after the first class while Spring's cached context keeps its JDBC URL. Fix: `PostgresIntegrationTest` starts one singleton container in a static block (only if Docker is available; `@Testcontainers(disabledWithoutDocker = true)` still skips without Docker), removed by Ryuk at JVM exit.
+  - `spaCsrfFlowWorksWithTheCookieValueAsHeader` got no `XSRF-TOKEN` cookie when run after other tests: spring-security-test's `with(csrf())` replaces the `CsrfFilter`'s cookie repository in the cached context with a session-based test repository, permanently. The real chain issues the cookie (checked with `print()` on an isolated run). Fix: `@DirtiesContext(methodMode = BEFORE_METHOD)` on that one test.
+- Verified with Docker: `./mvnw -B verify` BUILD SUCCESS, 69 tests, 0 failures, 0 skipped (incl. `AuthIntegrationTest` 10, `RoleAccessTest` 11, `PersonaIsolationTest` 1).
+- Review patches applied (all 14). The CSRF rotation patch first sent only the clearing cookie on login: `CsrfAuthenticationStrategy` defers the replacement token, so the SPA had no valid token until the next read. `AuthController.login` now loads the new token, so the login response clears the old cookie and sets the new one (a browser keeps the last); `spaCsrfFlowWorksWithTheCookieValueAsHeader` asserts the last `XSRF-TOKEN` cookie differs from the old one.
+- Verified after review: `./mvnw -B verify -Dfine.it.required=true` BUILD SUCCESS, 75 tests, 0 failures, 0 skipped; frontend 17 Vitest tests and `npm run build` green.
 
 ## Spec Change Log
 

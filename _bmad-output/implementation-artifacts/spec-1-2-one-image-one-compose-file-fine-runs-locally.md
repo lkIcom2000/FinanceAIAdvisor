@@ -76,6 +76,7 @@ context:
 - Secrets: compose requires `FINE_DB_PASSWORD` via `${…:?}`; `deploy/.env` is git-ignored, `deploy/.env.example` committed. Single DB role for now (owner/app split in Story 1.5).
 - Verified without Docker: `./mvnw verify` 22 tests green; `npm run build` green; a jar packaged like Dockerfile stage 2 contains `static/index.html` and `db/migration/V1__baseline.sql`.
 - **Not verified (no Docker on the dev PC):** image build, `docker compose up`, Flyway V1 against pgvector, `/actuator/health` UP (matrix rows 1–2). The user runs the README "Run locally" commands; the story stays `review` until then.
+- Verified with Docker 2026-10-21: `docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build` exit 0; `db` healthy, `ollama` and `app` started; `/actuator/health` = UP; `/` serves the Angular `index.html` (`<title>Fine</title>`); `vector` 0.8.2 enabled, Flyway V1–V3 applied; `/app/config`, `/app/data`, `/app/models` mounted read-only; CSRF → login → `/api/persona` → logout flow works against the stack. First attempt hung because Docker's disk image on C: filled the drive; moved to D:.
 
 ## Spec Change Log
 

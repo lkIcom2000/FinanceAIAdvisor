@@ -9,7 +9,7 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
-import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.DockerClientFactory;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
@@ -17,6 +17,11 @@ import org.testcontainers.utility.DockerImageName;
 /**
  * Base for tests against a real PostgreSQL with pgvector, migrated by Flyway. Skipped when Docker is unavailable
  * (Story 1.3 decision); such a run does not count as verified.
+ *
+ * <p>One container for the whole test run (singleton pattern, removed by Ryuk at JVM exit). A per-class
+ * {@code @Container} would be stopped after the first class while Spring's cached context still points at it.
+ *
+ * <p>{@code -Dfine.it.required=true} turns the skip into a failure, for review and release runs.
  */
 @SpringBootTest
 @Testcontainers(disabledWithoutDocker = true)
@@ -24,10 +29,17 @@ public abstract class PostgresIntegrationTest {
 
     public static final String DEMO_PASSWORD = "fine-demo";
 
-    @Container
     @ServiceConnection
     static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer(
             DockerImageName.parse("pgvector/pgvector:0.8.2-pg17").asCompatibleSubstituteFor("postgres"));
+
+    static {
+        if (DockerClientFactory.instance().isDockerAvailable()) {
+            POSTGRES.start();
+        } else if (Boolean.getBoolean("fine.it.required")) {
+            throw new IllegalStateException("fine.it.required is set but Docker is not available");
+        }
+    }
 
     @Autowired
     WebApplicationContext context;

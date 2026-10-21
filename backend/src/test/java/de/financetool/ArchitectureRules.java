@@ -1,12 +1,22 @@
 package de.financetool;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.codeUnits;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.fields;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noFields;
 
 import com.tngtech.archunit.base.DescribedPredicate;
+import com.tngtech.archunit.core.domain.JavaCodeUnit;
 import com.tngtech.archunit.core.domain.JavaMethodCall;
+import com.tngtech.archunit.core.domain.JavaParameter;
+import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ArchRule;
+import com.tngtech.archunit.lang.ConditionEvents;
+import com.tngtech.archunit.lang.SimpleConditionEvent;
+import de.financetool.personas.adapter.PersonaRepository;
+import de.financetool.personas.adapter.PersonaStateRepository;
+import de.financetool.shared.PersonaScope;
 import java.util.Set;
 
 /**
@@ -43,6 +53,24 @@ final class ArchitectureRules {
             .should().callConstructor(de.financetool.shared.PersonaScope.class, de.financetool.shared.domain.PersonaId.class)
             .because("AD-11: the persona of a request comes only from the authenticated principal");
 
+    /** Jackson and data binding build records reflectively, which the constructor rule above cannot see. */
+    static final ArchRule NO_PERSONA_SCOPE_FIELDS = noFields()
+            .should().haveRawType(PersonaScope.class)
+            .because("AD-11: as a field of a request DTO a PersonaScope would be bound from client data");
+
+    static final ArchRule PERSONA_SCOPE_NOT_BOUND_FROM_REQUEST = codeUnits()
+            .should(notBindAPersonaScopeFromTheRequest())
+            .because("AD-11: only PersonaScopeResolver may supply a PersonaScope parameter")
+            .allowEmptyShould(true);
+
+    /** Raw-id persona reads exist for the login lookup and the scoped default methods only. */
+    static final ArchRule RAW_PERSONA_ID_READS_ONLY_FOR_LOGIN = noClasses()
+            .that().doNotHaveFullyQualifiedName("de.financetool.personas.application.AccountDetailsService")
+            .and().doNotBelongToAnyOf(PersonaRepository.class, PersonaStateRepository.class)
+            .should().callMethod(PersonaRepository.class, "findById", String.class)
+            .orShould().callMethod(PersonaStateRepository.class, "findByPersonaId", String.class)
+            .because("AD-11: persona-scoped reads take a PersonaScope, never a raw id");
+
     /** Configuration beans that reach services only through the RequestContext (AD-22). */
     static final ArchRule CONFIG_ONLY_THROUGH_REQUEST_CONTEXT = fields()
             .that().haveRawType(de.financetool.shared.config.AgentConfiguration.class)
@@ -51,6 +79,23 @@ final class ArchitectureRules {
             .should().beDeclaredIn(de.financetool.shared.RequestContext.class)
             .orShould().beDeclaredIn("de.financetool.personas.application.RequestContextService")
             .because("AD-22: services receive configuration through the RequestContext, never by injection");
+
+    private static ArchCondition<JavaCodeUnit> notBindAPersonaScopeFromTheRequest() {
+        return new ArchCondition<>("not bind a PersonaScope parameter with a Spring web binding annotation") {
+            @Override
+            public void check(JavaCodeUnit codeUnit, ConditionEvents events) {
+                for (JavaParameter parameter : codeUnit.getParameters()) {
+                    boolean bound = parameter.getRawType().isEquivalentTo(PersonaScope.class)
+                            && parameter.getAnnotations().stream().anyMatch(annotation -> annotation.getRawType()
+                                    .getPackageName().equals("org.springframework.web.bind.annotation"));
+                    if (bound) {
+                        events.add(SimpleConditionEvent.violated(codeUnit,
+                                codeUnit.getFullName() + " binds PersonaScope from the request"));
+                    }
+                }
+            }
+        };
+    }
 
     private ArchitectureRules() {
     }

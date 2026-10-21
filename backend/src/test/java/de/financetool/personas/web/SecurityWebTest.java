@@ -8,6 +8,8 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.forwardedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -107,6 +109,27 @@ class SecurityWebTest {
     }
 
     @Test
+    void logoutWithoutCsrfIs403Json() throws Exception {
+        mvc.perform(post("/api/auth/logout").session(login("p-lena")))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+    }
+
+    @Test
+    void staffReachSwaggerUi() throws Exception {
+        MockHttpSession advisor = login("advisor-kaya");
+        mvc.perform(get("/swagger-ui/index.html").session(advisor)).andExpect(status().isOk());
+        mvc.perform(get("/v3/api-docs/swagger-config").session(advisor)).andExpect(status().isOk());
+        mvc.perform(get("/v3/api-docs.yaml").session(advisor)).andExpect(status().isForbidden());
+        mvc.perform(get("/v3/api-docs.yaml")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void loginPathIsServedByTheSpa() throws Exception {
+        mvc.perform(get("/login")).andExpect(status().isOk()).andExpect(forwardedUrl("/index.html"));
+    }
+
+    @Test
     void personaComesOnlyFromTheSession() throws Exception {
         MockHttpSession lena = login("p-lena");
         String body = mvc.perform(get("/api/persona").session(lena).param("personaId", "p-marco"))
@@ -129,7 +152,9 @@ class SecurityWebTest {
     @Test
     void logoutEndsTheSession() throws Exception {
         MockHttpSession lena = login("p-lena");
-        mvc.perform(post("/api/auth/logout").session(lena).with(csrf())).andExpect(status().isNoContent());
+        mvc.perform(post("/api/auth/logout").session(lena).with(csrf()))
+                .andExpect(status().isNoContent())
+                .andExpect(cookie().maxAge("XSRF-TOKEN", 0));
         mvc.perform(get("/api/auth/me").session(lena)).andExpect(status().isUnauthorized());
     }
 

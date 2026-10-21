@@ -31,14 +31,15 @@ export class LoginPage {
   protected readonly busy = signal(false);
 
   protected async submit(): Promise<void> {
-    if (this.busy() || !this.username || !this.password) {
+    const username = this.username.trim();
+    if (this.busy() || !username || !this.password) {
       return;
     }
     this.busy.set(true);
     this.wrongCredentials.set(false);
     this.failed.set(false);
     try {
-      const user = await this.session.login(this.username, this.password);
+      const user = await this.session.login(username, this.password);
       if (user.role === 'PERSONA') {
         await this.router.navigateByUrl('/');
       } else {

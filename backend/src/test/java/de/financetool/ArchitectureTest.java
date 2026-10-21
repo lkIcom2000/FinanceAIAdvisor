@@ -31,6 +31,17 @@ class ArchitectureTest {
     }
 
     @Test
+    void personaScopeIsNeverBoundFromRequestData() {
+        ArchitectureRules.NO_PERSONA_SCOPE_FIELDS.check(PRODUCTION);
+        ArchitectureRules.PERSONA_SCOPE_NOT_BOUND_FROM_REQUEST.check(PRODUCTION);
+    }
+
+    @Test
+    void rawPersonaIdReadsOnlyForLogin() {
+        ArchitectureRules.RAW_PERSONA_ID_READS_ONLY_FOR_LOGIN.check(PRODUCTION);
+    }
+
+    @Test
     void configurationReachesServicesOnlyThroughTheRequestContext() {
         ArchitectureRules.CONFIG_ONLY_THROUGH_REQUEST_CONTEXT.check(PRODUCTION);
     }
@@ -55,6 +66,22 @@ class ArchitectureTest {
             EvaluationResult result = ArchitectureRules.PERSONA_SCOPE_ONLY_FROM_PRINCIPAL.evaluate(fixtures);
             assertThat(result.getFailureReport().getDetails())
                     .anyMatch(line -> line.contains("ScopeFromRequest") && line.contains("PersonaScope.<init>"));
+        }
+
+        @Test
+        void personaScopeBoundFromRequestDataIsAViolation() {
+            assertThat(ArchitectureRules.NO_PERSONA_SCOPE_FIELDS.evaluate(fixtures).getFailureReport().getDetails())
+                    .anyMatch(line -> line.contains("ScopeFromRequest.bound"));
+            assertThat(ArchitectureRules.PERSONA_SCOPE_NOT_BOUND_FROM_REQUEST.evaluate(fixtures).getFailureReport()
+                    .getDetails())
+                    .anyMatch(line -> line.contains("ScopeFromRequest.fromBody"));
+        }
+
+        @Test
+        void rawPersonaIdReadIsAViolation() {
+            assertThat(ArchitectureRules.RAW_PERSONA_ID_READS_ONLY_FOR_LOGIN.evaluate(fixtures).getFailureReport()
+                    .getDetails())
+                    .anyMatch(line -> line.contains("ScopeFromRequest") && line.contains("findById"));
         }
 
         @Test

@@ -80,6 +80,40 @@ describe('WorkspacePage', () => {
     expect(navigate).toHaveBeenCalledWith([], expect.objectContaining({ queryParams: { tab: 'liquidity' } }));
   });
 
+  it('logs out on the server and returns to Login', async () => {
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
+    const fixture = TestBed.createComponent(WorkspacePage);
+    fixture.detectChanges();
+    answerPersona();
+    await fixture.whenStable();
+
+    ((fixture.nativeElement as HTMLElement).querySelector('.logout') as HTMLElement).click();
+    TestBed.inject(HttpTestingController)
+      .expectOne((r) => r.method === 'POST' && r.url === '/api/auth/logout')
+      .flush(null, { status: 204, statusText: 'No Content' });
+    await flushMicrotasks();
+
+    expect(TestBed.inject(SessionService).user()).toBeNull();
+    expect(navigate).toHaveBeenCalledWith('/login');
+  });
+
+  it('still returns to Login when the logout call fails', async () => {
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
+    const fixture = TestBed.createComponent(WorkspacePage);
+    fixture.detectChanges();
+    answerPersona();
+    await fixture.whenStable();
+
+    ((fixture.nativeElement as HTMLElement).querySelector('.logout') as HTMLElement).click();
+    TestBed.inject(HttpTestingController)
+      .expectOne('/api/auth/logout')
+      .flush({ code: 'INTERNAL_ERROR' }, { status: 500, statusText: 'Server Error' });
+    await flushMicrotasks();
+
+    expect(TestBed.inject(SessionService).user()).toBeNull();
+    expect(navigate).toHaveBeenCalledWith('/login');
+  });
+
   it('returns to Login with the expiry message when the session has expired', async () => {
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     const request = firstValueFrom(TestBed.inject(HttpClient).get('/api/persona')).catch(() => undefined);
