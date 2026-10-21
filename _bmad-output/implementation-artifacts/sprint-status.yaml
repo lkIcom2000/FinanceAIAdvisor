@@ -42,7 +42,7 @@
 #   configuration with a derivedFrom block (AD-25). Check E3 before 3.9, E1 before 4.2/4.3.
 
 generated: 10-21-2026 13:52
-last_updated: 10-21-2026 21:00
+last_updated: 10-21-2026 21:31
 project: FinanceTool
 project_key: NOKEY
 tracking_system: file-system
@@ -145,14 +145,14 @@ action_items:
       on module service methods, no @Async/@TransactionalEventListener/@ApplicationModuleListener)
       - before Epic 2"
     owner: "Dev (Claude)"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-21.md"
   - id: "epic-1-retro-item-2-a2-testcontainers-test-that-every-person"
     epic: 1
     action: "A2: Testcontainers test that every persona_id table belongs to a registered
       PersonaResettable owner - before Epic 2"
     owner: "Dev (Claude)"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-21.md"
   - id: "epic-1-retro-item-3-a3-story-2-1-replaces-the-reset-placehol"
     epic: 1
