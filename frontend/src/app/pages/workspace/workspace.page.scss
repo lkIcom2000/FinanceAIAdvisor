@@ -1,0 +1,28 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.workspace {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(560px, 1fr) var(--fine-chat-width);
+  min-height: 0;
+}
+
+.overview {
+  min-width: 0;
+  overflow: auto;
+  background: var(--mat-sys-surface);
+}
+
+.tab-content {
+  padding: 24px;
+}
+
+.chat {
+  border-left: 1px solid var(--mat-sys-outline-variant);
+  background: var(--fine-ice);
+  overflow: auto;
+}

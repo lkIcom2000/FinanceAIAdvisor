@@ -1,0 +1,51 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  background: var(--fine-ice);
+}
+
+.login {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 48px 16px;
+}
+
+.card {
+  width: 400px;
+  padding: 32px;
+  background: var(--mat-sys-surface);
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--fine-radius-card);
+}
+
+h1 {
+  margin: 0 0 24px;
+  font: var(--fine-headline);
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notice {
+  margin: 0 0 24px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
+}
+
+.field-error {
+  min-height: 20px;
+  margin: -8px 0 8px;
+  color: var(--mat-sys-error);
+  font: var(--fine-body-sm);
+}
+
+button {
+  align-self: flex-start;
+}

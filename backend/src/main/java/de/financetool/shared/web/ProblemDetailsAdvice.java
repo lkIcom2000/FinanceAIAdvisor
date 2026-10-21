@@ -8,6 +8,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.InternalAuthenticationServiceException;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
@@ -23,6 +28,23 @@ public class ProblemDetailsAdvice extends ResponseEntityExceptionHandler {
     public static final String CODE_PROPERTY = "code";
 
     private static final Logger log = LoggerFactory.getLogger(ProblemDetailsAdvice.class);
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ProblemDetail handleAuthentication(AuthenticationException ex) {
+        boolean failedLogin = ex instanceof BadCredentialsException || ex instanceof UsernameNotFoundException
+                || ex instanceof InternalAuthenticationServiceException;
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED,
+                failedLogin ? "That username and password don't match." : "Please log in.");
+        problem.setProperty(CODE_PROPERTY, failedLogin ? ProblemCode.BAD_CREDENTIALS : ProblemCode.UNAUTHENTICATED);
+        return problem;
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ProblemDetail handleAccessDenied(AccessDeniedException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, "This is not available to you.");
+        problem.setProperty(CODE_PROPERTY, ProblemCode.FORBIDDEN);
+        return problem;
+    }
 
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleUnexpected(Exception ex) {
@@ -45,6 +67,12 @@ public class ProblemDetailsAdvice extends ResponseEntityExceptionHandler {
     }
 
     static ProblemCode codeFor(HttpStatusCode status) {
+        if (status.value() == 401) {
+            return ProblemCode.UNAUTHENTICATED;
+        }
+        if (status.value() == 403) {
+            return ProblemCode.FORBIDDEN;
+        }
         if (status.value() == 404) {
             return ProblemCode.NOT_FOUND;
         }

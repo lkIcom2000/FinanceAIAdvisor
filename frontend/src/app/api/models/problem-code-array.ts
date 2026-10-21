@@ -8,6 +8,9 @@ import { ProblemCode } from './problem-code';
  */
 export const PROBLEM_CODE: ProblemCode[] = [
   'VALIDATION_FAILED',
+  'BAD_CREDENTIALS',
+  'UNAUTHENTICATED',
+  'FORBIDDEN',
   'NOT_FOUND',
   'REQUEST_REJECTED',
   'INTERNAL_ERROR'

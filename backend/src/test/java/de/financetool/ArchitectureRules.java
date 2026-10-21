@@ -37,6 +37,11 @@ final class ArchitectureRules {
             .because("AD-8: domain time comes only from the persona's simulated clock")
             .allowEmptyShould(true);
 
+    static final ArchRule PERSONA_SCOPE_ONLY_FROM_PRINCIPAL = noClasses()
+            .that().doNotHaveFullyQualifiedName("de.financetool.shared.web.PersonaScopeResolver")
+            .should().callConstructor(de.financetool.shared.PersonaScope.class, de.financetool.shared.domain.PersonaId.class)
+            .because("AD-11: the persona of a request comes only from the authenticated principal");
+
     private ArchitectureRules() {
     }
 }

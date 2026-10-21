@@ -5,5 +5,5 @@
 /**
  * Closed set of machine-readable error codes.
  */
-export type ProblemCode = 'VALIDATION_FAILED' | 'NOT_FOUND' | 'REQUEST_REJECTED' | 'INTERNAL_ERROR';
+export type ProblemCode = 'VALIDATION_FAILED' | 'BAD_CREDENTIALS' | 'UNAUTHENTICATED' | 'FORBIDDEN' | 'NOT_FOUND' | 'REQUEST_REJECTED' | 'INTERNAL_ERROR';
 

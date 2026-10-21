@@ -1,0 +1,45 @@
+<header class="brand-bar">
+  <span class="wordmark">Atruvia</span>
+  <span class="divider" aria-hidden="true"></span>
+  <span class="product">Fine</span>
+</header>
+
+<main class="login">
+  <section class="card" aria-labelledby="login-title">
+    <h1 id="login-title">Log in to Fine</h1>
+
+    @if (expired()) {
+      <p class="notice" role="status">You were logged out after a while of inactivity. Please log in again.</p>
+    }
+
+    <form (ngSubmit)="submit()" novalidate>
+      <mat-form-field appearance="outline">
+        <mat-label>Username</mat-label>
+        <input matInput name="username" autocomplete="username" required [(ngModel)]="username" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" [class.has-error]="wrongCredentials()">
+        <mat-label>Password</mat-label>
+        <input
+          matInput
+          name="password"
+          type="password"
+          autocomplete="current-password"
+          required
+          [(ngModel)]="password"
+          [attr.aria-invalid]="wrongCredentials()"
+          aria-describedby="login-error"
+        />
+      </mat-form-field>
+      <p id="login-error" class="field-error" role="alert">
+        @if (wrongCredentials()) {
+          That username and password don't match.
+        } @else if (failed()) {
+          Something went wrong on our side. Please try again.
+        }
+      </p>
+
+      <button mat-flat-button type="submit" [disabled]="busy()">Log in</button>
+    </form>
+  </section>
+</main>

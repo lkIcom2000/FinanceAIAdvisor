@@ -25,6 +25,11 @@ class ArchitectureTest {
         ArchitectureRules.NO_WALL_CLOCK.check(PRODUCTION);
     }
 
+    @Test
+    void personaScopeIsCreatedOnlyFromThePrincipal() {
+        ArchitectureRules.PERSONA_SCOPE_ONLY_FROM_PRINCIPAL.check(PRODUCTION);
+    }
+
     /** Proves the rules actually fire, using deliberately broken classes in {@code archfixture}. */
     @Nested
     class NegativeFixtures {
@@ -38,6 +43,13 @@ class ArchitectureTest {
             assertThat(result.getFailureReport().getDetails())
                     .anyMatch(line -> line.contains("ImpureDomain") && line.contains("org.springframework"))
                     .noneMatch(line -> line.contains("PureDomain"));
+        }
+
+        @Test
+        void personaScopeBuiltFromRequestDataIsAViolation() {
+            EvaluationResult result = ArchitectureRules.PERSONA_SCOPE_ONLY_FROM_PRINCIPAL.evaluate(fixtures);
+            assertThat(result.getFailureReport().getDetails())
+                    .anyMatch(line -> line.contains("ScopeFromRequest") && line.contains("PersonaScope.<init>"));
         }
 
         @Test

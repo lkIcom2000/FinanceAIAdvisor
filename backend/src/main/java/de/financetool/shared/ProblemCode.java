@@ -6,6 +6,9 @@ package de.financetool.shared;
  */
 public enum ProblemCode {
     VALIDATION_FAILED,
+    BAD_CREDENTIALS,
+    UNAUTHENTICATED,
+    FORBIDDEN,
     NOT_FOUND,
     REQUEST_REJECTED,
     INTERNAL_ERROR

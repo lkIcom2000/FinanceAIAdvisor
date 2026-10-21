@@ -8,9 +8,122 @@
     "url" : "http://localhost",
     "description" : "Generated server url"
   } ],
-  "paths" : { },
+  "tags" : [ {
+    "description" : "Session login",
+    "name" : "auth"
+  }, {
+    "description" : "The persona of the session",
+    "name" : "persona"
+  } ],
+  "paths" : {
+    "/api/auth/csrf" : {
+      "get" : {
+        "operationId" : "csrf",
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "summary" : "Issue the XSRF-TOKEN cookie; call once before the first state-changing request",
+        "tags" : [ "auth" ]
+      }
+    },
+    "/api/auth/login" : {
+      "post" : {
+        "operationId" : "login",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SessionInfo"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Log in with username and password; starts a session",
+        "tags" : [ "auth" ]
+      }
+    },
+    "/api/auth/logout" : {
+      "post" : {
+        "operationId" : "logout",
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "summary" : "End the session",
+        "tags" : [ "auth" ]
+      }
+    },
+    "/api/auth/me" : {
+      "get" : {
+        "operationId" : "me",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SessionInfo"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "The logged-in account",
+        "tags" : [ "auth" ]
+      }
+    },
+    "/api/persona" : {
+      "get" : {
+        "operationId" : "current",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PersonaSummary"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "The persona of the current session",
+        "tags" : [ "persona" ]
+      }
+    }
+  },
   "components" : {
     "schemas" : {
+      "LoginRequest" : {
+        "type" : "object",
+        "properties" : {
+          "password" : {
+            "type" : "string",
+            "minLength" : 1
+          },
+          "username" : {
+            "type" : "string",
+            "minLength" : 1
+          }
+        },
+        "required" : [ "password", "username" ]
+      },
       "Money" : {
         "type" : "object",
         "description" : "An amount of money: decimal string with two fraction digits plus currency.",
@@ -27,10 +140,22 @@
         },
         "required" : [ "amount", "currency" ]
       },
+      "PersonaSummary" : {
+        "type" : "object",
+        "properties" : {
+          "displayName" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "displayName", "id" ]
+      },
       "ProblemCode" : {
         "type" : "string",
         "description" : "Closed set of machine-readable error codes.",
-        "enum" : [ "VALIDATION_FAILED", "NOT_FOUND", "REQUEST_REJECTED", "INTERNAL_ERROR" ]
+        "enum" : [ "VALIDATION_FAILED", "BAD_CREDENTIALS", "UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "REQUEST_REJECTED", "INTERNAL_ERROR" ]
       },
       "ProblemDetail" : {
         "type" : "object",
@@ -59,6 +184,19 @@
           }
         },
         "required" : [ "code", "status", "title" ]
+      },
+      "SessionInfo" : {
+        "type" : "object",
+        "properties" : {
+          "displayName" : {
+            "type" : "string"
+          },
+          "role" : {
+            "type" : "string",
+            "enum" : [ "PERSONA", "ADVISOR", "RESEARCHER" ]
+          }
+        },
+        "required" : [ "displayName", "role" ]
       }
     }
   }

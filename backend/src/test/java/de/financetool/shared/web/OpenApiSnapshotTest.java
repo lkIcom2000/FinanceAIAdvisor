@@ -3,6 +3,8 @@ package de.financetool.shared.web;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
+import de.financetool.personas.adapter.PersonaRepository;
+import de.financetool.personas.adapter.UserRepository;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -10,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
@@ -25,6 +28,13 @@ class OpenApiSnapshotTest {
 
     @Autowired
     WebApplicationContext context;
+
+    // No database in this test (profile "webtest"); the document does not depend on repository contents.
+    @MockitoBean
+    UserRepository users;
+
+    @MockitoBean
+    PersonaRepository personas;
 
     @Test
     void publishedDocumentMatchesCommittedSnapshot() throws Exception {

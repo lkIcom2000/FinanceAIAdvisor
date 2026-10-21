@@ -1,0 +1,20 @@
+<app-header />
+
+<div class="workspace">
+  <main class="overview" aria-label="Financial overview">
+    <mat-tab-group
+      mat-stretch-tabs="false"
+      mat-align-tabs="start"
+      [selectedIndex]="selectedIndex()"
+      (selectedIndexChange)="select($event)"
+    >
+      @for (t of tabs; track t.key) {
+        <mat-tab [label]="t.label">
+          <section class="tab-content" [attr.data-tab]="t.key"></section>
+        </mat-tab>
+      }
+    </mat-tab-group>
+  </main>
+
+  <aside class="chat" aria-label="Chat with Fine"></aside>
+</div>

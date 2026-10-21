@@ -38,6 +38,18 @@ curl -s localhost:8080/actuator/health # {"status":"UP"}
 The app reads `config/`, `data/` and `models/` from `APP_HOME` (`/app` in the image, mounted read-only from the
 repository) and refuses to start if one of them is missing.
 
+### Demo accounts
+
+All accounts use the password `fine-demo` (synthetic personas only; never use real data).
+
+| Username | Role | Lands on |
+|---|---|---|
+| `p-lena`, `p-marco`, `p-jonas`, `p-petra`, `p-tim`, `p-shortfall`, `p-harness` | `PERSONA` | Workspace |
+| `advisor-kaya` | `ADVISOR` | Swagger UI, advisor endpoints |
+| `researcher` | `RESEARCHER` | Swagger UI, research endpoints (only with `SPRING_PROFILES_ACTIVE=research`) |
+
+For frontend development, run the backend on port 8080 and `npm start` in `frontend/` (proxies `/api` and Swagger UI).
+
 After an intended API change:
 
 ```sh
