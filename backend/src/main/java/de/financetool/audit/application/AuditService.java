@@ -21,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 /** Writes and exports Audit Records and evidence items, always inside the caller's transaction (AD-7, AD-16). */
 @Service
-@Transactional(propagation = Propagation.MANDATORY)
 class AuditService implements AuditWriter, EvidenceStore, AuditExport {
 
     private final AuditRecordRepository records;
@@ -33,12 +32,14 @@ class AuditService implements AuditWriter, EvidenceStore, AuditExport {
     }
 
     @Override
+    @Transactional(propagation = Propagation.MANDATORY)
     public void write(RequestContext context, AuditEntry entry) {
         records.insert(entry.kind().name(), context.runId(), context.personaId().value(), entry.turnId(),
                 entry.actionId(), entry.fixtureVersion(), SCHEMA_VERSION, mapper.payload(context, entry.body()));
     }
 
     @Override
+    @Transactional(propagation = Propagation.MANDATORY)
     public void putIfAbsent(List<EvidenceItem> items) {
         for (EvidenceItem item : items) {
             records.insertEvidenceIfAbsent(item.provId(), item.personaId().value(),

@@ -42,7 +42,7 @@
 #   configuration with a derivedFrom block (AD-25). Check E3 before 3.9, E1 before 4.2/4.3.
 
 generated: 10-21-2026 13:52
-last_updated: 10-21-2026 20:00
+last_updated: 10-21-2026 21:00
 project: FinanceTool
 project_key: NOKEY
 tracking_system: file-system
@@ -56,7 +56,7 @@ development_status:
   1-5-append-only-audit-trail-and-evidence-store: done  # start 2026-10-21T18:10+02:00, end 2026-10-21T18:35+02:00; joint code review 2026-10-21 done
   1-6-llm-behind-one-port-served-by-a-pinned-ollama-model: done  # start 2026-10-21T18:40+02:00, end 2026-10-21T19:05+02:00; joint code review 2026-10-21 done
   1-7-persona-reset-for-reproducible-sessions: done  # start 2026-10-21T19:08+02:00, end 2026-10-21T19:30+02:00; joint code review 2026-10-21 done
-  epic-1-retrospective: optional
+  epic-1-retrospective: done
 
   epic-2: backlog  # [critical-path]
   2-1-sandbox-bank-with-seeded-persona-fixtures-and-planted-ground: backlog
@@ -138,3 +138,53 @@ development_status:
   12-1-research-scripts-and-the-study-preset-catalogue: backlog
   12-2-end-to-end-study-dry-run-on-the-study-laptop: backlog
   epic-12-retrospective: optional
+action_items:
+  - id: "epic-1-retro-item-1-a1-archunit-rules-for-ad-21-ar3-transact"
+    epic: 1
+    action: "A1: ArchUnit rules for AD-21/AR3 (transactions only on *UseCase, MANDATORY
+      on module service methods, no @Async/@TransactionalEventListener/@ApplicationModuleListener)
+      - before Epic 2"
+    owner: "Dev (Claude)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-21.md"
+  - id: "epic-1-retro-item-2-a2-testcontainers-test-that-every-person"
+    epic: 1
+    action: "A2: Testcontainers test that every persona_id table belongs to a registered
+      PersonaResettable owner - before Epic 2"
+    owner: "Dev (Claude)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-21.md"
+  - id: "epic-1-retro-item-3-a3-story-2-1-replaces-the-reset-placehol"
+    epic: 1
+    action: "A3: Story 2.1 replaces the reset placeholder (V3 seed and PersonaStateResetter
+      constants) with fixture start date and fixtureVersion"
+    owner: "Commc"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-21.md"
+  - id: "epic-1-retro-item-4-a4-reconcile-architecture-spine-with-as"
+    epic: 1
+    action: "A4: Reconcile architecture spine with as-built (AD-13 asOf, AD-11/AD-13
+      researcher actions logged, AD-18 digest check, AD-22 LLM adapter exception)"
+    owner: "Commc"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-21.md"
+  - id: "epic-1-retro-item-5-a5-shared-test-fixture-for-agentconfigur"
+    epic: 1
+    action: "A5: Shared test fixture for AgentConfiguration/RequestContext instead
+      of three copies"
+    owner: "Dev (Claude)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-21.md"
+  - id: "epic-1-retro-item-6-a6-mark-stories-touching-secrets-db-role"
+    epic: 1
+    action: "A6: Mark stories touching secrets, DB roles or security config [code-review];
+      spec verification uses -Dfine.it.required=true"
+    owner: "Commc"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-21.md"
+  - id: "epic-1-retro-item-7-a7-first-real-auditwriter-caller-adds-an"
+    epic: 1
+    action: "A7: First real AuditWriter caller adds an end-to-end test through /api/research/audit/export"
+    owner: "Dev (Claude)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-21.md"

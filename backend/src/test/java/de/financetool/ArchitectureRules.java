@@ -2,12 +2,17 @@ package de.financetool;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.codeUnits;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.fields;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noFields;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noMethods;
 
 import com.tngtech.archunit.base.DescribedPredicate;
+import com.tngtech.archunit.core.domain.JavaAnnotation;
+import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaCodeUnit;
+import com.tngtech.archunit.core.domain.JavaEnumConstant;
 import com.tngtech.archunit.core.domain.JavaMethodCall;
 import com.tngtech.archunit.core.domain.JavaParameter;
 import com.tngtech.archunit.lang.ArchCondition;
@@ -20,7 +25,8 @@ import de.financetool.shared.PersonaScope;
 import java.util.Set;
 
 /**
- * ArchUnit rules for AD-1 (pure domain) and AD-8 (no wall clock in domain or application code).
+ * ArchUnit rules for AD-1 (pure domain), AD-8 (no wall clock in domain or application code), AD-11 (persona scope),
+ * AD-21 (use cases own the transaction) and AD-22 (configuration through the RequestContext).
  * Shared by the production check and the negative fixture tests.
  */
 final class ArchitectureRules {
@@ -98,6 +104,46 @@ final class ArchitectureRules {
             }
         };
     }
+
+    private static final String TRANSACTIONAL = "org.springframework.transaction.annotation.Transactional";
+
+    /** A {@code @Transactional} that may start a transaction: any propagation except {@code MANDATORY}. */
+    static final DescribedPredicate<JavaAnnotation<?>> STARTS_A_TRANSACTION = DescribedPredicate.describe(
+            "@Transactional without propagation MANDATORY",
+            annotation -> annotation.getRawType().getName().equals(TRANSACTIONAL)
+                    && annotation.get("propagation")
+                            .map(value -> !((JavaEnumConstant) value).name().equals("MANDATORY"))
+                            .orElse(true));
+
+    static final DescribedPredicate<JavaClass> USE_CASE_OR_ITS_NESTED_TYPE = DescribedPredicate.describe(
+            "a *UseCase or a type nested in one",
+            type -> type.getSimpleName().endsWith("UseCase")
+                    || type.getEnclosingClass().map(outer -> outer.getSimpleName().endsWith("UseCase")).orElse(false));
+
+    static final ArchRule TRANSACTIONS_START_ONLY_IN_USE_CASES = methods()
+            .that().areAnnotatedWith(STARTS_A_TRANSACTION)
+            .should().beDeclaredInClassesThat().haveSimpleNameEndingWith("UseCase")
+            .because("AD-21: *UseCase classes are the only transaction entry points; module services are MANDATORY")
+            .allowEmptyShould(true);
+
+    /** Class-level {@code @Transactional} also applies to non-writing methods (e.g. {@code module()}). */
+    static final ArchRule TRANSACTIONAL_ON_METHODS_OUTSIDE_USE_CASES = classes()
+            .that().areAnnotatedWith(TRANSACTIONAL)
+            .should().haveSimpleNameEndingWith("UseCase")
+            .because("AD-21: module services annotate their writing methods with MANDATORY, not the whole class")
+            .allowEmptyShould(true);
+
+    static final ArchRule NO_ASYNC_OR_TRANSACTIONAL_EVENTS = noMethods()
+            .should().beAnnotatedWith("org.springframework.scheduling.annotation.Async")
+            .orShould().beAnnotatedWith("org.springframework.transaction.event.TransactionalEventListener")
+            .orShould().beAnnotatedWith("org.springframework.modulith.events.ApplicationModuleListener")
+            .because("AD-21: one use case runs in one transaction; only synchronous @EventListener may break cycles");
+
+    static final ArchRule CONTROLLERS_CALL_ONLY_USE_CASES = noClasses()
+            .that().resideInAPackage("..web..")
+            .should().dependOnClassesThat(JavaClass.Predicates.resideInAPackage("..application..")
+                    .and(DescribedPredicate.not(USE_CASE_OR_ITS_NESTED_TYPE)))
+            .because("AD-21: controllers never call module services directly");
 
     private ArchitectureRules() {
     }

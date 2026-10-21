@@ -10,7 +10,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 /** The researcher's persona operations, inside the calling use case's transaction. */
 @Service
-@Transactional(propagation = Propagation.MANDATORY)
 class PersonaClockService implements PersonaClock {
 
     private final PersonaStateRepository personaStates;
@@ -25,6 +24,7 @@ class PersonaClockService implements PersonaClock {
     }
 
     @Override
+    @Transactional(propagation = Propagation.MANDATORY)
     public void setSimulatedDate(PersonaId personaId, LocalDate date) {
         if (personaStates.updateSimulatedDate(personaId.value(), date) != 1) {
             throw new IllegalStateException("No persona state for " + personaId);

@@ -46,6 +46,14 @@ class ArchitectureTest {
         ArchitectureRules.CONFIG_ONLY_THROUGH_REQUEST_CONTEXT.check(PRODUCTION);
     }
 
+    @Test
+    void useCasesOwnTheTransaction() {
+        ArchitectureRules.TRANSACTIONS_START_ONLY_IN_USE_CASES.check(PRODUCTION);
+        ArchitectureRules.TRANSACTIONAL_ON_METHODS_OUTSIDE_USE_CASES.check(PRODUCTION);
+        ArchitectureRules.NO_ASYNC_OR_TRANSACTIONAL_EVENTS.check(PRODUCTION);
+        ArchitectureRules.CONTROLLERS_CALL_ONLY_USE_CASES.check(PRODUCTION);
+    }
+
     /** Proves the rules actually fire, using deliberately broken classes in {@code archfixture}. */
     @Nested
     class NegativeFixtures {
@@ -89,6 +97,24 @@ class ArchitectureTest {
             EvaluationResult result = ArchitectureRules.CONFIG_ONLY_THROUGH_REQUEST_CONTEXT.evaluate(fixtures);
             assertThat(result.getFailureReport().getDetails())
                     .anyMatch(line -> line.contains("ConfigReadingService.agentConfig"));
+        }
+
+        @Test
+        void transactionsOutsideUseCasesAreViolations() {
+            assertThat(ArchitectureRules.TRANSACTIONS_START_ONLY_IN_USE_CASES.evaluate(fixtures).getFailureReport()
+                    .getDetails())
+                    .anyMatch(line -> line.contains("TransactionalService.startsItsOwnTransaction"))
+                    .noneMatch(line -> line.contains("FixtureUseCase"));
+            assertThat(ArchitectureRules.TRANSACTIONAL_ON_METHODS_OUTSIDE_USE_CASES.evaluate(fixtures)
+                    .getFailureReport().getDetails())
+                    .anyMatch(line -> line.contains("TransactionalService"));
+            assertThat(ArchitectureRules.NO_ASYNC_OR_TRANSACTIONAL_EVENTS.evaluate(fixtures).getFailureReport()
+                    .getDetails())
+                    .anyMatch(line -> line.contains("TransactionalService"));
+            assertThat(ArchitectureRules.CONTROLLERS_CALL_ONLY_USE_CASES.evaluate(fixtures).getFailureReport()
+                    .getDetails())
+                    .anyMatch(line -> line.contains("ServiceCallingController") && line.contains("TransactionalService"))
+                    .noneMatch(line -> line.contains("FixtureUseCase"));
         }
 
         @Test
