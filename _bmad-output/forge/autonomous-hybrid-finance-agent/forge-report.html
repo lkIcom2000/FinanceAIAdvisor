@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Forge Report – Hybrid Finance Agent</title>
+<style>
+  :root {
+    --bg: #f6f1e7; --paper: #fffdf8; --ink: #2a2622; --muted: #6b635a;
+    --line: #e2d8c6; --accent: #8c1c13; --accent-soft: #f3e1dc;
+    --ok: #2f6b3a; --ok-soft: #e3f0e4; --warn: #8a5a00; --warn-soft: #f7ecd4;
+    --kill: #6d6d6d; --kill-soft: #ececec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1b1916; --paper: #24211d; --ink: #ece6dc; --muted: #a59c90;
+      --line: #3a352e; --accent: #d9574a; --accent-soft: #3a2421;
+      --ok: #7fc28b; --ok-soft: #22312450; --warn: #e0b45c; --warn-soft: #3a311e;
+      --kill: #a0a0a0; --kill-soft: #2e2e2e;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.55 Georgia, "Iowan Old Style", "Times New Roman", serif; }
+  main { max-width: 920px; margin: 0 auto; padding: 40px 16px 64px; }
+  .sheet { background: var(--paper); border: 1px solid var(--line); border-radius: 6px;
+    padding: 40px clamp(16px, 5vw, 56px); box-shadow: 0 2px 18px rgba(0,0,0,.06); }
+  header { display: flex; gap: 28px; align-items: center; flex-wrap: wrap;
+    border-bottom: 2px solid var(--line); padding-bottom: 24px; margin-bottom: 28px; }
+  header .titles { flex: 1 1 320px; }
+  .kicker { font: 600 12px/1 system-ui, sans-serif; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+  h1 { font-size: clamp(26px, 4vw, 36px); margin: 8px 0 6px; line-height: 1.15; }
+  .sub { color: var(--muted); margin: 0; }
+  .seal { flex: 0 0 auto; width: 170px; height: 170px; transform: rotate(-9deg); }
+  h2 { font-size: 21px; margin: 34px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  .rq { background: var(--accent-soft); border-left: 4px solid var(--accent); padding: 14px 18px; border-radius: 4px; }
+  .rq p { margin: 4px 0; }
+  ul.items { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+  ul.items li { padding: 12px 14px; border-radius: 6px; border: 1px solid var(--line); }
+  ul.items li b { display: block; margin-bottom: 2px; }
+  .lock li { background: var(--ok-soft); border-color: transparent; }
+  .kill li { background: var(--kill-soft); border-color: transparent; color: var(--ink); }
+  .kill li b { text-decoration: line-through; text-decoration-color: var(--accent); }
+  .open li { background: var(--warn-soft); border-color: transparent; }
+  .tag { font: 600 11px/1 system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase;
+    padding: 3px 7px; border-radius: 3px; margin-right: 6px; vertical-align: 2px; }
+  .t-lock { background: var(--ok); color: var(--paper); }
+  .t-kill { background: var(--kill); color: var(--paper); }
+  .t-open { background: var(--warn); color: var(--paper); }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font: 600 13px/1.3 system-ui, sans-serif; color: var(--muted); }
+  .cast { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+  .member { border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; }
+  .member .icon { font-size: 22px; }
+  .member .name { font-weight: 700; }
+  .member .role { font: 13px/1.3 system-ui, sans-serif; color: var(--muted); }
+  .member q { display: block; margin-top: 6px; font-style: italic; font-size: 14px; }
+  footer { margin-top: 36px; font: 13px/1.4 system-ui, sans-serif; color: var(--muted); text-align: center; }
+</style>
+</head>
+<body>
+<main>
+<div class="sheet">
+  <header>
+    <div class="titles">
+      <div class="kicker">BMad Forge · Session report · 2026-10-20</div>
+      <h1>Autonomous Hybrid Finance Agent</h1>
+      <p class="sub">Master's thesis (Design Science Research). The idea was pressure-tested first, then improved. It came out hardened, with a narrower scope, measurable claims and a clear research contribution.</p>
+    </div>
+    <svg class="seal" viewBox="0 0 200 200" role="img" aria-label="Wax seal: Hardened">
+      <defs>
+        <radialGradient id="wax" cx="40%" cy="35%" r="70%">
+          <stop offset="0%" stop-color="#c0392b"/>
+          <stop offset="70%" stop-color="#8c1c13"/>
+          <stop offset="100%" stop-color="#5e110b"/>
+        </radialGradient>
+        <path id="circ" d="M100,100 m-66,0 a66,66 0 1,1 132,0 a66,66 0 1,1 -132,0"/>
+      </defs>
+      <path fill="url(#wax)" d="M100 6 C118 10 128 4 142 14 C156 24 170 22 178 38 C186 54 196 62 194 80 C192 98 200 108 192 124 C184 140 188 154 174 166 C160 178 154 192 136 194 C118 196 108 202 92 196 C76 190 60 196 46 184 C32 172 18 168 12 150 C6 132 0 120 4 102 C8 84 2 70 12 54 C22 38 26 24 44 16 C62 8 82 2 100 6Z"/>
+      <circle cx="100" cy="100" r="78" fill="none" stroke="#f3d9c9" stroke-opacity=".55" stroke-width="2"/>
+      <circle cx="100" cy="100" r="54" fill="none" stroke="#f3d9c9" stroke-opacity=".55" stroke-width="1.5"/>
+      <text font-family="Georgia, serif" font-size="13" letter-spacing="3" fill="#f3d9c9" fill-opacity=".9">
+        <textPath href="#circ" startOffset="0">· BMAD FORGE · TESTED &amp; IMPROVED ·</textPath>
+      </text>
+      <text x="100" y="96" text-anchor="middle" font-family="Georgia, serif" font-weight="700" font-size="21" fill="#fbeee6">HARDENED</text>
+      <text x="100" y="117" text-anchor="middle" font-family="Georgia, serif" font-size="11" letter-spacing="2" fill="#f3d9c9">MMXXVI</text>
+    </svg>
+  </header>
+
+  <h2>Research questions</h2>
+  <div class="rq">
+    <p><b>Main RQ:</b> How can a compliant, responsible and secure AI be implemented to advise C-class customers in financial decisions?</p>
+    <p><b>Sub-RQ:</b> Under which conditions may such an agent act autonomously, and how can these conditions be enforced deterministically?</p>
+  </div>
+
+  <h2>Locked decisions</h2>
+  <ul class="items lock">
+    <li><span class="tag t-lock">Lock</span><b>Target user</b>Mass-market retail customers who get no meaningful personal advice. They often have low financial literacy and may be vulnerable.</li>
+    <li><span class="tag t-lock">Lock</span><b>Real advice under a licensed operator (variant B)</b>Compliance-by-design: regulatory duties become deterministic guardrails, and the LLM only phrases answers within them.</li>
+    <li><span class="tag t-lock">Lock</span><b>Core claim: auditability, not truth</b>Every number and recommendation comes from deterministic, auditable modules. Forecasts are shown as ranges with explicit assumptions. Every recommendation passes regulatory checks before it reaches the user.</li>
+    <li><span class="tag t-lock">Lock</span><b>Three pillars</b>Compliant, Responsible and Secure, each with its own mechanisms and metrics.</li>
+    <li><span class="tag t-lock">Lock</span><b>Autonomy as a mandate, enforced by a deterministic gate</b>Autonomy levels L0–L4, assigned by reversibility, amount, regulatory class, data confidence and whether a mandate exists. The MVP covers L0–L2 plus a few L3 actions.</li>
+    <li><span class="tag t-lock">Lock</span><b>Scope: three product classes shared by all journeys</b>Liquidity &amp; emergency fund · ETF wealth building &amp; retirement subsidies · protection as needs analysis only. This covers two regulatory regimes (MiFID II and IDD).</li>
+    <li><span class="tag t-lock">Lock</span><b>Journeys</b>J1 proactive monitoring loop · J2 what-if simulation · J3 financial Q&amp;A, with personal advice only in scope.</li>
+    <li><span class="tag t-lock">Lock</span><b>Data</b>Synthetic personas with planted ground truth, accessed through a PSD2/FinTS-style adapter.</li>
+    <li><span class="tag t-lock">Lock</span><b>Knowledge</b>Versioned RAG with cited sources. Hard rules are also stored as versioned parameters in the computation core.</li>
+    <li><span class="tag t-lock">Lock</span><b>Block-only judge</b>The judge may only block or escalate. Approval comes only from the rule engine, so the guarantee stays deterministic.</li>
+    <li><span class="tag t-lock">Lock</span><b>DSR split</b>Design principles are justified normatively and validated by the experiments. Design parameters are decided empirically.</li>
+  </ul>
+
+  <h2>Experiments, re-aligned</h2>
+  <div class="table-wrap">
+  <table>
+    <tr><th>Exp.</th><th>Pillar</th><th>Decides</th><th>Design</th></tr>
+    <tr><td>E1</td><td>Responsible</td><td>Model &amp; knowledge access</td><td>Llama 3.x · Llama 3.x + RAG · fin-chat · Llama 2 control. Isolates domain adaptation, model generation and RAG effects.</td></tr>
+    <tr><td>E2</td><td>Responsible</td><td>System prompt</td><td>Plain vs. licensed advisor with suitability duty. The advisor-assistant becomes the escalation interface.</td></tr>
+    <tr><td>E3</td><td>Compliant</td><td>Guardrail stack &amp; judge strictness</td><td>Layered ablation A → A+B → A+B+C. Measures the cost of caution (false-positive blocks).</td></tr>
+    <tr><td>E4</td><td>Secure</td><td>Data minimisation level</td><td>Raw → pseudonymised → aggregated features → tool results only.</td></tr>
+  </table>
+  </div>
+
+  <h2>Rejected, and why</h2>
+  <ul class="items kill">
+    <li><span class="tag t-kill">Killed</span><b>"Guarantees absolute accuracy"</b>Forecasts are uncertain, and the LLM can introduce errors where it reads input and writes output.</li>
+    <li><span class="tag t-kill">Killed</span><b>Information-only (variant A)</b>It does not answer an RQ that asks about advice.</li>
+    <li><span class="tag t-kill">Killed</span><b>Brokerage funnel (Check24), crypto, building-society savings</b>Out of the MVP. They involve conflicts of interest or do not fit vulnerable users. Kept as outlook.</li>
+    <li><span class="tag t-kill">Killed</span><b>Market-driven reallocation</b>It amounts to market timing, contradicts the passive ETF approach and can trigger panic selling.</li>
+    <li><span class="tag t-kill">Killed</span><b>Real bank data / PSD2 aggregator</b>Licence, cost and GDPR obligations, and real data gives no ground truth for evaluation.</li>
+    <li><span class="tag t-kill">Killed</span><b>Own fine-tuning</b>A project of its own, and not the contribution of this thesis.</li>
+    <li><span class="tag t-kill">Killed</span><b>Judge with approval power</b>It would break deterministic enforcement.</li>
+  </ul>
+
+  <h2>Weak points that survived scrutiny</h2>
+  <ul class="items open">
+    <li><span class="tag t-open">Open</span><b>Test set contradicts variant B</b>The Compliance_Advisory gold answers reward refusal. They must be rewritten so the expected behaviour depends on the customer profile. IDD/protection and other in-scope topics are barely covered.</li>
+    <li><span class="tag t-open">Open</span><b>L3 action list not defined yet</b>Which concrete mandate actions run autonomously in the MVP?</li>
+    <li><span class="tag t-open">Open</span><b>Measuring "responsible"</b>Comprehensibility needs a user study, which means recruiting participants. Using an LLM-as-judge for scoring introduces bias.</li>
+    <li><span class="tag t-open">Open</span><b>English UI, German market</b>A threat to validity that should be documented.</li>
+  </ul>
+
+  <h2>Who forged it</h2>
+  <div class="cast">
+    <div class="member"><span class="icon">📊</span> <span class="name">Mary</span><div class="role">BMad Business Analyst</div><q>The RQ has two fuzzy terms, and everything hangs on them.</q></div>
+    <div class="member"><span class="icon">📋</span> <span class="name">John</span><div class="role">BMad Product Manager</div><q>Two equal RQs means writing two theses halfway.</q></div>
+    <div class="member"><span class="icon">🏗️</span> <span class="name">Winston</span><div class="role">BMad Architect</div><q>The hybrid doesn't guarantee truth. It guarantees auditability.</q></div>
+    <div class="member"><span class="icon">🎨</span> <span class="name">Sally</span><div class="role">BMad UX Designer</div><q>Responsibility shows in the interface, not only in the backend.</q></div>
+    <div class="member"><span class="icon">💻</span> <span class="name">Amelia</span><div class="role">BMad Developer</div><q>Where does the transaction data come from? Not from real banks.</q></div>
+    <div class="member"><span class="icon">⚖️</span> <span class="name">Dr. Henrike Kessler</span><div class="role">Reviewer, former investor-protection regulator</div><q>"Advise" is not an everyday word in finance. Decide.</q></div>
+    <div class="member"><span class="icon">👨‍🔬</span> <span class="name">Prof. Dr. Lukas Brandt</span><div class="role">Second reviewer, Information Systems</div><q>Every adjective in your RQ is a promise. Where do you keep it?</q></div>
+    <div class="member"><span class="icon">🧑‍💼</span> <span class="name">Selin Aydın</span><div class="role">Head of Compliance, savings bank</div><q>"Autonomous" needs a hard upper bound.</q></div>
+    <div class="member"><span class="icon">🧠</span> <span class="name">Dr. Mira Okafor</span><div class="role">Behavioural economist</div><q>It's pre-commitment, not an agent deciding for people.</q></div>
+    <div class="member"><span class="icon">👩‍⚕️</span> <span class="name">Jana, 29</span><div class="role">Nurse, the C-class customer</div><q>I don't want to be optimised. I want to know if I'm okay.</q></div>
+  </div>
+
+  <footer>Hand-off: forged-idea.md → bmad-product-brief / bmad-prd · Session log: .memlog.md</footer>
+</div>
+</main>
+</body>
+</html>

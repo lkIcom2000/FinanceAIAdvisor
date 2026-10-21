@@ -1,0 +1,35 @@
+# Rule-based Category Recommendation selection (PRD FR-20, FR-27).
+# Design parameters, not regulation. Inputs are limited to the (stated or stored) profile and
+# Rule Parameters; no commission or product preference is an input (FR-27).
+#
+# Equity share ranges by risk tolerance, applied only when the horizon is long enough
+# (see rule parameter short_horizon_years_max) and the emergency fund is in place.
+
+equity_share_by_risk:
+  very_low: [0.0, 0.1]
+  low: [0.1, 0.3]
+  medium: [0.4, 0.6]
+  high: [0.7, 0.9]
+  very_high: [0.8, 1.0]
+
+# Recommendation topics -> minimum profile fields for a turn-scoped category recommendation
+# (spine AD-23). If the minimum is not met the class is ASK_PROFILE.
+# Field names refer to finlab.profile.PROFILE_FIELDS.
+profile_minimums:
+  asset_allocation: [[risk_tolerance], [investment_horizon_years]]
+  savings_plan: [[monthly_surplus, net_income], [risk_tolerance, loss_aversion]]
+  investment_decision: [[risk_tolerance, loss_aversion], [investment_horizon_years], [emergency_fund, monthly_expenses]]
+  diversification: [[current_holdings]]
+  short_term_investment: [[investment_horizon_years], [amount]]
+  sustainability_fit: [[sustainability_preference]]
+  product_variant_tax: [[tax_allowance_unused]]
+  retirement_strategy: [[investment_horizon_years], [pension_situation]]
+  leverage_or_loan: [[net_income], [emergency_fund]]
+  fund_selection: [[risk_tolerance], [investment_horizon_years]]
+  liquidity_management: [[current_balance, emergency_fund], [monthly_expenses]]
+  subsidy_eligibility: [[employment_status], [net_income, gross_income], [children]]
+  contract_switch: [[existing_contract_details]]
+  protection_needs: [[household], [dependants], [occupation]]
+  protection_duplicate: [[existing_contracts]]
+
+# Each inner list is an OR-group; all groups must be satisfied (AND of ORs).

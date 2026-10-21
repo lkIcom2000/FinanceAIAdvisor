@@ -1,0 +1,31 @@
+{
+  "p-shortfall": {
+    "name": "Lena Example",
+    "description": "Backing persona for test item 56 (PRD FR-51; addendum §B). Salary on the 1st, variable spending on top of fixed costs, annual car insurance debited on the 28th, so the forecast balance on the due date is clearly negative.",
+    "simulated_date": "2026-10-28",
+    "profile": {
+      "age": 29,
+      "occupation": "nurse",
+      "net_income": 2300,
+      "monthly_expenses": 2200,
+      "current_balance": 450
+    },
+    "flows": {
+      "balance": 450,
+      "recurring": [
+        {"label": "salary", "amount": 2300, "day": 1},
+        {"label": "rent_and_fixed_costs", "amount": -1800, "day": 1}
+      ],
+      "variable_monthly": 400,
+      "one_off": [
+        {"label": "car_insurance", "amount": -620, "date": "2026-11-28"}
+      ]
+    }
+  },
+  "p-harness": {
+    "name": "Harness Persona",
+    "description": "Neutral persona without a stored profile, used for all items without a mapping.",
+    "simulated_date": "2026-10-20",
+    "profile": {}
+  }
+}

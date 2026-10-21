@@ -1,0 +1,140 @@
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created, ready for development
+#   - in-progress: Developer actively working on implementation
+#   - review: Implementation complete, ready for review
+#   - done: Story completed
+
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+
+# Action Item Status:
+#   - open: Committed during a retrospective, not yet addressed
+#   - in-progress: Actively being worked on
+#   - done: Completed
+
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when its first story starts (via build's sprint sync)
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates the next story after the previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+# - Retrospective appends its action items to action_items; the status view surfaces open ones
+# PLANNING NOTES (FinanceTool, 2026-10-21):
+# ===========================================
+# Goal: the user acceptance test (UAT).
+# - [critical-path]  needed for the UAT: Epics 1-4, 6-10 (except 10.6), 12
+# - [non-blocking]   not needed for the UAT; may run in parallel with or after it:
+#                    Epic 5 (Advisor), Story 10.6 (Document Acceptance Suite), Epic 11 (Verification)
+# - [code-review]    safety-critical: run bmad-code-review after bmad-build
+#                    (1.3, 3.4, 3.6, 8.1, 10.1, 10.2). All other stories: no code review.
+# - CHECKPOINT after Epic 3: measure velocity, activate reserve list if needed
+#   (sprint-change-proposal-2026-10-21-scope.md §6).
+# - Experiment track E1-E4 (Colab) runs outside this sprint. Results enter only as
+#   configuration with a derivedFrom block (AD-25). Check E3 before 3.9, E1 before 4.2/4.3.
+
+generated: 10-21-2026 13:52
+last_updated: 10-21-2026 13:52
+project: FinanceTool
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+development_status:
+  epic-1: backlog  # [critical-path]
+  1-1-project-scaffold-with-enforced-architecture-guardrails: backlog
+  1-2-one-image-one-compose-file-fine-runs-locally: backlog
+  1-3-log-in-as-a-persona-an-advisor-or-a-researcher: backlog  # [code-review] persona isolation
+  1-4-simulated-clock-request-context-and-versioned-agent-configur: backlog
+  1-5-append-only-audit-trail-and-evidence-store: backlog
+  1-6-llm-behind-one-port-served-by-a-pinned-ollama-model: backlog
+  1-7-persona-reset-for-reproducible-sessions: backlog
+  epic-1-retrospective: optional
+
+  epic-2: backlog  # [critical-path]
+  2-1-sandbox-bank-with-seeded-persona-fixtures-and-planted-ground: backlog
+  2-2-core-gateway-figure-keys-and-the-why-dialog: backlog
+  2-3-liquidity-tab-with-cash-flow-forecast-and-emergency-fund: backlog
+  2-4-wealth-retirement-tab-with-goal-projection-ranges: backlog
+  2-5-home-tab-with-summary-and-your-insurance: backlog
+  epic-2-retrospective: optional
+
+  epic-3: backlog  # [critical-path]
+  3-1-chat-column-with-atomic-turn-release: backlog
+  3-2-data-exposure-filter-and-prompt-budget: backlog
+  3-3-deterministic-classification-of-every-message: backlog
+  3-4-check-chain-rule-engine-and-compliance-levels: backlog  # [code-review] Check Chain
+  3-5-hand-over-to-a-human-advisor-when-the-answer-is-blocked: backlog
+  3-6-numbers-only-from-the-deterministic-core-the-number-check: backlog  # [code-review] Number Check
+  3-7-calculated-answers-with-parameter-proposal-and-figure-chips: backlog
+  3-8-transparent-refusals-trap-detection-and-injection-resistance: backlog
+  3-9-block-only-judge-under-a-b-c: backlog  # [depends-on E3] check E3 result first; reserve item 1: only if E3 selects A+B+C
+  epic-3-retrospective: optional
+  # >>> CHECKPOINT (after Epic 3): measure velocity (actual days per story), project the
+  # >>> UAT date; if too late, activate the reserve list (scope proposal §6) in order.
+
+  epic-4: backlog  # [critical-path]
+  4-1-versioned-rule-parameters-and-the-subsidy-calculator: backlog
+  4-2-knowledge-base-ingest-with-a-pinned-snapshot: backlog  # [depends-on E1] check E1 result first; reserve item 2: minimal/off if RAG does not win
+  4-3-explanations-with-cited-valid-sources: backlog  # [depends-on E1] check E1 result first; reserve item 2
+  epic-4-retrospective: optional
+
+  epic-5: backlog  # [non-blocking] Advisor; not needed for the UAT, may run in parallel or after
+  5-1-advisor-handles-a-case-end-to-end-through-the-advisor-endpoi: backlog
+  epic-5-retrospective: optional
+
+  epic-6: backlog  # [critical-path]
+  6-1-profile-module-and-the-completeness-gate: backlog
+  6-2-suitability-assessment-in-one-form-card: backlog
+  6-3-category-recommendation-with-a-suitability-statement: backlog
+  6-4-short-demands-and-needs-statement-idd: backlog
+  epic-6-retrospective: optional
+
+  epic-7: backlog  # [critical-path]
+  7-1-what-if-from-chat-with-a-range-chart: backlog
+  epic-7-retrospective: optional
+
+  epic-8: backlog  # [critical-path]
+  8-1-autonomy-gate-and-action-proposals: backlog  # [code-review] Autonomy Gate
+  8-2-monitoring-run-at-a-simulated-date-with-all-mvp-triggers: backlog
+  8-3-notifications-on-the-home-tab: backlog
+  8-4-confirm-an-action-exactly-and-see-why-it-needs-my-ok: backlog
+  8-5-prepare-a-persona-for-a-study-session: backlog
+  epic-8-retrospective: optional
+
+  epic-9: backlog  # [critical-path]
+  9-1-set-up-a-rule-with-explicit-limits: backlog
+  9-2-fine-acts-within-my-rule-and-tells-me-immediately: backlog
+  9-3-undo-with-one-tap: backlog
+  9-4-stop-a-rule-at-any-time: backlog
+  epic-9-retrospective: optional
+
+  epic-10: backlog  # [critical-path] except 10.6
+  10-1-document-intake-pipeline-and-the-documents-module: backlog  # [code-review] Redaction and Grounding Check
+  10-2-fact-card-check-and-confirm-what-fine-read: backlog  # [code-review] Fact Card
+  10-3-fine-explains-a-confirmed-letter: backlog
+  10-4-document-deadline-becomes-a-to-do-with-a-reminder: backlog
+  10-5-printable-termination-letter-that-fine-never-sends: backlog
+  10-6-document-acceptance-suite-and-letter-fixtures: backlog  # [non-blocking] not needed for the UAT, may run in parallel or after
+  10-7-study-preset-with-a-deliberately-wrong-fact-card-value: backlog
+  epic-10-retrospective: optional
+
+  epic-11: backlog  # [non-blocking] Verification; not needed for the UAT, may run in parallel or after
+  11-1-q-a-acceptance-suite: backlog
+  11-2-scenario-acceptance-suite: backlog
+  11-3-deterministic-reference-tests-and-planted-ground-truth-check: backlog
+  11-4-traceable-configuration-and-audit-export-inspection: backlog
+  11-5-verification-matrix-with-one-row-per-fr: backlog
+  epic-11-retrospective: optional
+
+  epic-12: backlog  # [critical-path]
+  12-1-research-scripts-and-the-study-preset-catalogue: backlog
+  12-2-end-to-end-study-dry-run-on-the-study-laptop: backlog
+  epic-12-retrospective: optional

@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fine Advice Mock</title>
+<style>
+/* Key-screen mock: Advisory chat with a profile conflict, persona Marco (UJ-2 / Flow 2).
+   Governed by: DESIGN.md (tokens, components) and EXPERIENCE.md (Response card RECOMMEND_CATEGORY,
+   "Why this fits you" panel, Figure chip, check badge, "Why?" dialog, Assessment card, Provenance &
+   Figure Linking rule 2). PRD FR-10, FR-11, FR-12, FR-17, FR-25. Illustrative figures only. Spines win on conflict. */
+:root{
+  --navy:#000064; --blue:#0A5AE1; --cyan-light:#D4F2F5; --ice:#F2FAFC; --cyan:#00BBFF;
+  --coral:#FF5A46; --red:#EB1700; --grey:#767676; --on-var:#3D3D6B; --outline-var:#C9DDE3;
+  --container:#E8F6F9; --risk:#FFE3DF; --attention:#FDEBDC;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#dfe5ea;font:16px/24px Inter,Helvetica,Arial,sans-serif;color:var(--navy);padding:24px}
+.note{max-width:1366px;margin:0 auto 12px;font-size:14px;color:var(--on-var)}
+.note strong{color:var(--navy)}
+.frame{width:1366px;height:768px;margin:0 auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,40,.18);display:flex;flex-direction:column}
+.chrome{height:32px;background:#e9ecef;display:flex;align-items:center;gap:6px;padding:0 12px;flex:none}
+.chrome i{width:11px;height:11px;border-radius:50%;background:#c4c9cf;display:block}
+.chrome span{margin-left:16px;background:#fff;border-radius:6px;padding:2px 12px;font-size:12px;color:#555}
+header{height:64px;background:var(--navy);color:#fff;display:flex;align-items:center;padding:0 24px;gap:16px;flex:none}
+.wordmark{font-weight:700;letter-spacing:.04em}
+.divider{width:1px;height:24px;background:rgba(255,255,255,.4)}
+.product{font-weight:600;font-size:18px}
+.spacer{flex:1}
+.datechip{background:rgba(255,255,255,.14);border-radius:9999px;padding:4px 12px;font-size:14px}
+.user{font-size:14px}
+.logout{color:#fff;font-size:14px;font-weight:600;text-decoration:none;border:2px solid #fff;border-radius:9999px;padding:4px 14px}
+.shell{flex:1;display:flex;min-height:0}
+.overview{flex:1;display:flex;flex-direction:column;min-width:560px;border-right:1px solid var(--outline-var)}
+.tabs{display:flex;gap:4px;padding:0 24px;border-bottom:1px solid var(--outline-var);flex:none}
+.tab{padding:14px 16px 12px;font-size:14px;font-weight:600;color:var(--on-var);border-bottom:3px solid transparent;display:flex;align-items:center;gap:6px}
+.tab.active{color:var(--blue);border-color:var(--blue)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--cyan);display:inline-block}
+.ov-body{flex:1;overflow:auto;padding:24px;background:#fff}
+h2{font-size:18px;line-height:26px;margin:0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.card{border:1px solid var(--outline-var);border-radius:20px;padding:20px 24px;background:#fff}
+.card.hl{box-shadow:0 0 0 3px var(--cyan);border-color:var(--cyan)}
+.label{font-size:14px;color:var(--on-var)}
+.fig-lg{font-size:28px;line-height:36px;font-weight:700;font-variant-numeric:tabular-nums}
+.why{color:var(--blue);font-size:14px;font-weight:600;text-decoration:none;margin-left:8px}
+.sub{font-size:14px;line-height:20px;color:var(--on-var)}
+.bar{height:8px;border-radius:9999px;background:var(--container);margin:8px 0 4px;overflow:hidden}
+.bar b{display:block;height:100%;width:5%;background:var(--coral);border-radius:9999px}
+.risk{background:var(--risk);border-left:4px solid var(--coral);border-radius:8px;padding:10px 14px;font-size:14px;margin-top:10px}
+.chart{margin-top:8px}
+.fchip{display:inline-flex;align-items:center;gap:4px;background:var(--ice);border:1px solid var(--outline-var);border-radius:4px;padding:0 6px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--navy);white-space:nowrap}
+.fchip .lnk{font-size:11px;color:var(--blue)}
+.chat{width:440px;flex:none;display:flex;flex-direction:column;background:var(--ice)}
+.chat-head{padding:14px 20px;border-bottom:1px solid var(--outline-var);font-weight:600;font-size:14px;background:#fff}
+.msgs{flex:1;overflow:auto;padding:16px 20px;display:flex;flex-direction:column;gap:12px}
+.agent{background:#fff;border:1px solid var(--outline-var);border-radius:8px;padding:12px 16px;font-size:15px;line-height:22px}
+.olabel{font-size:14px;font-weight:600;color:var(--on-var);display:flex;gap:6px;align-items:center;margin-bottom:4px}
+.user-msg{align-self:flex-end;background:var(--navy);color:#fff;border-radius:8px;padding:10px 14px;max-width:85%}
+.first{font-weight:700}
+.exp{border:1px solid var(--outline-var);border-radius:8px;margin-top:10px}
+.exp-h{display:flex;justify-content:space-between;padding:8px 12px;font-weight:600;font-size:14px;color:var(--blue)}
+.exp-b{padding:0 12px 10px;font-size:14px;line-height:20px}
+.exp-b h5{margin:8px 0 2px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--on-var)}
+.exp-b ul{margin:0;padding-left:18px}
+.foot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:8px;border-top:1px solid var(--container)}
+.check{background:var(--ice);border-radius:9999px;font-size:12px;padding:2px 10px;display:inline-flex;gap:4px;align-items:center}
+.check b{color:var(--blue)}
+.sugg{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.sugg a{border:1px solid var(--outline-var);border-radius:9999px;padding:4px 12px;font-size:14px;color:var(--blue);font-weight:600;text-decoration:none;background:#fff}
+.composer{padding:12px 16px;background:#fff;border-top:1px solid var(--outline-var);display:flex;gap:8px;align-items:center}
+.composer div{flex:1;border:1px solid var(--grey);border-radius:8px;padding:10px 12px;color:var(--grey);font-size:15px}
+.clip{width:44px;height:44px;border-radius:50%;border:2px solid var(--blue);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:18px}
+.send{width:44px;height:44px;border-radius:50%;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
+.btn{display:inline-flex;align-items:center;height:36px;padding:0 16px;border-radius:9999px;font-weight:600;font-size:14px;border:2px solid var(--blue);text-decoration:none;white-space:nowrap}
+.btn-p{background:var(--blue);color:#fff}
+.btn-s{background:transparent;color:var(--blue)}
+.actions{display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap}
+/* alternates */
+.alt{width:1366px;margin:24px auto 0;display:grid;grid-template-columns:1fr 440px;gap:24px;align-items:start}
+.alt h3{font-size:13px;margin:0 0 10px;color:var(--on-var);text-transform:uppercase;letter-spacing:.06em}
+.panel{background:#fff;border-radius:10px;padding:16px;box-shadow:0 4px 16px rgba(0,0,40,.1)}
+.dialog{border:1px solid var(--outline-var);border-radius:20px;padding:20px 24px}
+.dialog h4{margin:0 0 12px;font-size:18px}
+.dsec{margin-bottom:14px}
+.dsec h5{margin:0 0 4px;font-size:14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 16px;font-size:14px}
+.kv span:nth-child(3n+2){font-weight:600;font-variant-numeric:tabular-nums}
+.checks{list-style:none;margin:0;padding:0;columns:2;font-size:14px;line-height:22px}
+.checks li{break-inside:avoid;margin-bottom:4px}
+.checks b{color:var(--blue)}
+.checks small{display:block;color:var(--grey);font-size:11px;line-height:14px}
+.prog{height:4px;background:var(--container);border-radius:9999px;margin:6px 0 12px}
+.prog b{display:block;height:100%;width:33%;background:var(--blue);border-radius:9999px}
+.prefill{background:var(--ice);border-radius:8px;padding:10px 12px;font-size:14px;margin-bottom:12px}
+.tag{font-size:12px;font-weight:600;color:var(--on-var);background:#fff;border:1px solid var(--outline-var);border-radius:9999px;padding:0 8px;margin-left:6px}
+.chips{display:flex;flex-direction:column;gap:6px}
+.chips span{border:1px solid var(--outline-var);border-radius:8px;padding:6px 12px;font-size:14px}
+.chips span.sel{border:2px solid var(--blue);background:var(--ice);font-weight:600}
+.legend{width:1366px;margin:24px auto 0;font-size:14px;color:var(--on-var);display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.legend div{background:#fff;border-radius:10px;padding:14px 16px;box-shadow:0 4px 16px rgba(0,0,40,.06)}
+.legend b{color:var(--navy)}
+</style>
+</head>
+<body>
+<p class="note"><strong>Key screen: Personal advice with a profile conflict, Marco, Liquidity tab (UJ-2).</strong> Marco asks whether he should invest 400 EUR a month in an equity ETF. His profile is complete, but the figures don't support the plan. Fine advises against it, explains why with his own numbers, and recommends a product category instead of a product. 1366×768 laptop frame; all figures are illustrative. DESIGN.md and EXPERIENCE.md win on conflict.</p>
+
+<div class="frame">
+  <div class="chrome"><i></i><i></i><i></i><span>fine.local/?tab=liquidity</span></div>
+  <header>
+    <span class="wordmark">ATRUVIA</span><span class="divider"></span><span class="product">Fine</span>
+    <span class="spacer"></span>
+    <span class="datechip">Today: 15 Oct 2026</span>
+    <span class="user">Marco</span>
+    <a class="logout" href="#">Log out</a>
+  </header>
+
+  <div class="shell">
+    <section class="overview" aria-label="Financial overview">
+      <nav class="tabs" role="tablist">
+        <span class="tab" role="tab">Home</span>
+        <span class="tab active" role="tab" aria-selected="true">Liquidity</span>
+        <span class="tab" role="tab">Wealth &amp; Retirement</span>
+        <span class="tab" role="tab">Protection</span>
+        <span class="tab" role="tab">Letters</span>
+      </nav>
+      <div class="ov-body">
+        <div class="grid2">
+          <div class="card hl">
+            <div class="label">Emergency fund</div>
+            <div><span class="fig-lg">300 EUR</span><a class="why" href="#">Why?</a></div>
+            <div class="bar"><b></b></div>
+            <div class="sub">of 6,000 EUR target (3 months of expenses)</div>
+            <div class="risk">Your emergency fund covers less than one week of expenses.</div>
+          </div>
+          <div class="card hl">
+            <div class="label">Left over each month</div>
+            <div><span class="fig-lg">≈ 100 EUR</span><a class="why" href="#">Why?</a></div>
+            <div class="sub">Average net income 2,100 EUR minus average expenses 2,000 EUR, last 12 months</div>
+          </div>
+        </div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><h2>Current account, next 3 months</h2><a class="why" href="#">Why?</a></div>
+          <svg class="chart" viewBox="0 0 640 170" width="100%" height="170" role="img" aria-label="Expected balance stays between 150 and 900 EUR over the next three months">
+            <line x1="40" y1="140" x2="630" y2="140" stroke="#C9DDE3"/>
+            <text x="0" y="144" font-size="11" fill="#3D3D6B">0 EUR</text>
+            <text x="0" y="44" font-size="11" fill="#3D3D6B">800</text>
+            <line x1="40" y1="40" x2="630" y2="40" stroke="#E8F6F9"/>
+            <polyline fill="none" stroke="#0A5AE1" stroke-width="2.5" points="40,60 80,80 120,95 160,108 200,118 220,32 260,58 300,82 340,100 380,112 410,120 430,30 470,56 510,80 550,98 590,110 630,118"/>
+            <text x="40" y="162" font-size="11" fill="#3D3D6B">15 Oct</text><text x="210" y="162" font-size="11" fill="#3D3D6B">Nov</text><text x="420" y="162" font-size="11" fill="#3D3D6B">Dec</text><text x="595" y="162" font-size="11" fill="#3D3D6B">Jan</text>
+          </svg>
+          <div class="sub">Expected balance. It stays above zero, but there is little room for surprises. Assumptions: regular income and fixed costs as in the last 12 months, variable spending at its average.</div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="chat" aria-label="Chat with Fine">
+      <div class="chat-head">Chat with Fine</div>
+      <div class="msgs" role="log" aria-live="polite">
+        <div class="user-msg">I want to invest 400 EUR per month in an equity ETF. Is that a good idea?</div>
+        <div class="agent">
+          <div class="olabel">★ Recommendation</div>
+          <div class="first">Investing 400 EUR a month doesn't fit right now.</div>
+          After your expenses, about <span class="fchip">100 EUR <span class="lnk">↗</span></span> is left each month, and your emergency fund is <span class="fchip">300 EUR <span class="lnk">↗</span></span>. A savings plan of 400 EUR would take more than you have left.<br><br>
+          <b>My recommendation:</b> first build your emergency fund (money for surprises, such as a broken washing machine) in your overnight deposit. Once it is in place, a low-cost savings plan in a broad world equity fund (ETF) could fit, at an amount your monthly surplus allows.
+          <div class="exp">
+            <div class="exp-h"><span>Why this fits you</span><span>▴</span></div>
+            <div class="exp-b">
+              <h5>What I used from your profile</h5>
+              <ul><li>Goal: save for retirement, about 30 years</li><li>Risk: you accept ups and downs, but you have little buffer for losses</li><li>Experience: no investments so far</li></ul>
+              <h5>Main risks</h5>
+              <ul><li>Equity funds can lose a third of their value or more in a crisis.</li><li>Without a buffer, you might have to sell at a loss when an unexpected bill arrives.</li></ul>
+              <h5>Costs</h5>
+              <ul><li>A broad world equity ETF typically costs about 0.2% a year (0.20 EUR per 100 EUR invested). I don't name a specific fund or provider.</li></ul>
+            </div>
+          </div>
+          <div class="sugg"><a href="#">How long until my emergency fund is full?</a><a href="#">Set up a rule to top it up</a></div>
+          <div class="foot"><span class="check"><b>✔</b> Checked · 9 checks passed</span><a class="why" href="#">Show checks</a></div>
+        </div>
+      </div>
+      <div class="composer"><span class="clip" aria-label="Attach a letter (PDF)">📎</span><div>Ask a question about your money…</div><span class="send" aria-label="Send">➤</span></div>
+    </aside>
+  </div>
+</div>
+
+<!-- ALTERNATE STATES -->
+<div class="alt">
+  <div class="panel">
+    <h3>"Why?" dialog for "≈ 100 EUR left over each month"</h3>
+    <div class="dialog">
+      <h4>Left over each month: about 100 EUR</h4>
+      <div class="dsec"><h5>Where this number comes from</h5><div class="sub">Calculated by Fine's calculation engine (monthly surplus), not by the language model. Based on your account data from Oct 2025 to Sep 2026.</div></div>
+      <div class="dsec"><h5>What went in</h5>
+        <div class="kv">
+          <span>Average net income</span><span>2,100.00 EUR</span><a class="why" href="#">Why?</a>
+          <span>Average expenses (fixed and variable)</span><span>2,000.00 EUR</span><a class="why" href="#">Why?</a>
+          <span>Months used</span><span>12</span><span></span>
+        </div>
+      </div>
+      <div class="dsec"><h5>Assumptions</h5><ul class="sub" style="margin:0;padding-left:18px"><li>Your income and expenses stay as in the last 12 months.</li><li>One-off payments are spread over the year.</li></ul></div>
+      <div class="dsec" style="margin:0"><h5>Checks</h5>
+        <ul class="checks">
+          <li><b>✔</b> In scope of this service<small>SCOPE</small></li>
+          <li><b>✔</b> Profile complete and confirmed<small>PROFILE_COMPLETE</small></li>
+          <li><b>✔</b> Fits your situation, conflict stated<small>SUITABILITY</small></li>
+          <li><b>✔</b> Costs shown before you decide<small>COST_TRANSPARENCY</small></li>
+          <li><b>✔</b> No fund or provider named<small>NO_PRODUCT_NAMING</small></li>
+          <li><b>✔</b> No promise, no market timing<small>NO_GUARANTEE_OR_TIMING</small></li>
+          <li><b>✔</b> No commission influence<small>CONFLICT_OF_INTEREST</small></li>
+          <li><b>✔</b> Advice recorded<small>DOCUMENTATION</small></li>
+          <li><b>✔</b> Every number matches the calculation<small>NUMBER_MATCH</small></li>
+        </ul>
+      </div>
+      <div class="actions"><a class="btn btn-s" href="#">Close</a></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Variant · Profile incomplete: "A few questions first"</h3>
+    <div class="agent">
+      <div class="olabel">? A few questions first</div>
+      Before I can say whether this fits you, I need to know a bit more about your situation. It takes about 3 minutes.
+      <div style="margin-top:12px;font-size:14px;font-weight:600">Question 3 of 9</div>
+      <div class="prog"><b></b></div>
+      <div class="prefill">Monthly net income: <b>2,100 EUR</b><span class="tag">From your account data</span>
+        <div class="actions" style="margin-top:8px"><a class="btn btn-s" href="#">Looks right</a><a class="btn btn-s" href="#">Change</a></div>
+      </div>
+      <div style="font-size:15px;font-weight:600;margin-bottom:8px">If your investment lost 20% in one year, what would you do?</div>
+      <div class="chips">
+        <span>Sell everything to stop the loss</span>
+        <span class="sel">Wait and keep the plan</span>
+        <span>Invest more while prices are low</span>
+        <span>I don't know</span>
+      </div>
+      <div class="actions"><a class="btn btn-p" href="#">Confirm</a><a class="btn btn-s" href="#">Back</a></div>
+    </div>
+    <p class="sub" style="margin:10px 0 0">Without a complete, confirmed profile, Fine gives no yes/no verdict on an investment. It asks first. Answers are saved only on Confirm.</p>
+  </div>
+</div>
+
+<div class="legend">
+  <div><b>Numbers from the deterministic core.</b> The language model only phrases the answer. Every figure comes from the calculation engine, and an automatic number check blocks any answer whose numbers don't match.</div>
+  <div><b>Compliance by design.</b> Before the answer is shown, a rule engine runs the regulatory checks (suitability, costs, no product naming, no guarantees). Only the rule engine can approve; an optional LLM judge can only block.</div>
+  <div><b>Explainable to the customer.</b> "Why this fits you" is the suitability statement in plain words. "Why?" on any figure shows its source, inputs, assumptions and the checks it passed.</div>
+</div>
+</body>
+</html>

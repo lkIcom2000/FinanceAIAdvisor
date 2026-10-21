@@ -1,28 +1,25 @@
-# Angular specific
-/dist/
-/out-tsc/
-/tmp/
-/coverage/
-/e2e/test-output/
-/.angular/
-.angular/
 
-# Node modules and dependency files
-/node_modules/
-/package-lock.json
-/yarn.lock
+# Java / Maven
+target/
+*.class
+.mvn/wrapper/maven-wrapper.jar
 
-# Environment files
-/.env
+# Node (nested workspaces)
+node_modules/
+frontend/.angular/
+frontend/dist/
 
-# Angular CLI and build artefacts
-/.angular-cli.json
-/.ng/
+# Python
+__pycache__/
+*.pyc
+.venv/
 
-# TypeScript cache
-*.tsbuildinfo
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
 
-# Logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# BMAD rendered workflow snapshots (generated per run)
+_bmad/render/

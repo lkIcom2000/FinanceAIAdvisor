@@ -1,0 +1,150 @@
+# Rule Parameters (PRD FR-22): versioned, dated hard rules used by the Deterministic Core.
+# Append-only: a change adds a new entry with a new version; old entries stay.
+#
+# STATUS: seed values for the experiments. Open Question 4 (corpus + reference date) is still
+# open. Every entry marked `verify: true` must be checked against its source before the
+# experiment results are used in the thesis.
+#
+# Units: EUR, FRACTION (0.04 = 4 %), MONTHS, YEARS, COUNT.
+
+parameters:
+  # --- Liquidity / emergency fund (design parameters, not law) ---
+  - key: emergency_fund_months_min
+    value: 3
+    unit: MONTHS
+    valid_from: 2020-01-01
+    valid_to: null
+    source: "Design parameter (common consumer-protection guidance, e.g. Verbraucherzentrale)"
+    version: "1"
+  - key: emergency_fund_months_max
+    value: 6
+    unit: MONTHS
+    valid_from: 2020-01-01
+    valid_to: null
+    source: "Design parameter (common consumer-protection guidance, e.g. Verbraucherzentrale)"
+    version: "1"
+  - key: short_horizon_years_max
+    value: 3
+    unit: YEARS
+    valid_from: 2020-01-01
+    valid_to: null
+    source: "Design parameter: money needed within this horizon is not invested in equities"
+    version: "1"
+
+  # --- Taxes (Germany) ---
+  - key: saver_allowance_single
+    value: 1000
+    unit: EUR
+    valid_from: 2023-01-01
+    valid_to: null
+    source: "§ 20 Abs. 9 EStG (Sparer-Pauschbetrag)"
+    version: "2023"
+    verify: true
+  - key: vorabpauschale_base_rate_2025
+    value: 0.0253
+    unit: FRACTION
+    valid_from: 2025-01-01
+    valid_to: 2025-12-31
+    source: "BMF-Schreiben Basiszins zur Berechnung der Vorabpauschale 2025 (§ 18 InvStG)"
+    version: "2025"
+    verify: true
+
+  # --- Riester subsidy (Germany) ---
+  - key: riester_basic_allowance
+    value: 175
+    unit: EUR
+    valid_from: 2018-01-01
+    valid_to: null
+    source: "§ 84 EStG (Grundzulage)"
+    version: "2018"
+    verify: true
+  - key: riester_child_allowance_born_2008_or_later
+    value: 300
+    unit: EUR
+    valid_from: 2008-01-01
+    valid_to: null
+    source: "§ 85 Abs. 1 EStG (Kinderzulage)"
+    version: "2008"
+    verify: true
+  - key: riester_child_allowance_born_before_2008
+    value: 185
+    unit: EUR
+    valid_from: 2008-01-01
+    valid_to: null
+    source: "§ 85 Abs. 1 EStG (Kinderzulage)"
+    version: "2008"
+    verify: true
+  - key: riester_min_contribution_rate
+    value: 0.04
+    unit: FRACTION
+    valid_from: 2008-01-01
+    valid_to: null
+    source: "§ 86 Abs. 1 EStG (Mindesteigenbeitrag, share of prior-year income)"
+    version: "2008"
+    verify: true
+  - key: riester_min_contribution_floor
+    value: 60
+    unit: EUR
+    valid_from: 2005-01-01
+    valid_to: null
+    source: "§ 86 Abs. 1 EStG (Sockelbetrag)"
+    version: "2005"
+    verify: true
+  - key: riester_special_expense_cap
+    value: 2100
+    unit: EUR
+    valid_from: 2008-01-01
+    valid_to: null
+    source: "§ 10a Abs. 1 EStG (Sonderausgabenabzug)"
+    version: "2008"
+    verify: true
+
+  # --- Costs (design parameters for illustrative cost comparison, FR-20) ---
+  - key: reference_ter_world_equity_etf
+    value: 0.002
+    unit: FRACTION
+    valid_from: 2020-01-01
+    valid_to: null
+    source: "Design parameter: typical TER of a broad world equity ETF"
+    version: "1"
+  - key: reference_ter_active_fund
+    value: 0.015
+    unit: FRACTION
+    valid_from: 2020-01-01
+    valid_to: null
+    source: "Design parameter: typical ongoing charge of an active equity fund"
+    version: "1"
+  - key: reference_front_load_active_fund
+    value: 0.05
+    unit: FRACTION
+    valid_from: 2020-01-01
+    valid_to: null
+    source: "Design parameter: typical front-end load of an active fund"
+    version: "1"
+
+  # --- Projection assumptions (used when no historical index series is present) ---
+  - key: projection_equity_mean_return
+    value: 0.06
+    unit: FRACTION
+    valid_from: 2020-01-01
+    valid_to: null
+    source: "Design assumption; replace by bootstrap on historical index data (data/index/) when available"
+    version: "1"
+  - key: projection_equity_volatility
+    value: 0.15
+    unit: FRACTION
+    valid_from: 2020-01-01
+    valid_to: null
+    source: "Design assumption; replace by bootstrap on historical index data (data/index/) when available"
+    version: "1"
+  - key: projection_inflation
+    value: 0.02
+    unit: FRACTION
+    valid_from: 2020-01-01
+    valid_to: null
+    source: "Design assumption (ECB medium-term inflation target)"
+    version: "1"
+
+  # Deliberately NOT present: the announced new subsidised retirement savings account
+  # (test item 58 / scenario S12b). Without a valid Rule Parameter the Core refuses to compute
+  # and the case escalates (FR-22).

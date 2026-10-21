@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fine Workspace Mock</title>
+<style>
+/* Key-screen mock: Workspace, persona Lena, Home tab (UJ-1 / Flow 1).
+   Governed by: DESIGN.md (all tokens, Components: app header, overview card, status chips,
+   notification item, mandate card, response card, figure chip, check badge, waiting card, risk callout)
+   EXPERIENCE.md (IA: Workspace + Home tab; Component Patterns: Notification item, Undo control,
+   Rule card, Figure chip, Response card COMPUTE, Waiting card, Suggestion chip;
+   Provenance & Figure Linking rule 2; Flow 1 steps 2-3; State: Turn in progress).
+   Illustrative figures only. Spines win on conflict.
+   Updated 2026-10-21 (Correct Course): fifth Overview tab "Letters" (UJ-7). */
+:root{
+  --navy:#000064; --blue:#0A5AE1; --cyan-light:#D4F2F5; --ice:#F2FAFC; --cyan:#00BBFF;
+  --coral:#FF5A46; --red:#EB1700; --grey:#767676; --on-var:#3D3D6B; --outline-var:#C9DDE3;
+  --container:#E8F6F9; --risk:#FFE3DF; --attention:#FDEBDC;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#dfe5ea;font:16px/24px Inter,Helvetica,Arial,sans-serif;color:var(--navy);padding:24px}
+.note{max-width:1366px;margin:0 auto 12px;font-size:14px;color:var(--on-var)}
+.frame{width:1366px;height:768px;margin:0 auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,40,.18);display:flex;flex-direction:column}
+.chrome{height:32px;background:#e9ecef;display:flex;align-items:center;gap:6px;padding:0 12px}
+.chrome i{width:11px;height:11px;border-radius:50%;background:#c4c9cf;display:block}
+.chrome span{margin-left:16px;background:#fff;border-radius:6px;padding:2px 12px;font-size:12px;color:#555}
+header{height:64px;background:var(--navy);color:#fff;display:flex;align-items:center;padding:0 24px;gap:16px;flex:none}
+.wordmark{font-weight:700;letter-spacing:.04em}
+.divider{width:1px;height:24px;background:rgba(255,255,255,.4)}
+.product{font-weight:600;font-size:18px}
+.spacer{flex:1}
+.datechip{background:rgba(255,255,255,.14);border-radius:9999px;padding:4px 12px;font-size:14px}
+.user{font-size:14px}
+.logout{color:#fff;font-size:14px;font-weight:600;text-decoration:none;border:2px solid #fff;border-radius:9999px;padding:4px 14px}
+.shell{flex:1;display:flex;min-height:0}
+.overview{flex:1;display:flex;flex-direction:column;min-width:560px;border-right:1px solid var(--outline-var)}
+.tabs{display:flex;gap:4px;padding:0 24px;border-bottom:1px solid var(--outline-var);flex:none}
+.tab{padding:14px 16px 12px;font-size:14px;font-weight:600;color:var(--on-var);border-bottom:3px solid transparent;display:flex;align-items:center;gap:6px}
+.tab.active{color:var(--blue);border-color:var(--blue)}
+.badge{background:var(--blue);color:#fff;border-radius:9999px;font-size:12px;line-height:18px;min-width:18px;text-align:center;padding:0 5px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--cyan);display:inline-block}
+.ov-body{flex:1;overflow:auto;padding:24px;background:#fff}
+h1{font-size:24px;line-height:32px;margin:0 0 16px}
+h2{font-size:18px;line-height:26px;margin:0}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px}
+.card{border:1px solid var(--outline-var);border-radius:20px;padding:20px 24px;background:#fff}
+.tile .label{font-size:14px;color:var(--on-var)}
+.fig-lg{font-size:28px;line-height:36px;font-weight:700;font-variant-numeric:tabular-nums}
+.why{color:var(--blue);font-size:14px;font-weight:600;text-decoration:none;margin-left:8px}
+.sub{font-size:14px;line-height:20px;color:var(--on-var)}
+.bar{height:8px;border-radius:9999px;background:var(--container);margin:8px 0 4px;overflow:hidden}
+.bar b{display:block;height:100%;width:41%;background:var(--blue);border-radius:9999px}
+.section-title{display:flex;align-items:center;justify-content:space-between;margin:0 0 12px}
+.notif{border:1px solid var(--outline-var);border-radius:20px;margin-bottom:12px;overflow:hidden}
+.notif-row{display:flex;gap:16px;padding:16px 20px;align-items:flex-start}
+.circle{width:40px;height:40px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700}
+.c-exec{background:var(--blue);color:#fff}
+.c-rec{background:var(--cyan-light);color:var(--navy)}
+.notif-main{flex:1}
+.chiprow{display:flex;gap:8px;align-items:center;margin-bottom:4px}
+.status{border-radius:9999px;font-size:12px;font-weight:600;line-height:20px;padding:0 10px;display:inline-flex;gap:4px;align-items:center}
+.s-exec{background:var(--blue);color:#fff}
+.s-rec{background:var(--cyan-light);color:var(--navy)}
+.date{font-size:12px;color:var(--grey)}
+.ntitle{font-weight:700;font-size:16px}
+.ntitle.read{font-weight:400}
+.notif-exp{background:var(--ice);padding:16px 20px 16px 76px;border-top:1px solid var(--outline-var)}
+.fchip{display:inline-flex;align-items:center;gap:4px;background:var(--ice);border:1px solid var(--outline-var);border-radius:4px;padding:0 6px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--navy);white-space:nowrap}
+.notif-exp .fchip{background:#fff}
+.fchip .lnk{font-size:11px;color:var(--blue)}
+.actions{display:flex;gap:12px;align-items:center;margin-top:12px}
+.btn{display:inline-flex;align-items:center;height:44px;padding:0 20px;border-radius:9999px;font-weight:600;font-size:14px;border:2px solid var(--blue);text-decoration:none}
+.btn-p{background:var(--blue);color:#fff}
+.btn-s{background:transparent;color:var(--blue)}
+.btn-sm{height:36px;padding:0 16px}
+.deadline{font-size:14px;color:var(--on-var)}
+.rule .bounds{display:grid;grid-template-columns:auto auto;gap:4px 24px;margin:12px 0;font-size:14px}
+.rule .bounds span:nth-child(odd){color:var(--on-var)}
+.rule .bounds span:nth-child(even){font-weight:600;font-variant-numeric:tabular-nums}
+.revoke{color:var(--red);font-weight:600;font-size:14px;text-decoration:none}
+.chat{width:440px;flex:none;display:flex;flex-direction:column;background:var(--ice)}
+.chat-head{padding:14px 20px;border-bottom:1px solid var(--outline-var);font-weight:600;font-size:14px;background:#fff}
+.msgs{flex:1;overflow:auto;padding:16px 20px;display:flex;flex-direction:column;gap:12px}
+.agent{background:#fff;border:1px solid var(--outline-var);border-radius:8px;padding:12px 16px}
+.olabel{font-size:14px;font-weight:600;color:var(--on-var);display:flex;gap:6px;align-items:center;margin-bottom:4px}
+.user-msg{align-self:flex-end;background:var(--navy);color:#fff;border-radius:8px;padding:10px 14px;max-width:85%}
+.sugg{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.sugg a{border:1px solid var(--outline-var);border-radius:9999px;padding:4px 12px;font-size:14px;color:var(--blue);font-weight:600;text-decoration:none;background:#fff}
+.foot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:8px;border-top:1px solid var(--container)}
+.check{background:var(--ice);border-radius:9999px;font-size:12px;padding:2px 10px;display:inline-flex;gap:4px;align-items:center}
+.check b{color:var(--blue)}
+.composer{padding:12px 16px;background:#fff;border-top:1px solid var(--outline-var);display:flex;gap:8px;align-items:center}
+.composer div{flex:1;border:1px solid var(--grey);border-radius:8px;padding:10px 12px;color:var(--grey);font-size:15px}
+.send{width:44px;height:44px;border-radius:50%;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
+.alt{width:1366px;margin:24px auto 0;display:grid;grid-template-columns:440px 1fr;gap:24px}
+.alt h3{font-size:14px;margin:0 0 8px;color:var(--on-var);text-transform:uppercase;letter-spacing:.06em}
+.panel{background:#fff;border-radius:10px;padding:16px;box-shadow:0 4px 16px rgba(0,0,40,.1)}
+.wait{background:var(--ice);border-radius:8px;padding:14px 16px}
+.steps{list-style:none;margin:8px 0 0;padding:0}
+.steps li{display:flex;gap:10px;align-items:center;font-size:14px;line-height:20px;padding:4px 0}
+.sd{width:14px;height:14px;border-radius:50%;flex:none}
+.done{background:var(--navy)}
+.active{border:3px solid var(--blue);background:#fff}
+.pend{border:2px solid var(--grey);background:#fff}
+.steps li.pending{color:var(--grey)}
+.risk{background:var(--risk);border-left:4px solid var(--coral);border-radius:8px;padding:10px 14px;font-size:14px;margin-top:8px}
+.s-await{background:var(--attention);color:var(--navy)}
+</style>
+</head>
+<body>
+<p class="note"><strong>Key screen: Workspace, Lena, Home tab (UJ-1).</strong> 1366×768 laptop frame. Figures are illustrative. DESIGN.md and EXPERIENCE.md win on conflict.</p>
+
+<div class="frame">
+  <div class="chrome"><i></i><i></i><i></i><span>fine.local/?tab=home</span></div>
+  <header>
+    <span class="wordmark">ATRUVIA</span><span class="divider"></span><span class="product">Fine</span>
+    <span class="spacer"></span>
+    <span class="datechip">Today: 15 Oct 2026</span>
+    <span class="user">Lena</span>
+    <a class="logout" href="#">Log out</a>
+  </header>
+
+  <div class="shell">
+    <!-- OVERVIEW (left) -->
+    <section class="overview" aria-label="Financial overview">
+      <nav class="tabs" role="tablist">
+        <span class="tab active" role="tab" aria-selected="true">Home <span class="badge" aria-label="2 unread">2</span></span>
+        <span class="tab" role="tab">Liquidity <span class="dot" title="Fine mentioned a figure from this tab"></span></span>
+        <span class="tab" role="tab">Wealth &amp; Retirement</span>
+        <span class="tab" role="tab">Protection</span>
+        <span class="tab" role="tab">Letters</span>
+      </nav>
+      <div class="ov-body">
+        <div class="tiles">
+          <div class="card tile">
+            <div class="label">Current account</div>
+            <div><span class="fig-lg">1,045 EUR</span><a class="why" href="#">Why?</a></div>
+            <div class="sub">Lowest expected balance before your next salary: 110 EUR on 1 Nov</div>
+          </div>
+          <div class="card tile">
+            <div class="label">Overnight deposit</div>
+            <div><span class="fig-lg">2,600 EUR</span><a class="why" href="#">Why?</a></div>
+            <div class="sub">A savings account you can access any day</div>
+          </div>
+          <div class="card tile">
+            <div class="label">Emergency fund</div>
+            <div><span class="fig-lg">2,600 EUR</span><a class="why" href="#">Why?</a></div>
+            <div class="bar"><b></b></div>
+            <div class="sub">of 6,300 EUR target (3 months of expenses)</div>
+          </div>
+        </div>
+
+        <div class="section-title"><h2>For you</h2></div>
+
+        <div class="notif">
+          <div class="notif-row">
+            <div class="circle c-exec" aria-hidden="true">✓</div>
+            <div class="notif-main">
+              <div class="chiprow"><span class="status s-exec">✓ Done for you</span><span class="date">15 Oct, 6:00 am</span></div>
+              <div class="ntitle">I moved 200 EUR from your overnight deposit to your current account.</div>
+            </div>
+          </div>
+          <div class="notif-exp">
+            Your annual car insurance of <span class="fchip">620 EUR</span> is due on 1 Nov. Without this transfer your balance would have dropped to <span class="fchip">−90 EUR <span class="lnk">↗</span></span>. Your rule “Keep my current account above 0 EUR” allows this. <a class="why" href="#">Why?</a>
+            <div class="actions">
+              <a class="btn btn-s btn-sm" href="#">Undo transfer</a>
+              <span class="deadline">Undo possible until Thu 16 Oct, 5 pm</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="notif">
+          <div class="notif-row">
+            <div class="circle c-rec" aria-hidden="true">i</div>
+            <div class="notif-main">
+              <div class="chiprow"><span class="status s-rec">💡 Recommendation</span><span class="date">15 Oct, 6:00 am</span></div>
+              <div class="ntitle">Paying your car insurance monthly would avoid this every year.</div>
+              <div class="actions" style="margin-top:8px"><a class="btn btn-s btn-sm" href="#">Ask Fine about this</a></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title" style="margin-top:24px"><h2>Your rules</h2><a class="btn btn-s btn-sm" href="#">Set up a rule</a></div>
+        <div class="card rule">
+          <div class="ntitle">Keep my current account above 0 EUR, using my overnight deposit, but never let the overnight deposit fall below 2,000 EUR.</div>
+          <div class="bounds">
+            <span>Max per transfer</span><span>300 EUR</span>
+            <span>Max per month</span><span>500 EUR</span>
+            <span>From → to</span><span>Overnight deposit → Current account</span>
+            <span>Overnight deposit minimum</span><span>2,000 EUR</span>
+          </div>
+          <div class="sub" style="display:flex;justify-content:space-between;align-items:center">
+            <span>Active since 3 Oct · 1 action under this rule</span><a class="revoke" href="#">Revoke</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHAT (right) -->
+    <aside class="chat" aria-label="Chat with Fine">
+      <div class="chat-head">Chat with Fine</div>
+      <div class="msgs" role="log" aria-live="polite">
+        <div class="agent">
+          Hi Lena, I'm Fine. I can explain money topics, look at your situation and calculate what-ifs. Every number I show you comes with a “Why?”.
+          <div class="sugg"><a href="#">Why did you move 200 EUR?</a><a href="#">Should I pay my insurance monthly?</a></div>
+        </div>
+        <div class="user-msg">Why did you move 200 EUR?</div>
+        <div class="agent">
+          <div class="olabel">▦ Calculated for you</div>
+          Because your balance would have dropped to <span class="fchip">−90 EUR <span class="lnk">↗</span></span> on 1 Nov, when your car insurance of <span class="fchip">620 EUR</span> is due. Your salary only arrives on 3 Nov. After the transfer, your lowest expected balance is <span class="fchip">110 EUR <span class="lnk">↗</span></span>.<br><br>
+          Your rule allows up to 300 EUR per transfer, so I didn't need to ask you first. You can undo it until Thu 16 Oct, 5 pm.
+          <div class="foot"><span class="check"><b>✔</b> Checked · 6 checks passed</span><a class="why" href="#">Show calculation</a></div>
+        </div>
+      </div>
+      <div class="composer"><div>Ask a question about your money…</div><span class="send" aria-label="Send">➤</span></div>
+    </aside>
+  </div>
+</div>
+
+<!-- ALTERNATE STATES -->
+<div class="alt">
+  <div class="panel">
+    <h3>Alternate state · Turn in progress</h3>
+    <div class="user-msg" style="margin-left:auto;margin-bottom:12px;width:fit-content">Should I pay my insurance monthly?</div>
+    <div class="wait" role="status">
+      <div class="olabel">Fine is checking the answer</div>
+      <ul class="steps">
+        <li><span class="sd done"></span>Understanding your question</li>
+        <li><span class="sd done"></span>Getting your figures</li>
+        <li><span class="sd active"></span>Writing the answer</li>
+        <li class="pending"><span class="sd pend"></span>Checking the rules</li>
+      </ul>
+    </div>
+    <p class="sub" style="margin:8px 0 0">The composer is disabled: “Fine is checking the answer…”</p>
+  </div>
+  <div class="panel">
+    <h3>Alternate state · Edge case: gate downgrade to “Needs your OK” (Flow 1)</h3>
+    <div class="notif" style="margin:0">
+      <div class="notif-row">
+        <div class="circle" style="background:var(--attention)" aria-hidden="true">…</div>
+        <div class="notif-main">
+          <div class="chiprow"><span class="status s-await">⏳ Needs your OK</span><span class="date">15 Oct, 6:00 am</span></div>
+          <div class="ntitle">Move 200 EUR from your overnight deposit to your current account?</div>
+        </div>
+      </div>
+      <div class="notif-exp">
+        <div class="risk" style="margin:0 0 8px">Your balance would drop to <span class="fchip">−90 EUR</span> on 1 Nov.</div>
+        This needs your OK because it would take your overnight deposit to <span class="fchip">1,900 EUR</span>, below the 2,000 EUR you set as its minimum.
+        <div class="actions"><a class="btn btn-p btn-sm" href="#">Review and confirm</a></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,3 @@
+# Q&A items whose expected outcome depends on persona data run as their backing persona (PRD FR-51).
+# Items not listed run without a stored profile.
+56: p-shortfall

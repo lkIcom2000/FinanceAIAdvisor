@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Forge Report: Letter Assistant</title>
+<style>
+:root{--bg:#faf7f2;--ink:#1f1d1a;--muted:#6b645a;--card:#fff;--line:#e4ddd2;--seal:#8a1c1c;--ok:#2f6b3a}
+@media (prefers-color-scheme:dark){:root{--bg:#171512;--ink:#ece6dc;--muted:#a59d90;--card:#211e1a;--line:#36312a;--seal:#c44a3f;--ok:#6fb27c}}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Georgia,serif}
+main{max-width:860px;margin:0 auto;padding:32px 16px}
+h1{font-size:1.9rem;margin:.2em 0}h2{font-size:1.2rem;margin-top:2em;border-bottom:1px solid var(--line);padding-bottom:.3em}
+.head{display:flex;gap:24px;align-items:center;flex-wrap:wrap}.sub{color:var(--muted)}
+ul{padding-left:1.2em}li{margin:.35em 0}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px}
+.card b{display:block}.card span{color:var(--muted);font-size:.92rem}
+.kill li::marker{content:"✕ ";color:var(--seal)}.lock li::marker{content:"✓ ";color:var(--ok)}
+</style></head><body><main>
+<div class="head">
+<svg width="150" height="150" viewBox="0 0 150 150" role="img" aria-label="Hardened seal">
+<circle cx="75" cy="75" r="68" fill="var(--seal)"/><circle cx="75" cy="75" r="56" fill="none" stroke="#f3d9c9" stroke-width="2" stroke-dasharray="4 3"/>
+<text x="75" y="72" text-anchor="middle" fill="#f8eadf" font-family="Georgia" font-size="19" font-weight="bold" letter-spacing="2">HARDENED</text>
+<text x="75" y="94" text-anchor="middle" fill="#f3d9c9" font-family="Georgia" font-size="11">2026-10-21</text></svg>
+<div><div class="sub">Forge report · Fine (master's thesis, DSR)</div><h1>Letter &amp; Contract Assistant</h1>
+<p class="sub">The document becomes an untrusted input channel and a Trigger source. The LLM extracts, a deterministic grounding check verifies, the customer confirms, and only then does the Core compute.</p></div></div>
+
+<h2>Locked decisions</h2><ul class="lock">
+<li><b>Mandatory slice UJ-7:</b> Lena's car-insurance premium increase. Fact card with source highlights → confirm → explanation with forecast impact → deadline Notification → special-termination template (L1). An objection letter is refused transparently.</li>
+<li><b>Stretch:</b> insurance policy (closes UJ-4), then dunning letter plus instalment request.</li>
+<li><b>Text PDFs only</b>, extracted deterministically. Scans and photos are rejected.</li>
+<li><b>Pipeline:</b> redaction → NLU extraction → <b>span-grounding check</b> → confirmation → explanation through the Check Chain. There is no path from a document to an Action.</li>
+<li><b>Gate:</b> confirming facts is a confirm control, a deadline becomes the Trigger <code>DOCUMENT_DEADLINE</code>, a letter is a deterministic template at L1, Fine never sends, and a new criterion <code>legal</code> caps at L1.</li>
+<li><b>Module <code>documents</code></b> with <code>DocumentFactsPort</code>. Facts become expected cash flows with their own provId. The audit stores hashes only, never the original text.</li>
+<li><b>GDPR:</b> the customer deletes, and there is no automatic retention period.</li>
+<li><b>Evaluation:</b> SM-10a ungrounded values = 0%; field accuracy and misassignment are reported; SM-5 and SM-7 are extended; there is no E5. The UAT includes a deliberately wrong field on the fact card.</li>
+</ul>
+
+<h2>Rejected and why</h2><ul class="kill">
+<li><b>Paperless office (filing, search, task manager):</b> it is administration, not advice → outlook.</li>
+<li><b>OCR and a vision model:</b> a second model family and confounded error sources → outlook.</li>
+<li><b>Objection letters:</b> a legal assessment of the individual case is a legal service under the RDG.</li>
+<li><b>LLM-written letters:</b> they lose the Smartlaw argument.</li>
+<li><b>Sending by Fine:</b> it creates an outbound channel and liability.</li>
+<li><b>Utility bills and pension notices:</b> tenancy and social law, and long documents.</li>
+<li><b>Facts in <code>bank.contracts</code>:</b> provenance blurs and AD-12 breaks.</li>
+<li><b>Original text in the audit:</b> it conflicts with GDPR Art. 17.</li>
+</ul>
+
+<h2>Weak points that survived</h2><ul>
+<li>A value can be grounded and still assigned to the wrong field. Only the human confirmation catches it, and automation bias may defeat that (tested in the UAT).</li>
+<li>The RDG reading is the author's own, not a legal opinion.</li>
+<li>The phone-photo case, the most realistic one for C-class customers, is not covered.</li>
+<li>Redaction of user-uploaded PDFs misses unknown third-party names.</li>
+<li>Letter language, German or English, is still open.</li>
+</ul>
+
+<h2>Voices at the forge</h2><div class="cards">
+<div class="card"><b>📋 John · PM</b><span>"Which job is it?" He forced one journey and the "no E5" rule.</span></div>
+<div class="card"><b>📊 Mary · Analyst</b><span>Only document types that feed existing Core functions.</span></div>
+<div class="card"><b>🏗️ Winston · Architect</b><span>No vision model; facts are not bank data.</span></div>
+<div class="card"><b>💻 Amelia · Dev</b><span>The redaction conflict with E4; cheap print view and regex redaction.</span></div>
+<div class="card"><b>🎨 Sally · UX</b><span>"Who sends the letter?"</span></div>
+<div class="card"><b>🎓 Dr. Henrike Voss · Examiner</b><span>Scope creep: which RQ does search answer?</span></div>
+<div class="card"><b>🧾 Sabine Kraus · Debt counsellor</b><span>Dunning letters and premium increases paralyse people; objections are legal advice.</span></div>
+<div class="card"><b>🔬 Tomasz Wierzbicki · Methodologist</b><span>"Grounded ≠ correct field"; the planted-error UAT.</span></div>
+<div class="card"><b>🕵️ Rafael Ortmann · Red-teamer</b><span>A white 1-pt instruction inside the letter.</span></div>
+<div class="card"><b>⚖️ Dr. Lena Brandauer · Legal tech lawyer</b><span>RDG § 2, Smartlaw, and why there is no objection letter.</span></div>
+<div class="card"><b>🛡️ Ines Haferkamp · DPO</b><span>Append-only audit versus Art. 17.</span></div>
+</div>
+</main></body></html>

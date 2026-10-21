@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fine Letter Assistant Mock</title>
+<style>
+/* Key-screen mock: Letter & Contract Assistant, persona Lena (UJ-7 / Flow 8).
+   Governed by: DESIGN.md (tokens, components) and EXPERIENCE.md (Attach button, Fact Card,
+   Document explanation card, To-do item, Letter print view, letter states, Flow 8, legal gate reason).
+   PRD §4.14 (FR-53 to FR-60). Illustrative figures only. Spines win on conflict. */
+:root{
+  --navy:#000064; --blue:#0A5AE1; --cyan-light:#D4F2F5; --ice:#F2FAFC; --cyan:#00BBFF;
+  --coral:#FF5A46; --red:#EB1700; --grey:#767676; --on-var:#3D3D6B; --outline-var:#C9DDE3;
+  --container:#E8F6F9; --risk:#FFE3DF; --attention:#FDEBDC; --hl:#FFF3B0;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#dfe5ea;font:16px/24px Inter,Helvetica,Arial,sans-serif;color:var(--navy);padding:24px}
+.note{max-width:1366px;margin:0 auto 12px;font-size:14px;color:var(--on-var)}
+.note strong{color:var(--navy)}
+.frame{width:1366px;height:768px;margin:0 auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,40,.18);display:flex;flex-direction:column}
+.chrome{height:32px;background:#e9ecef;display:flex;align-items:center;gap:6px;padding:0 12px;flex:none}
+.chrome i{width:11px;height:11px;border-radius:50%;background:#c4c9cf;display:block}
+.chrome span{margin-left:16px;background:#fff;border-radius:6px;padding:2px 12px;font-size:12px;color:#555}
+header{height:64px;background:var(--navy);color:#fff;display:flex;align-items:center;padding:0 24px;gap:16px;flex:none}
+.wordmark{font-weight:700;letter-spacing:.04em}
+.divider{width:1px;height:24px;background:rgba(255,255,255,.4)}
+.product{font-weight:600;font-size:18px}
+.spacer{flex:1}
+.datechip{background:rgba(255,255,255,.14);border-radius:9999px;padding:4px 12px;font-size:14px}
+.user{font-size:14px}
+.logout{color:#fff;font-size:14px;font-weight:600;text-decoration:none;border:2px solid #fff;border-radius:9999px;padding:4px 14px}
+.shell{flex:1;display:flex;min-height:0}
+.overview{flex:1;display:flex;flex-direction:column;min-width:560px;border-right:1px solid var(--outline-var)}
+.tabs{display:flex;gap:4px;padding:0 24px;border-bottom:1px solid var(--outline-var);flex:none}
+.tab{padding:14px 16px 12px;font-size:14px;font-weight:600;color:var(--on-var);border-bottom:3px solid transparent;display:flex;align-items:center;gap:6px}
+.tab.active{color:var(--blue);border-color:var(--blue)}
+.badge{background:var(--blue);color:#fff;border-radius:9999px;font-size:12px;line-height:18px;min-width:18px;text-align:center;padding:0 5px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--cyan);display:inline-block}
+.ov-body{flex:1;overflow:auto;padding:24px;background:#fff}
+h2{font-size:18px;line-height:26px;margin:0}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px}
+.card{border:1px solid var(--outline-var);border-radius:20px;padding:20px 24px;background:#fff}
+.tile .label{font-size:14px;color:var(--on-var)}
+.fig-lg{font-size:28px;line-height:36px;font-weight:700;font-variant-numeric:tabular-nums}
+.fig-lg.neg{color:var(--red)}
+.why{color:var(--blue);font-size:14px;font-weight:600;text-decoration:none;margin-left:8px}
+.sub{font-size:14px;line-height:20px;color:var(--on-var)}
+.section-title{display:flex;align-items:center;justify-content:space-between;margin:0 0 12px}
+.notif{border:1px solid var(--outline-var);border-radius:20px;margin-bottom:12px;overflow:hidden}
+.notif-row{display:flex;gap:16px;padding:16px 20px;align-items:flex-start}
+.circle{width:40px;height:40px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700}
+.c-todo{background:var(--attention);color:var(--navy)}
+.c-rec{background:var(--cyan-light);color:var(--navy)}
+.notif-main{flex:1}
+.chiprow{display:flex;gap:8px;align-items:center;margin-bottom:4px}
+.status{border-radius:9999px;font-size:12px;font-weight:600;line-height:20px;padding:0 10px;display:inline-flex;gap:4px;align-items:center}
+.s-todo{background:var(--attention);color:var(--navy)}
+.s-rec{background:var(--cyan-light);color:var(--navy)}
+.date{font-size:12px;color:var(--grey)}
+.ntitle{font-weight:700;font-size:16px}
+.notif-exp{background:var(--ice);padding:16px 20px 16px 76px;border-top:1px solid var(--outline-var);font-size:15px}
+.fchip{display:inline-flex;align-items:center;gap:4px;background:var(--ice);border:1px solid var(--outline-var);border-radius:4px;padding:0 6px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--navy);white-space:nowrap}
+.notif-exp .fchip{background:#fff}
+.fchip .lnk{font-size:11px;color:var(--blue)}
+.fchip.neg{color:var(--red)}
+.actions{display:flex;gap:12px;align-items:center;margin-top:12px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;height:44px;padding:0 20px;border-radius:9999px;font-weight:600;font-size:14px;border:2px solid var(--blue);text-decoration:none;white-space:nowrap}
+.btn-p{background:var(--blue);color:#fff}
+.btn-s{background:transparent;color:var(--blue)}
+.btn-t{border-color:transparent;color:var(--blue);padding:0 8px}
+.btn-sm{height:36px;padding:0 16px}
+.reason{font-size:14px;color:var(--on-var);margin-top:8px}
+.chat{width:440px;flex:none;display:flex;flex-direction:column;background:var(--ice)}
+.chat-head{padding:14px 20px;border-bottom:1px solid var(--outline-var);font-weight:600;font-size:14px;background:#fff}
+.msgs{flex:1;overflow:auto;padding:16px 20px;display:flex;flex-direction:column;gap:12px}
+.agent{background:#fff;border:1px solid var(--outline-var);border-radius:8px;padding:12px 16px;font-size:15px;line-height:22px}
+.olabel{font-size:14px;font-weight:600;color:var(--on-var);display:flex;gap:6px;align-items:center;margin-bottom:4px}
+.user-msg{align-self:flex-end;background:var(--navy);color:#fff;border-radius:8px;padding:10px 14px;max-width:85%}
+.file-msg{align-self:flex-end;background:#fff;border:2px solid var(--navy);border-radius:8px;padding:8px 12px;display:flex;gap:10px;align-items:center;font-size:14px}
+.file-msg b{display:block}
+.pdf{width:30px;height:36px;border-radius:4px;background:var(--navy);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px;flex:none}
+.sugg{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.sugg a{border:1px solid var(--outline-var);border-radius:9999px;padding:4px 12px;font-size:14px;color:var(--blue);font-weight:600;text-decoration:none;background:#fff}
+.foot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:8px;border-top:1px solid var(--container)}
+.check{background:var(--ice);border-radius:9999px;font-size:12px;padding:2px 10px;display:inline-flex;gap:4px;align-items:center}
+.check b{color:var(--blue)}
+.composer{padding:12px 16px;background:#fff;border-top:1px solid var(--outline-var);display:flex;gap:8px;align-items:center}
+.composer div{flex:1;border:1px solid var(--grey);border-radius:8px;padding:10px 12px;color:var(--grey);font-size:15px}
+.clip{width:44px;height:44px;border-radius:50%;border:2px solid var(--blue);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:18px}
+.send{width:44px;height:44px;border-radius:50%;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
+/* Fact Card */
+.facts{width:100%;border-collapse:collapse;margin:6px 0 4px;font-size:14px;line-height:20px}
+.facts td{padding:6px 0;border-bottom:1px solid var(--container);vertical-align:top}
+.facts td:first-child{color:var(--on-var);width:44%}
+.facts td:nth-child(2){font-weight:600;font-variant-numeric:tabular-nums}
+.facts td:last-child{text-align:right;white-space:nowrap}
+.facts a{color:var(--blue);font-size:12px;font-weight:600;text-decoration:none}
+.lowconf{display:block;font-size:12px;font-weight:600;color:#8a4b00}
+.confirmed{display:inline-flex;gap:4px;align-items:center;font-size:12px;font-weight:600;color:var(--blue);background:var(--ice);border-radius:9999px;padding:2px 10px}
+.collapsed{color:var(--on-var);font-size:14px}
+.sec{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--on-var);margin:10px 0 2px}
+.sec:first-of-type{margin-top:4px}
+/* alternates */
+.alt{width:1366px;margin:24px auto 0;display:grid;grid-template-columns:440px 1fr 1fr;gap:24px;align-items:start}
+.alt h3{font-size:13px;margin:0 0 10px;color:var(--on-var);text-transform:uppercase;letter-spacing:.06em}
+.panel{background:#fff;border-radius:10px;padding:16px;box-shadow:0 4px 16px rgba(0,0,40,.1)}
+.panel .agent{border-radius:8px}
+.dialog{border:1px solid var(--outline-var);border-radius:20px;padding:20px}
+.dialog h4{margin:0 0 4px;font-size:18px}
+.lettertext{background:var(--ice);border-radius:8px;padding:12px 14px;font-family:Georgia,serif;font-size:14px;line-height:21px;color:#222;margin:10px 0}
+mark{background:var(--hl);outline:2px solid #E0B800;border-radius:2px;padding:0 2px}
+.page{border:1px solid var(--outline-var);border-radius:4px;padding:22px 26px;font-family:Georgia,serif;font-size:13px;line-height:19px;color:#222;background:#fff}
+.page .r{text-align:right}
+.banner{background:var(--container);border-left:4px solid var(--blue);border-radius:8px;padding:10px 14px;font-size:14px;margin-bottom:12px}
+.oos .olabel{color:var(--on-var)}
+.legend{width:1366px;margin:24px auto 0;font-size:14px;color:var(--on-var);display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.legend div{background:#fff;border-radius:10px;padding:14px 16px;box-shadow:0 4px 16px rgba(0,0,40,.06)}
+.legend b{color:var(--navy)}
+</style>
+</head>
+<body>
+<p class="note"><strong>Key screen: Letter &amp; Contract Assistant, Lena, Home tab (UJ-7).</strong> Lena uploaded a letter from her car insurer, checked what Fine read, and confirmed it. Only then did Fine explain the letter and create a to-do. 1366×768 laptop frame; the insurer and all figures are fictional. DESIGN.md and EXPERIENCE.md win on conflict.</p>
+
+<div class="frame">
+  <div class="chrome"><i></i><i></i><i></i><span>fine.local/?tab=home</span></div>
+  <header>
+    <span class="wordmark">ATRUVIA</span><span class="divider"></span><span class="product">Fine</span>
+    <span class="spacer"></span>
+    <span class="datechip">Today: 12 Oct 2026</span>
+    <span class="user">Lena</span>
+    <a class="logout" href="#">Log out</a>
+  </header>
+
+  <div class="shell">
+    <!-- OVERVIEW (left) -->
+    <section class="overview" aria-label="Financial overview">
+      <nav class="tabs" role="tablist">
+        <span class="tab active" role="tab" aria-selected="true">Home <span class="badge" aria-label="2 unread">2</span></span>
+        <span class="tab" role="tab">Liquidity <span class="dot" title="Fine mentioned a figure from this tab"></span></span>
+        <span class="tab" role="tab">Wealth &amp; Retirement</span>
+        <span class="tab" role="tab">Protection <span class="dot" title="Fine mentioned a figure from this tab"></span></span>
+        <span class="tab" role="tab">Letters</span>
+      </nav>
+      <div class="ov-body">
+        <div class="tiles">
+          <div class="card tile">
+            <div class="label">Current account</div>
+            <div><span class="fig-lg">1,045 EUR</span><a class="why" href="#">Why?</a></div>
+            <div class="sub">Lowest expected balance before your next salary: <b style="color:var(--red)">−214 EUR</b> on 1 Nov</div>
+          </div>
+          <div class="card tile">
+            <div class="label">Overnight deposit</div>
+            <div><span class="fig-lg">2,600 EUR</span><a class="why" href="#">Why?</a></div>
+            <div class="sub">A savings account you can access any day</div>
+          </div>
+          <div class="card tile">
+            <div class="label">Car insurance, yearly</div>
+            <div><span class="fig-lg">744 EUR</span><a class="why" href="#">Why?</a></div>
+            <div class="sub">From 1 Nov, was 620 EUR · from your letter of 9 Oct</div>
+          </div>
+        </div>
+
+        <div class="section-title"><h2>For you</h2></div>
+
+        <div class="notif">
+          <div class="notif-row">
+            <div class="circle c-todo" aria-hidden="true">☐</div>
+            <div class="notif-main">
+              <div class="chiprow"><span class="status s-todo">☐ To do</span><span class="date">Due 12 Nov</span></div>
+              <div class="ntitle">Decide about your car insurance by 12 Nov.</div>
+            </div>
+          </div>
+          <div class="notif-exp">
+            Your insurer raises your yearly premium from <span class="fchip">620 EUR</span> to <span class="fchip">744 EUR <span class="lnk">↗</span></span>. Because of the increase, you may cancel the contract until <b>12 Nov</b>. If you keep it, you don't need to do anything. <a class="why" href="#">Show letter</a>
+            <div class="actions">
+              <a class="btn btn-s btn-sm" href="#">Open termination letter</a>
+              <a class="btn btn-t btn-sm" href="#">Mark as done</a>
+              <a class="btn btn-t btn-sm" href="#">Dismiss</a>
+            </div>
+            <div class="reason">I can prepare the letter for you, but you decide whether to send it. Fine never sends letters.</div>
+          </div>
+        </div>
+
+        <div class="notif">
+          <div class="notif-row">
+            <div class="circle c-rec" aria-hidden="true">i</div>
+            <div class="notif-main">
+              <div class="chiprow"><span class="status s-rec">💡 Recommendation</span><span class="date">12 Oct</span></div>
+              <div class="ntitle">Your balance may drop to −214 EUR on 1 Nov, when the car insurance is due.</div>
+              <div class="actions" style="margin-top:8px"><a class="btn btn-s btn-sm" href="#">Ask Fine about this</a></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHAT (right) -->
+    <aside class="chat" aria-label="Chat with Fine">
+      <div class="chat-head">Chat with Fine</div>
+      <div class="msgs" role="log" aria-live="polite">
+        <div class="file-msg"><span class="pdf">PDF</span><span><b>Letter-Nordwind-Insurance.pdf</b>1 page · 84 KB</span></div>
+        <div class="agent">
+          <div class="olabel" style="justify-content:space-between"><span>📄 What I read in your letter</span><span class="confirmed">✓ You confirmed this</span></div>
+          <div class="collapsed">Nordwind Insurance · car insurance · 620 → 744 EUR a year from 1 Nov · cancel until 12 Nov. <a class="why" style="margin:0" href="#">Show all</a></div>
+        </div>
+        <div class="agent">
+          <div class="olabel">▦ Calculated for you</div>
+          <div class="sec">What the letter says</div>
+          Your yearly car insurance rises from <span class="fchip">620 EUR</span> to <span class="fchip">744 EUR <span class="lnk">↗</span></span>, starting with the payment on 1 Nov.
+          <div class="sec">What it means for you</div>
+          You pay <span class="fchip">124 EUR</span> more a year. On 1 Nov your balance would drop to <span class="fchip neg">−214 EUR <span class="lnk">↗</span></span>, because your salary arrives on 3 Nov.
+          <div class="sec">Do you need to do something?</div>
+          Only if you want to. If you'd like to compare offers, you can cancel until <span class="fchip">12 Nov</span>. If you keep the contract, nothing else is needed.
+          <div class="sugg"><a href="#">Open termination letter</a><a href="#">What happens if I do nothing?</a></div>
+          <div class="foot"><span class="check"><b>✔</b> Checked · 7 checks passed</span><a class="why" href="#">Show calculation</a></div>
+        </div>
+      </div>
+      <div class="composer"><span class="clip" aria-label="Attach a letter (PDF)">📎</span><div>Ask a question about your money…</div><span class="send" aria-label="Send">➤</span></div>
+    </aside>
+  </div>
+</div>
+
+<!-- ALTERNATE STATES -->
+<div class="alt">
+  <div class="panel">
+    <h3>Step 1 · Fact Card, before confirmation</h3>
+    <div class="agent">
+      <div class="olabel">📄 Here's what I read in your letter</div>
+      <div class="sub">Please check these values. I'll only use them after you confirm.</div>
+      <table class="facts">
+        <tr><td>From</td><td>Nordwind Insurance</td><td><a href="#">Show in letter</a></td></tr>
+        <tr><td>Contract</td><td>Car insurance, KF-2207-118</td><td><a href="#">Show in letter</a></td></tr>
+        <tr><td>Yearly premium until now</td><td>620.00 EUR</td><td><a href="#">Show in letter</a></td></tr>
+        <tr><td>New yearly premium</td><td>744.00 EUR</td><td><a href="#">Show in letter</a></td></tr>
+        <tr><td>First payment at the new price</td><td>1 Nov 2026<span class="lowconf">⚠ Please check this one</span></td><td><a href="#">Show in letter</a></td></tr>
+        <tr><td>You can cancel until</td><td>12 Nov 2026</td><td><a href="#">Show in letter</a></td></tr>
+      </table>
+      <div class="actions">
+        <a class="btn btn-p btn-sm" href="#">Use these facts</a>
+        <a class="btn btn-s btn-sm" href="#">Change values</a>
+      </div>
+      <div class="actions" style="margin-top:6px"><a class="btn btn-t btn-sm" href="#">This isn't right</a></div>
+    </div>
+    <p class="sub" style="margin:10px 0 0">In the user test, one task shows this card with one value deliberately in the wrong row, e.g. the old premium as the new one. The study observes whether participants notice it.</p>
+  </div>
+
+  <div class="panel">
+    <h3>"Show in letter" dialog</h3>
+    <div class="dialog">
+      <h4>New yearly premium</h4>
+      <div class="sub">Page 1, paragraph 2 of your letter of 9 Oct 2026</div>
+      <div class="lettertext">
+        Dear Ms Becker,<br><br>
+        due to higher repair and claims costs, we have to adjust the premium of your car insurance KF-2207-118. Your yearly premium until now is 620.00 EUR. From the next due date on 1 November 2026, your yearly premium will be <mark>744.00 EUR</mark>.<br><br>
+        Because of this increase, you may cancel your contract within one month of receiving this letter, at the latest by 12 November 2026.
+      </div>
+      <div class="actions"><a class="btn btn-s btn-sm" href="#">Close</a></div>
+    </div>
+    <p class="sub" style="margin:10px 0 0">Every value on the Fact Card must appear in the letter. Fine checks this without the LLM. Values it can't find never reach the card.</p>
+  </div>
+
+  <div class="panel">
+    <h3>Letter print view (new tab) · refusal</h3>
+    <div class="banner">Fine doesn't send this letter. Print or save it, sign it and send it yourself before 12 Nov. <a class="why" style="margin:0" href="#">Print</a></div>
+    <div class="page">
+      Lena Becker · Lindenstraße 12 · 50667 Köln<br><br>
+      Nordwind Insurance AG<br>Customer Service<br>
+      <div class="r">Köln, 12 Oct 2026</div><br>
+      <b>Special termination of my car insurance KF-2207-118</b><br><br>
+      Dear Sir or Madam,<br>
+      with reference to your letter of 9 Oct 2026 about the premium increase, I hereby cancel my car insurance KF-2207-118 with effect from the date the increase takes effect. Please confirm the cancellation in writing.<br><br>
+      Yours faithfully,<br><br>________________________<br>Lena Becker
+    </div>
+    <div class="agent oos" style="margin-top:14px">
+      <div class="olabel">⊘ Not part of this service</div>
+      Whether the increase is allowed is a legal question I can't check. A consumer advice centre can help you with that.
+      <div class="sugg"><a href="#">What happens if I do nothing?</a><a href="#">Open termination letter</a></div>
+    </div>
+    <p class="sub" style="margin:10px 0 0">The letter is a fixed template filled from the confirmed facts. The LLM writes no letter text. An objection would need a legal assessment, so Fine refuses it.</p>
+  </div>
+</div>
+
+<div class="legend">
+  <div><b>LLM as an untrusted edge.</b> The LLM only reads the letter and proposes values. Personal identifiers are masked before it sees the text. A deterministic check finds every value in the letter, and the customer confirms before anything is used.</div>
+  <div><b>Numbers from the deterministic core.</b> The +124 EUR and −214 EUR come from the forecast engine, using the confirmed facts. The explanation passes the same compliance checks as every other answer.</div>
+  <div><b>Autonomy stays with the customer.</b> A letter to a third party is capped at "recommend" (L1). Fine prepares it; the customer decides, signs and sends it. Instructions hidden in a letter cannot trigger any action.</div>
+</div>
+</body>
+</html>
