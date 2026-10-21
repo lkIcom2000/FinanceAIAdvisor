@@ -23,3 +23,6 @@ Thumbs.db
 
 # BMAD rendered workflow snapshots (generated per run)
 _bmad/render/
+
+# Compose secrets
+deploy/.env

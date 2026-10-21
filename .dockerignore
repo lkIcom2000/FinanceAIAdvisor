@@ -1,0 +1,13 @@
+.git
+.claude
+_bmad
+_bmad-output
+experiments
+deploy/.env
+**/node_modules
+**/target
+frontend/dist
+frontend/.angular
+**/*.iml
+.idea
+.vscode

@@ -23,3 +23,16 @@ logging:
   structured:
     format:
       console: ecs
+
+# APP_HOME: repository root when run from backend/, /app in the image (set by the Dockerfile).
+app:
+  home: ${APP_HOME:..}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never

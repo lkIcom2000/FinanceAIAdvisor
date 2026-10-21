@@ -1,0 +1,55 @@
+# The only compose file (AD-17). Environments differ only in the variables below and the secrets.
+# Usage (from the repository root):
+#   cp deploy/.env.example deploy/.env   # then set FINE_DB_PASSWORD
+#   docker compose -f deploy/docker-compose.yml up -d --build
+name: fine
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: fine-app:local
+    environment:
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:postgresql://db:5432/fine}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-fine}
+      SPRING_DATASOURCE_PASSWORD: ${FINE_DB_PASSWORD:?Set FINE_DB_PASSWORD in deploy/.env}
+      APP_OLLAMA_URL: ${APP_OLLAMA_URL:-http://ollama:11434}
+      APP_AGENT_CONFIG: ${APP_AGENT_CONFIG:-reference}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-default}
+    volumes:
+      - ../config:/app/config:ro
+      - ../data:/app/data:ro
+      - ../models:/app/models:ro
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+
+  db:
+    image: pgvector/pgvector:0.8.2-pg17
+    environment:
+      POSTGRES_DB: fine
+      POSTGRES_USER: ${SPRING_DATASOURCE_USERNAME:-fine}
+      POSTGRES_PASSWORD: ${FINE_DB_PASSWORD:?Set FINE_DB_PASSWORD in deploy/.env}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d fine"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+  ollama:
+    image: ollama/ollama:0.40.6
+    environment:
+      OLLAMA_KEEP_ALIVE: "-1"
+    volumes:
+      - ollama-data:/root/.ollama
+
+volumes:
+  db-data:
+  ollama-data:
