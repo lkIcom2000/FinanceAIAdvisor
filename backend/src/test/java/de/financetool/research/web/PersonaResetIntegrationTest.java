@@ -9,8 +9,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import de.financetool.PostgresIntegrationTest;
 import de.financetool.personas.application.ShowPersonaUseCase;
+import de.financetool.research.application.ResetPersonaUseCase;
 import de.financetool.shared.PersonaScope;
 import de.financetool.shared.domain.PersonaId;
+import de.financetool.shared.fixtures.PersonaFixtureCatalog;
 import java.time.LocalDate;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
@@ -38,11 +40,17 @@ class PersonaResetIntegrationTest extends PostgresIntegrationTest {
     @Autowired
     ShowPersonaUseCase showPersona;
 
+    @Autowired
+    ResetPersonaUseCase resetPersona;
+
+    @Autowired
+    PersonaFixtureCatalog fixtures;
+
     /** The test database is shared by every test class: leave the personas as the fixtures define them. */
     @AfterEach
     void restoreFixtureState() {
-        jdbc.update("UPDATE persona_state SET simulated_date = DATE '2026-10-20', fixture_version = 'pre-fixtures' "
-                + "WHERE persona_id IN ('p-jonas', 'p-petra')");
+        resetPersona.reset(new PersonaId("p-jonas"));
+        resetPersona.reset(new PersonaId("p-petra"));
     }
 
     ResultActions reset(String personaId, MockHttpSession session) throws Exception {
@@ -77,9 +85,12 @@ class PersonaResetIntegrationTest extends PostgresIntegrationTest {
         jdbc.update("UPDATE persona_state SET fixture_version = 'changed again' WHERE persona_id = 'p-jonas'");
         reset("p-jonas", researcher).andExpect(status().isNoContent());
 
+        PersonaId jonas = new PersonaId("p-jonas");
         assertThat(state("p-jonas")).isEqualTo(first)
-                .containsEntry("simulated_date", java.sql.Date.valueOf("2026-10-20"))
-                .containsEntry("fixture_version", "pre-fixtures");
+                .containsEntry("simulated_date", java.sql.Date.valueOf(fixtures.fixture(jonas).simulatedDate()))
+                .containsEntry("fixture_version", fixtures.version(jonas));
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM persona_state WHERE fixture_version = 'pre-fixtures'",
+                Long.class)).as("the V3 placeholder is gone").isZero();
         assertThat(auditRows()).as("audit is never reset").isEqualTo(audit);
     }
 

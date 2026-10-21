@@ -4,7 +4,6 @@ import de.financetool.personas.PersonaClock;
 import de.financetool.shared.PersonaResettable;
 import de.financetool.shared.domain.PersonaId;
 import de.financetool.shared.web.SecurityConfig;
-import java.util.Comparator;
 import java.util.List;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
@@ -12,7 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Resets a persona to its fixtures (FR-3, AD-12): every owner of persona state, in reverse dependency order, in one
- * transaction. Audit is never reset.
+ * transaction, through the same {@link PersonaFixtureLoader} as startup seeding. Audit is never reset.
  */
 @Service
 @Profile(SecurityConfig.RESEARCH_PROFILE)
@@ -23,12 +22,11 @@ public class ResetPersonaUseCase {
             "monitoring", "advisory", "actions", "escalation", "profile", "core", "bank", "documents", "personas");
 
     private final PersonaClock personas;
-    private final List<PersonaResettable> owners;
+    private final PersonaFixtureLoader loader;
 
-    ResetPersonaUseCase(PersonaClock personas, List<PersonaResettable> owners) {
-        requireRegistered(owners);
+    ResetPersonaUseCase(PersonaClock personas, PersonaFixtureLoader loader) {
         this.personas = personas;
-        this.owners = owners.stream().sorted(Comparator.comparingInt(o -> RESET_ORDER.indexOf(o.module()))).toList();
+        this.loader = loader;
     }
 
     /** @return {@code false} if the persona does not exist */
@@ -37,9 +35,7 @@ public class ResetPersonaUseCase {
         if (!personas.exists(personaId)) {
             return false;
         }
-        for (PersonaResettable owner : owners) {
-            owner.reset(personaId);
-        }
+        loader.load(personaId);
         return true;
     }
 
@@ -51,9 +47,5 @@ public class ResetPersonaUseCase {
                         + owner.module() + " is not in ResetPersonaUseCase.RESET_ORDER");
             }
         }
-    }
-
-    List<String> order() {
-        return owners.stream().map(PersonaResettable::module).toList();
     }
 }

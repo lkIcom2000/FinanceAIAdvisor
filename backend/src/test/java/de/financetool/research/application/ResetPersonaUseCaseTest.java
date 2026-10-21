@@ -12,7 +12,10 @@ import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-/** Owners run in RESET_ORDER regardless of registration order; an unlisted owner stops startup. */
+/**
+ * Owners run in RESET_ORDER regardless of registration order (reset and seeding share the loader); an unlisted owner
+ * stops startup.
+ */
 class ResetPersonaUseCaseTest {
 
     static final PersonaId LENA = new PersonaId("p-lena");
@@ -36,8 +39,8 @@ class ResetPersonaUseCaseTest {
         List<String> calls = new ArrayList<>();
         PersonaClock personas = mock(PersonaClock.class);
         when(personas.exists(LENA)).thenReturn(true);
-        ResetPersonaUseCase useCase = new ResetPersonaUseCase(personas,
-                List.of(owner("personas", calls), owner("bank", calls), owner("monitoring", calls)));
+        ResetPersonaUseCase useCase = new ResetPersonaUseCase(personas, new PersonaFixtureLoader(
+                List.of(owner("personas", calls), owner("bank", calls), owner("monitoring", calls))));
 
         assertThat(useCase.reset(LENA)).isTrue();
 
@@ -48,7 +51,7 @@ class ResetPersonaUseCaseTest {
     void anUnknownPersonaResetsNothing() {
         List<String> calls = new ArrayList<>();
         ResetPersonaUseCase useCase = new ResetPersonaUseCase(mock(PersonaClock.class),
-                List.of(owner("personas", calls)));
+                new PersonaFixtureLoader(List.of(owner("personas", calls))));
 
         assertThat(useCase.reset(new PersonaId("p-nobody"))).isFalse();
         assertThat(calls).isEmpty();
@@ -64,8 +67,7 @@ class ResetPersonaUseCaseTest {
 
     @Test
     void anOwnerOutsideTheResetOrderStopsStartup() {
-        assertThatThrownBy(() -> new ResetPersonaUseCase(mock(PersonaClock.class),
-                List.of(owner("knowledge", new ArrayList<>()))))
+        assertThatThrownBy(() -> new PersonaFixtureLoader(List.of(owner("knowledge", new ArrayList<>()))))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("knowledge")
                 .hasMessageContaining("RESET_ORDER");

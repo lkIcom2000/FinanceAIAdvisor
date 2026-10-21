@@ -13,3 +13,5 @@ spring:
 app:
   llm:
     verify-on-startup: false
+  fixtures:
+    seed-on-startup: false

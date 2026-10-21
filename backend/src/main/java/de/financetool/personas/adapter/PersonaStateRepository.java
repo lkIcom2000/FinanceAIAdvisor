@@ -2,6 +2,7 @@ package de.financetool.personas.adapter;
 
 import de.financetool.shared.PersonaScope;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -18,6 +19,9 @@ public interface PersonaStateRepository extends Repository<PersonaStateEntity, S
     }
 
     boolean existsByPersonaId(String personaId);
+
+    /** Every persona's state, for startup fixture seeding (no persona of a request involved). */
+    List<PersonaStateEntity> findAllByOrderByPersonaIdAsc();
 
     /** Researcher operations (persona id from the research path); returns the number of updated rows. */
     @Modifying(flushAutomatically = true, clearAutomatically = true)

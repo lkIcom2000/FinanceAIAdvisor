@@ -22,7 +22,12 @@ class PersonaOwnedTablesTest extends PostgresIntegrationTest {
     /** Table → owning module (AD-12). */
     static final Map<String, String> OWNERS = Map.of(
             "users", "personas",
-            "persona_state", "personas");
+            "persona_state", "personas",
+            "accounts", "bank",
+            "contracts", "bank",
+            "transactions", "bank",
+            "holdings", "bank",
+            "savings_plans", "bank");
 
     /** Append-only evidence: never reset (AD-13). */
     static final Set<String> NEVER_RESET = Set.of("audit_records", "evidence_items");

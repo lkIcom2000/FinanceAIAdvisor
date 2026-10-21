@@ -52,6 +52,10 @@ app:
   llm:
     # Lock and smoke checks at startup (AD-18); switched off only in tests without Ollama.
     verify-on-startup: true
+  fixtures:
+    # Seeds persona fixtures whose content hash differs from persona_state.fixture_version (Story 2.1);
+    # switched off only in web-layer tests without a database.
+    seed-on-startup: true
 
 management:
   endpoints:

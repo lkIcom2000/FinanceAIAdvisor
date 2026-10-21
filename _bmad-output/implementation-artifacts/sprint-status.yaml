@@ -42,7 +42,7 @@
 #   configuration with a derivedFrom block (AD-25). Check E3 before 3.9, E1 before 4.2/4.3.
 
 generated: 10-21-2026 13:52
-last_updated: 10-21-2026 21:31
+last_updated: 10-21-2026 22:02
 project: FinanceTool
 project_key: NOKEY
 tracking_system: file-system
@@ -58,8 +58,8 @@ development_status:
   1-7-persona-reset-for-reproducible-sessions: done  # start 2026-10-21T19:08+02:00, end 2026-10-21T19:30+02:00; joint code review 2026-10-21 done
   epic-1-retrospective: done
 
-  epic-2: backlog  # [critical-path]
-  2-1-sandbox-bank-with-seeded-persona-fixtures-and-planted-ground: backlog
+  epic-2: in-progress  # [critical-path]
+  2-1-sandbox-bank-with-seeded-persona-fixtures-and-planted-ground: review  # start 2026-10-21T21:35+02:00; A3 done
   2-2-core-gateway-figure-keys-and-the-why-dialog: backlog
   2-3-liquidity-tab-with-cash-flow-forecast-and-emergency-fund: backlog
   2-4-wealth-retirement-tab-with-goal-projection-ranges: backlog
@@ -159,7 +159,7 @@ action_items:
     action: "A3: Story 2.1 replaces the reset placeholder (V3 seed and PersonaStateResetter
       constants) with fixture start date and fixtureVersion"
     owner: "Commc"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-21.md"
   - id: "epic-1-retro-item-4-a4-reconcile-architecture-spine-with-as"
     epic: 1

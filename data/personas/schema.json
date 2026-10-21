@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fine.example/schemas/persona-fixture.json",
+  "title": "Synthetic Persona fixture",
+  "description": "Bank data, start date and Planted Ground Truth of one Synthetic Persona (Story 2.1). Generated with a fixed seed by PersonaFixtureGenerator; amounts are decimal strings with scale 2.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "personaId", "description", "generator", "simulatedDate", "accounts", "contracts",
+    "transactions", "holdings", "savingsPlans", "plantedGroundTruth"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "personaId": { "$ref": "#/$defs/personaId" },
+    "description": { "type": "string", "minLength": 1 },
+    "generator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["seed", "generatorVersion"],
+      "properties": {
+        "seed": { "type": "integer" },
+        "generatorVersion": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "simulatedDate": { "$ref": "#/$defs/date" },
+    "accounts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "type", "name", "iban", "openingDate", "openingBalance"],
+        "properties": {
+          "id": { "$ref": "#/$defs/uuid" },
+          "type": { "enum": ["CURRENT", "OVERNIGHT", "DEPOT"] },
+          "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "iban": { "type": "string", "pattern": "^DE00[0-9]{18}$" },
+          "openingDate": { "$ref": "#/$defs/date" },
+          "openingBalance": { "$ref": "#/$defs/nonNegativeMoney" }
+        }
+      }
+    },
+    "contracts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "coverage", "provider", "policyNumber", "policyholder", "insuredRole", "startDate"],
+        "properties": {
+          "id": { "$ref": "#/$defs/uuid" },
+          "coverage": { "enum": ["LIABILITY", "CAR", "HOUSEHOLD_CONTENTS", "OCCUPATIONAL_DISABILITY",
+            "LEGAL_PROTECTION", "RIESTER_PENSION"] },
+          "provider": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "policyNumber": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "policyholder": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "insuredRole": { "enum": ["POLICYHOLDER", "CO_INSURED"] },
+          "premium": { "$ref": "#/$defs/positiveMoney" },
+          "paymentInterval": { "enum": ["MONTHLY", "QUARTERLY", "ANNUAL"] },
+          "nextDueDate": { "$ref": "#/$defs/date" },
+          "debitAccountId": { "$ref": "#/$defs/uuid" },
+          "startDate": { "$ref": "#/$defs/date" }
+        },
+        "dependentRequired": {
+          "premium": ["paymentInterval", "nextDueDate", "debitAccountId"],
+          "paymentInterval": ["premium"],
+          "nextDueDate": ["premium"],
+          "debitAccountId": ["premium"]
+        }
+      }
+    },
+    "transactions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "accountId", "bookingDate", "amount", "category", "counterparty", "reference"],
+        "properties": {
+          "id": { "$ref": "#/$defs/uuid" },
+          "accountId": { "$ref": "#/$defs/uuid" },
+          "bookingDate": { "$ref": "#/$defs/date" },
+          "amount": { "$ref": "#/$defs/money" },
+          "category": { "$ref": "#/$defs/category" },
+          "counterparty": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "reference": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "recurrenceId": { "$ref": "#/$defs/slug" },
+          "contractId": { "$ref": "#/$defs/uuid" }
+        },
+        "not": { "required": ["recurrenceId", "contractId"] }
+      }
+    },
+    "holdings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "accountId", "name", "assetClass", "units", "unitPrice", "valuationDate", "costBasis"],
+        "properties": {
+          "id": { "$ref": "#/$defs/uuid" },
+          "accountId": { "$ref": "#/$defs/uuid" },
+          "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "assetClass": { "$ref": "#/$defs/assetClass" },
+          "units": { "type": "string", "pattern": "^(0|[1-9][0-9]{0,11})\\.[0-9]{6}$" },
+          "unitPrice": { "$ref": "#/$defs/positiveMoney" },
+          "valuationDate": { "$ref": "#/$defs/date" },
+          "costBasis": { "$ref": "#/$defs/nonNegativeMoney" }
+        }
+      }
+    },
+    "savingsPlans": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "accountId", "debitAccountId", "name", "assetClass", "amount", "dayOfMonth", "startDate",
+          "recurrenceId"],
+        "properties": {
+          "id": { "$ref": "#/$defs/uuid" },
+          "accountId": { "$ref": "#/$defs/uuid" },
+          "debitAccountId": { "$ref": "#/$defs/uuid" },
+          "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "assetClass": { "$ref": "#/$defs/assetClass" },
+          "amount": { "$ref": "#/$defs/positiveMoney" },
+          "dayOfMonth": { "type": "integer", "minimum": 1, "maximum": 28 },
+          "startDate": { "$ref": "#/$defs/date" },
+          "recurrenceId": { "$ref": "#/$defs/slug" }
+        }
+      }
+    },
+    "plantedGroundTruth": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "description", "date", "expectedBalance"],
+        "properties": {
+          "id": { "$ref": "#/$defs/slug" },
+          "description": { "type": "string", "minLength": 1 },
+          "date": { "$ref": "#/$defs/date" },
+          "expectedBalance": { "$ref": "#/$defs/money" },
+          "premiumOverride": { "$ref": "#/$defs/positiveMoney" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "personaId": { "type": "string", "pattern": "^p-[a-z0-9-]+$", "maxLength": 64 },
+    "slug": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$", "maxLength": 64 },
+    "uuid": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+    "date": { "type": "string", "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$" },
+    "money": { "type": "string", "pattern": "^-?(0|[1-9][0-9]{0,11})\\.[0-9]{2}$" },
+    "nonNegativeMoney": { "type": "string", "pattern": "^(0|[1-9][0-9]{0,11})\\.[0-9]{2}$" },
+    "positiveMoney": { "type": "string", "pattern": "^(0\\.(0[1-9]|[1-9][0-9])|[1-9][0-9]{0,11}\\.[0-9]{2})$" },
+    "assetClass": { "enum": ["EQUITY_ETF", "BOND_ETF", "MONEY_MARKET_FUND"] },
+    "category": {
+      "enum": ["SALARY", "CHILD_BENEFIT", "OTHER_INCOME", "RENT", "UTILITIES", "TELECOM", "SUBSCRIPTIONS",
+        "PUBLIC_TRANSPORT", "CHILDCARE", "INSURANCE", "PENSION", "SAVINGS_PLAN", "TRANSFER", "GROCERIES", "DINING",
+        "SHOPPING", "LEISURE", "HEALTH", "MOBILITY", "CASH_WITHDRAWAL", "FEES"]
+    }
+  }
+}

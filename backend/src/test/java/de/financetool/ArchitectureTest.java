@@ -54,6 +54,11 @@ class ArchitectureTest {
         ArchitectureRules.CONTROLLERS_CALL_ONLY_USE_CASES.check(PRODUCTION);
     }
 
+    @Test
+    void bankTablesAreWrittenOnlyThroughBankPortOrReset() {
+        ArchitectureRules.BANK_WRITES_ONLY_THROUGH_BANK_PORT.check(PRODUCTION);
+    }
+
     /** Proves the rules actually fire, using deliberately broken classes in {@code archfixture}. */
     @Nested
     class NegativeFixtures {
@@ -115,6 +120,13 @@ class ArchitectureTest {
                     .getDetails())
                     .anyMatch(line -> line.contains("ServiceCallingController") && line.contains("TransactionalService"))
                     .noneMatch(line -> line.contains("FixtureUseCase"));
+        }
+
+        @Test
+        void bankWritesOutsideBankPortAreViolations() {
+            assertThat(ArchitectureRules.BANK_WRITES_ONLY_THROUGH_BANK_PORT.evaluate(fixtures).getFailureReport()
+                    .getDetails())
+                    .anyMatch(line -> line.contains("BankWritingService") && line.contains("deletePersonaRows"));
         }
 
         @Test

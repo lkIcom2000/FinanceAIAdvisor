@@ -3,6 +3,8 @@ package de.financetool.shared.web;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
+import de.financetool.bank.adapter.BankJpaRepository;
+import de.financetool.bank.adapter.BankRowWriter;
 import de.financetool.personas.adapter.PersonaRepository;
 import de.financetool.personas.adapter.PersonaStateRepository;
 import de.financetool.personas.adapter.UserRepository;
@@ -43,6 +45,12 @@ class OpenApiSnapshotTest {
 
     @MockitoBean
     JdbcClient jdbc;
+
+    @MockitoBean
+    BankJpaRepository bankRepository;
+
+    @MockitoBean
+    BankRowWriter bankWriter;
 
     @Test
     void publishedDocumentMatchesCommittedSnapshot() throws Exception {

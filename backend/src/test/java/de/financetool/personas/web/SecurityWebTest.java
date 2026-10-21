@@ -14,6 +14,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import de.financetool.bank.adapter.BankJpaRepository;
+import de.financetool.bank.adapter.BankRowWriter;
 import de.financetool.personas.adapter.PersonaEntity;
 import de.financetool.personas.adapter.PersonaRepository;
 import de.financetool.personas.adapter.PersonaStateEntity;
@@ -61,6 +63,12 @@ class SecurityWebTest {
 
     @MockitoBean
     JdbcClient jdbc;
+
+    @MockitoBean
+    BankJpaRepository bankRepository;
+
+    @MockitoBean
+    BankRowWriter bankWriter;
 
     @Autowired
     WebApplicationContext context;

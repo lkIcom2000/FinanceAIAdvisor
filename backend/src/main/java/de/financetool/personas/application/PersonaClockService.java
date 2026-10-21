@@ -4,6 +4,8 @@ import de.financetool.personas.PersonaClock;
 import de.financetool.personas.adapter.PersonaStateRepository;
 import de.financetool.shared.domain.PersonaId;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +23,14 @@ class PersonaClockService implements PersonaClock {
     @Override
     public boolean exists(PersonaId personaId) {
         return personaStates.existsByPersonaId(personaId.value());
+    }
+
+    @Override
+    public Map<PersonaId, String> fixtureVersions() {
+        Map<PersonaId, String> versions = new LinkedHashMap<>();
+        personaStates.findAllByOrderByPersonaIdAsc()
+                .forEach(state -> versions.put(new PersonaId(state.getPersonaId()), state.getFixtureVersion()));
+        return versions;
     }
 
     @Override

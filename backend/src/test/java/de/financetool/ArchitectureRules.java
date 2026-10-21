@@ -26,7 +26,8 @@ import java.util.Set;
 
 /**
  * ArchUnit rules for AD-1 (pure domain), AD-8 (no wall clock in domain or application code), AD-11 (persona scope),
- * AD-21 (use cases own the transaction) and AD-22 (configuration through the RequestContext).
+ * AD-21 (use cases own the transaction), AD-22 (configuration through the RequestContext) and the bank write path
+ * (Story 2.1: only {@code BankPort} and persona reset write bank tables).
  * Shared by the production check and the negative fixture tests.
  */
 final class ArchitectureRules {
@@ -138,6 +139,23 @@ final class ArchitectureRules {
             .orShould().beAnnotatedWith("org.springframework.transaction.event.TransactionalEventListener")
             .orShould().beAnnotatedWith("org.springframework.modulith.events.ApplicationModuleListener")
             .because("AD-21: one use case runs in one transaction; only synchronous @EventListener may break cycles");
+
+    static final DescribedPredicate<JavaMethodCall> BANK_TABLE_WRITE = DescribedPredicate.describe(
+            "a write method (insert*/delete*/update*/save*) of a bank repository in de.financetool.bank.adapter",
+            call -> call.getTargetOwner().getPackageName().equals("de.financetool.bank.adapter")
+                    && call.getName().matches("(insert|delete|update|save).*"));
+
+    static final DescribedPredicate<JavaClass> BANK_PORT_OR_RESET_IN_BANK = DescribedPredicate.describe(
+            "a de.financetool.bank.application class implementing BankPort or PersonaResettable",
+            type -> type.getPackageName().equals("de.financetool.bank.application")
+                    && (type.isAssignableTo("de.financetool.bank.BankPort")
+                            || type.isAssignableTo("de.financetool.shared.PersonaResettable")));
+
+    static final ArchRule BANK_WRITES_ONLY_THROUGH_BANK_PORT = noClasses()
+            .that(DescribedPredicate.not(BANK_PORT_OR_RESET_IN_BANK))
+            .and().resideOutsideOfPackage("de.financetool.bank.adapter")
+            .should().callMethodWhere(BANK_TABLE_WRITE)
+            .because("Story 2.1: only bank.BankPort and the bank's persona reset change the bank tables");
 
     static final ArchRule CONTROLLERS_CALL_ONLY_USE_CASES = noClasses()
             .that().resideInAPackage("..web..")
