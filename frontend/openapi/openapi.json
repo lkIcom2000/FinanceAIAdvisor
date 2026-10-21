@@ -1,0 +1,65 @@
+{
+  "openapi" : "3.1.0",
+  "info" : {
+    "title" : "Fine API",
+    "version" : "0.1.0"
+  },
+  "servers" : [ {
+    "url" : "http://localhost",
+    "description" : "Generated server url"
+  } ],
+  "paths" : { },
+  "components" : {
+    "schemas" : {
+      "Money" : {
+        "type" : "object",
+        "description" : "An amount of money: decimal string with two fraction digits plus currency.",
+        "properties" : {
+          "amount" : {
+            "type" : "string",
+            "example" : "1234.50",
+            "pattern" : "^-?\\d+\\.\\d{2}$"
+          },
+          "currency" : {
+            "type" : "string",
+            "enum" : [ "EUR" ]
+          }
+        },
+        "required" : [ "amount", "currency" ]
+      },
+      "ProblemCode" : {
+        "type" : "string",
+        "description" : "Closed set of machine-readable error codes.",
+        "enum" : [ "VALIDATION_FAILED", "NOT_FOUND", "REQUEST_REJECTED", "INTERNAL_ERROR" ]
+      },
+      "ProblemDetail" : {
+        "type" : "object",
+        "description" : "RFC 9457 problem details with a closed code.",
+        "properties" : {
+          "code" : {
+            "$ref" : "#/components/schemas/ProblemCode"
+          },
+          "detail" : {
+            "type" : "string"
+          },
+          "instance" : {
+            "type" : "string",
+            "format" : "uri"
+          },
+          "status" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string",
+            "format" : "uri"
+          }
+        },
+        "required" : [ "code", "status", "title" ]
+      }
+    }
+  }
+}

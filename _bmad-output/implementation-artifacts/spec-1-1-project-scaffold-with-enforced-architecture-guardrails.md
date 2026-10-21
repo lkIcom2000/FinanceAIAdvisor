@@ -2,7 +2,8 @@
 title: 'Story 1.1: Project scaffold with enforced architecture guardrails'
 type: 'feature'
 created: '2026-10-21'
-status: 'ready-for-dev'
+status: 'done'
+baseline_commit: '13c7bf9f960e6d95a1e811a3fae95c9cc48d4b96'
 route: 'dispatch'
 review_loop_iteration: 0
 context:
@@ -52,15 +53,15 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `.gitattributes`, `.gitignore` -- LF for `config/**`, `data/**`, `models/**`, `mvnw`; CRLF for `*.cmd`; ignore `target/`, `node_modules/`, `.angular/`, `_bmad/render/` -- AC 4.
-- [ ] `config/`, `data/`, `models/` (`.gitkeep`) -- directories exist for later stories.
-- [ ] `backend/pom.xml`, `backend/mvnw*`, `backend/.mvn/` -- Boot 4.1.1 parent, Java 25, starters webmvc, validation, data-jpa, actuator, flyway + `flyway-database-postgresql`, postgresql, modulith BOM 2.1.1 (core + test), springdoc 3.1.1, `archunit-junit6` 1.5.1 -- AC 1.
-- [ ] `backend/src/main/java/de/financetool/FinanceToolApplication.java` + `<module>/package-info.java` ×14 -- `@ApplicationModule(allowedDependencies = …)` per AD-12; `shared` is `Type.OPEN` -- AC 1, 2.
-- [ ] `shared/domain/Money.java`, `shared/ProblemCode.java`, `shared/web/{ProblemDetailsAdvice, OpenApiSchemas}.java` -- pure `Money` record (scale 2 HALF_UP), closed enum, `@RestControllerAdvice` emitting `ProblemDetail` with `code`, `OpenApiCustomizer` registering `Money`, `ProblemCode`, `ProblemDetail` -- AC 3.
-- [ ] `backend/src/main/resources/application.yaml`, `db/migration/.gitkeep` -- `ddl-auto: none`, `spring.mvc.problemdetails.enabled`, `logging.structured.format.console: ecs` -- AC 4.
-- [ ] `backend/src/test/java/de/financetool/architecture/{ModulithTest, ModuleGraphTest, DomainPurityTest}.java` + fixtures under `de.financetool.archfixture` -- verify, declared-graph = AD-12 table, ArchUnit rules with negative fixtures -- AC 2.
-- [ ] `backend/src/test/java/de/financetool/shared/{OpenApiSnapshotTest, ProblemDetailsAdviceTest, MoneyTest}.java` -- web context without datasource; compare `/v3/api-docs` with `frontend/openapi/openapi.json` -- AC 3.
-- [ ] `frontend/` -- `ng new` (standalone, SCSS, routing, no SSR) + `ng add @angular/material`; `ng-openapi-gen.json` (`services: true, promises: false`), `scripts/check-api-client.mjs`, `prebuild` + `api:generate` scripts, committed `src/app/api` -- AC 1, 3.
+- [x] `.gitattributes`, `.gitignore` -- LF for `config/**`, `data/**`, `models/**`, `mvnw`; CRLF for `*.cmd`; ignore `target/`, `node_modules/`, `.angular/`, `_bmad/render/` -- AC 4.
+- [x] `config/`, `data/`, `models/` (`.gitkeep`) -- directories exist for later stories.
+- [x] `backend/pom.xml`, `backend/mvnw*`, `backend/.mvn/` -- Boot 4.1.1 parent, Java 25, starters webmvc, validation, data-jpa, actuator, flyway + `flyway-database-postgresql`, postgresql, modulith BOM 2.1.1 (core + test), springdoc 3.1.1, `archunit-junit6` 1.5.1 -- AC 1.
+- [x] `backend/src/main/java/de/financetool/FinanceToolApplication.java` + `<module>/package-info.java` ×14 -- `@ApplicationModule(allowedDependencies = …)` per AD-12; `shared` is `Type.OPEN` -- AC 1, 2.
+- [x] `shared/domain/Money.java`, `shared/ProblemCode.java`, `shared/web/{ProblemDetailsAdvice, OpenApiSchemas}.java` -- pure `Money` record (scale 2 HALF_UP), closed enum, `@RestControllerAdvice` emitting `ProblemDetail` with `code`, `OpenApiCustomizer` registering `Money`, `ProblemCode`, `ProblemDetail` -- AC 3.
+- [x] `backend/src/main/resources/application.yaml`, `db/migration/.gitkeep` -- `ddl-auto: none`, `spring.mvc.problemdetails.enabled`, `logging.structured.format.console: ecs` -- AC 4.
+- [x] `backend/src/test/java/de/financetool/architecture/{ModulithTest, ModuleGraphTest, DomainPurityTest}.java` + fixtures under `de.financetool.archfixture` -- verify, declared-graph = AD-12 table, ArchUnit rules with negative fixtures -- AC 2.
+- [x] `backend/src/test/java/de/financetool/shared/{OpenApiSnapshotTest, ProblemDetailsAdviceTest, MoneyTest}.java` -- web context without datasource; compare `/v3/api-docs` with `frontend/openapi/openapi.json` -- AC 3.
+- [x] `frontend/` -- `ng new` (standalone, SCSS, routing, no SSR) + `ng add @angular/material`; `ng-openapi-gen.json` (`services: true, promises: false`), `scripts/check-api-client.mjs`, `prebuild` + `api:generate` scripts, committed `src/app/api` -- AC 1, 3.
 
 **Acceptance Criteria:**
 - Given the repo, when the scaffold exists, then `backend/` builds with the committed wrapper on Java 25 and `frontend/` is an Angular 22.2 standalone workspace with Angular Material.
@@ -70,11 +71,22 @@ context:
 
 ## Implementation Notes
 
-- Timing: start 2026-10-21T14:03:59+02:00.
+- Timing: start 2026-10-21T14:03:59+02:00, end 2026-10-21T14:20:17+02:00.
+- Git: local repo initialised on top of remote `main` (`919ffe61c3f2ad5093fe49cf0479d880c69e5eea`); existing planning files committed as baseline `13c7bf9f960e6d95a1e811a3fae95c9cc48d4b96`; `.gitignore` extended (Maven, nested Node, Python, `_bmad/render/`).
+- Toolchain: Temurin 25.0.4.1 in `C:\Users\commc\.jdks\temurin-25` (use `JAVA_HOME`); Maven wrapper 3.3.4 (`only-script`, Maven 3.9.11) bootstrapped with a scratchpad Maven.
+- Every module also lists `shared` in `allowedDependencies`; `shared` is `Type.OPEN` with `{}`. `ModulithTest` strips `shared` before comparing with the AD-12 map.
+- Architecture tests live in the root test package `de.financetool` (not a module); negative fixtures live outside it in `archfixture.rules` and `archfixture.modulith` (deviation from the planned `de.financetool.archfixture`, so they never become production modules). Spring Modulith skips test classes by default, so the fixture verification passes an include-all `ImportOption`.
+- The wall-clock rule also forbids `LocalDateTime/ZonedDateTime/...now()`, `Clock.systemUTC()` and `System.currentTimeMillis()`.
+- `OpenApiSnapshotTest` runs under test profile `webtest`, which excludes the DataSource/JPA/Flyway auto-configurations (no database before Story 1.2). The app itself does not start without PostgreSQL yet.
+- `Money` has no Jackson wire mapping yet; the OpenAPI `Money` schema fixes the contract for the first story that returns money.
+- Frontend: `npm run build` runs `prebuild` → `api:check` (`scripts/check-api-client.mjs`), regenerating into a temp dir and comparing file by file (CRLF-normalised). Angular CLI 22.2.3 defaults: zoneless, Vitest.
+- Verified: `./mvnw verify` 14 tests green; snapshot tampering fails `OpenApiSnapshotTest`; tampering a generated file fails `npm run build`; `ng test` 2 passed.
 
 ## Spec Change Log
 
 ## Review Triage Log
+
+- Review layers (blind-hunter, edge-case-hunter, verification-gap) skipped on the user's instruction (no optional review passes; story not safety-critical). No findings recorded.
 
 ## Design Notes
 
