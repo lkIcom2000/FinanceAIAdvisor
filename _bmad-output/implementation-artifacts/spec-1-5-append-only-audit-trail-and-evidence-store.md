@@ -71,6 +71,26 @@ context:
 - Given records exist, when the researcher exports, then JSONL in insertion order, optionally filtered by `runId`.
 - Given a use case whose audit write throws, when the transaction ends, then nothing it wrote is committed.
 
+### Review Findings
+
+Joint code review 2026-10-21 of 00b341b..1e2e9e5 (blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor).
+
+- [x] [Review][Patch] The `fine_app` password is spliced into a single-quoted literal (a `'` breaks the migration or injects SQL as owner) and an unset `SPRING_DATASOURCE_PASSWORD` silently sets an empty password; use a dollar-quoted literal and fail on an empty secret [backend/src/main/resources/db/callback/afterMigrate.sql:2]
+- [x] [Review][Patch] `?runId=` (empty) filters for the empty run id and exports nothing instead of all records [backend/src/main/java/de/financetool/research/web/AuditExportController.java:35]
+- [x] [Review][Patch] Export query has no fetch size, so the PostgreSQL driver buffers the whole audit table before streaming [backend/src/main/java/de/financetool/audit/adapter/AuditRecordRepository.java:47]
+- [x] [Review][Patch] Docs lag the role split: compose header names only `FINE_DB_PASSWORD`, `.env.example` offers a `SPRING_DATASOURCE_USERNAME` override that V4's grants do not follow, README lacks the owner variables for runs outside compose [deploy/docker-compose.yml:3]
+- [x] [Review][Patch] Test name "evenTheOwnerCannotChangeAuditTables" overstates the protection: the owner can still disable or drop triggers; name and comment should state what is tested (trigger rejection on the owner connection) [backend/src/test/java/de/financetool/audit/AuditTrailIntegrationTest.java:158]
+- [x] [Review][Patch] Research use cases use the literal `@Profile("research")` while controllers use `SecurityConfig.RESEARCH_PROFILE` [backend/src/main/java/de/financetool/research/application/ExportAuditUseCase.java:11]
+
+Rejected:
+- Grants miss existing sequences (false: V1–V3 create no sequences; `fine_app` grants are explicit for the three tables).
+- DB lacks CHECKs for kind→turn/action id and prov_id format (low: `AuditService` is the only writer; the fix needs a V5 migration).
+- `putIfAbsent` ignores differing content for an existing provId (low/by design: AD-2 makes the figure key deterministic incl. persona; idempotent insert is the specified semantics).
+- Truncated export on mid-stream failure returns 200 (low: needs an end-marker protocol; unlikely at study scale).
+- Over-long runId/fixtureVersion/originId fails the insert (false: loud failure that rolls back is correct).
+- Shared cluster overwrites `fine_app` password (low: one database per cluster in every environment).
+- `POSTGRES_USER` now follows the owner variable (low: no deployment overrides it yet).
+
 ## Implementation Notes
 
 - Timing: start 2026-10-21T18:10+02:00.
@@ -84,6 +104,9 @@ context:
 - Verified: `./mvnw -B verify -Dfine.it.required=true` BUILD SUCCESS, 97 tests, 0 failures, 0 skipped (`AuditTrailIntegrationTest` 20, `AuditPayloadMapperTest` 2), plus `AuditEntryTest` 3.
 - Verified with Docker Compose: existing volume migrated to V4, app connects as `fine_app` (`pg_stat_activity`), `/actuator/health` UP.
 - Timing: end 2026-10-21T18:35+02:00.
+
+- Review patches applied (2026-10-21): the `fine_app` password is now set by a Java Flyway callback (`shared.AppRolePasswordCallback`, after every migrate, on the owner connection) that lets PostgreSQL quote the secret from a bind parameter (`format('%L', ?)`) and refuses an empty secret. A dollar-quoted SQL callback was tried first and failed: Flyway does not replace a placeholder directly after a dollar-quote tag. `afterMigrate.sql` is gone; V4's header comment still names it (checksummed, left as is). The test password contains a `'`. Also: empty `?runId=` means no filter; export query uses fetch size 500; docs name both secrets and the owner variables for runs outside compose; owner-trigger test renamed with its limit stated; research use cases use `SecurityConfig.RESEARCH_PROFILE`.
+- Verified after review: `./mvnw -B verify -Dfine.it.required=true` BUILD SUCCESS, 130 tests, 0 failures, 0 skipped; compose stack restarted: app connects as `fine_app` via the new callback, models verified, `/actuator/health` UP.
 
 ## Spec Change Log
 

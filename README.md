@@ -40,7 +40,9 @@ repository) and refuses to start if one of them is missing.
 
 Flyway migrates as the database owner (`FINE_DB_PASSWORD`); the app connects as the role `fine_app`
 (`FINE_APP_DB_PASSWORD`), which may only insert into and read the append-only audit tables. Flyway sets
-`fine_app`'s password on every start, so changing the secret needs only a restart.
+`fine_app`'s password on every start, so changing the secret needs only a restart. Outside compose (e.g.
+`./mvnw spring-boot:run`), set `SPRING_DATASOURCE_OWNER_PASSWORD` (owner `fine`) and `SPRING_DATASOURCE_PASSWORD`
+(`fine_app`); an empty `SPRING_DATASOURCE_PASSWORD` stops the migration.
 
 ### Demo accounts
 

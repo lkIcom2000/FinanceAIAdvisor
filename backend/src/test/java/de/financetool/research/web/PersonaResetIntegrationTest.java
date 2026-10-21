@@ -13,10 +13,14 @@ import de.financetool.shared.PersonaScope;
 import de.financetool.shared.domain.PersonaId;
 import java.time.LocalDate;
 import java.util.Map;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpSession;
@@ -25,6 +29,7 @@ import org.springframework.test.web.servlet.ResultActions;
 
 /** Persona reset and simulated date (Story 1.7), research profile. */
 @ActiveProfiles("research")
+@ExtendWith(OutputCaptureExtension.class)
 class PersonaResetIntegrationTest extends PostgresIntegrationTest {
 
     @Autowired
@@ -32,6 +37,13 @@ class PersonaResetIntegrationTest extends PostgresIntegrationTest {
 
     @Autowired
     ShowPersonaUseCase showPersona;
+
+    /** The test database is shared by every test class: leave the personas as the fixtures define them. */
+    @AfterEach
+    void restoreFixtureState() {
+        jdbc.update("UPDATE persona_state SET simulated_date = DATE '2026-10-20', fixture_version = 'pre-fixtures' "
+                + "WHERE persona_id IN ('p-jonas', 'p-petra')");
+    }
 
     ResultActions reset(String personaId, MockHttpSession session) throws Exception {
         return mvc.perform(post("/api/research/personas/{id}/reset", personaId).session(session).with(csrf()));
@@ -72,11 +84,13 @@ class PersonaResetIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
-    void theNextRequestContextRunsOnTheNewSimulatedDate() throws Exception {
+    void theNextRequestContextRunsOnTheNewSimulatedDate(CapturedOutput output) throws Exception {
         setDate("p-petra", "{\"date\":\"2026-11-06\"}", login(mvc, "researcher")).andExpect(status().isNoContent());
 
         assertThat(showPersona.show(new PersonaScope(new PersonaId("p-petra"))).asOf())
                 .isEqualTo(LocalDate.of(2026, 11, 6));
+        assertThat(output).as("researcher actions are logged").contains("Simulated date set")
+                .contains("\"personaId\":\"p-petra\"").contains("\"researcher\":\"researcher\"");
     }
 
     @Test

@@ -7,8 +7,9 @@ embedding model is listed in `tags.txt` and pinned in `lock.json` (AD-18):
 - `digest` -- the tag's digest as Ollama's `/api/tags` reports it (identifies the manifest);
 - `ggufSha256` -- the sha256 of the weights layer the manifest pins.
 
-At startup the app compares every bound model with the lock and asks the `nlu` and `judge` models for a small
-JSON-schema answer; any mismatch stops startup. The app never pulls models itself.
+At startup the app compares the digest Ollama serves for every bound model with the lock (the digest pins the
+manifest, which pins the weights; `ggufSha256` is recorded for traceability, not re-hashed) and asks the `nlu` and
+`judge` models for a small JSON-schema answer; any mismatch stops startup. The app never pulls models itself.
 
 Pull and lock (stack running, from the repository root):
 

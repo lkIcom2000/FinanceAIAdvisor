@@ -2,6 +2,7 @@ package de.financetool.research.application;
 
 import de.financetool.personas.PersonaClock;
 import de.financetool.shared.domain.PersonaId;
+import de.financetool.shared.web.SecurityConfig;
 import java.time.LocalDate;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
@@ -9,7 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /** Sets a persona's simulated date (AD-8); the next {@code RequestContext.asOf} for that persona is this date. */
 @Service
-@Profile("research")
+@Profile(SecurityConfig.RESEARCH_PROFILE)
 public class SetSimulatedDateUseCase {
 
     private final PersonaClock personas;

@@ -65,6 +65,22 @@ context:
 - Given a new simulated date, then the next `RequestContext.asOf` for that persona equals it.
 - Given no `research` profile, then every `/api/research/**` path returns 404 and the login page shows no research hint.
 
+### Review Findings
+
+Joint code review 2026-10-21 of 00b341b..1e2e9e5.
+
+- [x] [Review][Decision] Researcher actions leave no trace — resolved (user, 2026-10-21): structured log line per reset and simulated-date change (persona, date, researcher); no new audit kind (AD-13 unchanged).
+- [x] [Review][Patch] Log each reset and simulated-date change as a structured JSON log line with persona, date and researcher [backend/src/main/java/de/financetool/research/web/PersonaResearchController.java]
+- [x] [Review][Patch] An unregistered `PersonaResettable` stops startup only under the `research` profile (frozen constraint says startup) [backend/src/main/java/de/financetool/research/application/ResetPersonaUseCase.java:28]
+- [x] [Review][Patch] `PersonaResetIntegrationTest` leaves `p-petra` and `p-jonas` modified in the shared test database [backend/src/test/java/de/financetool/research/web/PersonaResetIntegrationTest.java]
+
+Rejected:
+- Persona deleted between `exists()` and `reset()` (false: personas are never deleted).
+- Simulated date has no bounds (low: no requirement constrains it; researchers set dates deliberately).
+- Reset is not serialised against concurrent persona requests (low: researcher resets between sessions).
+- New `JdbcClient` imports out of order in two tests (low: cosmetic).
+- No OpenAPI snapshot update for the research endpoints (false: the snapshot is built without the research profile and `OpenApiSnapshotTest` passes).
+
 ## Implementation Notes
 
 - Timing: start 2026-10-21T19:08+02:00, end 2026-10-21T19:30+02:00. Implemented directly in this session (fast path).
@@ -74,6 +90,9 @@ context:
 - Unknown persona → `ResponseStatusException(404)` → `ProblemDetail` `NOT_FOUND`; malformed id → 400 `REQUEST_REJECTED`/`VALIDATION_FAILED` via the existing advice.
 - Frontend: login spec asserts the page mentions neither research nor Swagger.
 - Verified: backend `./mvnw -B verify -Dfine.it.required=true` BUILD SUCCESS, 123 tests, 0 failures, 0 skipped (`PersonaResetIntegrationTest` 8, `ResetPersonaUseCaseTest` 3); frontend 18 Vitest tests green. Not run against the compose stack (it runs without the `research` profile; the integration tests use the same app and PostgreSQL image).
+
+- Review patches applied (2026-10-21): `ResetOrderCheck` (no profile) runs the registration check at every startup; `PersonaResetIntegrationTest` restores `p-jonas`/`p-petra` after each test; reset and simulated-date changes log a structured line (`personaId`, `simulatedDate`, `researcher`), asserted with `OutputCaptureExtension` (review decision D1: logged, not audited).
+- Verified after review: `./mvnw -B verify -Dfine.it.required=true` BUILD SUCCESS, 130 tests, 0 failures, 0 skipped; compose stack restarted: app connects as `fine_app` via the new callback, models verified, `/actuator/health` UP.
 
 ## Spec Change Log
 

@@ -50,6 +50,8 @@ public class AuditRecordRepository {
                 WHERE (CAST(? AS VARCHAR) IS NULL OR run_id = ?)
                 ORDER BY seq""")
                 .params(runId, runId)
+                // Stream through a cursor (inside the read-only transaction) instead of buffering every row.
+                .withFetchSize(500)
                 .query(rs -> {
                     action.accept(new Row(rs.getLong("seq"), rs.getObject("id", UUID.class), rs.getString("kind"),
                             rs.getString("run_id"), rs.getString("persona_id"), rs.getObject("turn_id", UUID.class),

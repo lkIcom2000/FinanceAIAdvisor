@@ -23,7 +23,12 @@ while IFS= read -r tag || [[ -n "$tag" ]]; do
 done < models/tags.txt
 
 for tag in "${tags[@]}"; do
-    "${compose[@]}" exec -T ollama ollama pull "$tag" </dev/null >/dev/null 2>&1
+    # The progress display is discarded; on failure its output (with Ollama's error) is shown.
+    if ! out="$("${compose[@]}" exec -T ollama ollama pull "$tag" </dev/null 2>&1)"; then
+        echo "ollama pull $tag failed:" >&2
+        echo "$out" | tail -5 >&2
+        exit 1
+    fi
 done
 
 served="$(api_tags | grep -o '"name":"[^"]*","model":"[^"]*","modified_at":"[^"]*","size":[0-9]*,"digest":"[0-9a-f]*"')"

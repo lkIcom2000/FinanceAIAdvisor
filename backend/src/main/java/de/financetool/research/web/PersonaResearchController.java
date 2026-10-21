@@ -9,7 +9,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import java.security.Principal;
 import java.time.LocalDate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,6 +35,8 @@ class PersonaResearchController {
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, example = "2026-11-06") @NotNull LocalDate date) {
     }
 
+    private static final Logger log = LoggerFactory.getLogger(PersonaResearchController.class);
+
     private final ResetPersonaUseCase resetPersona;
     private final SetSimulatedDateUseCase setSimulatedDate;
 
@@ -43,19 +48,25 @@ class PersonaResearchController {
     @Operation(summary = "Reset the persona to its fixtures and its start date")
     @PostMapping("/api/research/personas/{personaId}/reset")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    void reset(@PathVariable String personaId) {
+    void reset(@PathVariable String personaId, Principal researcher) {
         if (!resetPersona.reset(parse(personaId))) {
             throw unknown(personaId);
         }
+        // Researcher actions are logged, not audited (AD-13 has no kind for them; review decision 2026-10-21).
+        log.atInfo().setMessage("Persona reset").addKeyValue("personaId", personaId)
+                .addKeyValue("researcher", researcher.getName()).log();
     }
 
     @Operation(summary = "Set the persona's simulated date")
     @PostMapping("/api/research/personas/{personaId}/simulated-date")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    void simulatedDate(@PathVariable String personaId, @Valid @RequestBody SimulatedDateRequest request) {
+    void simulatedDate(@PathVariable String personaId, @Valid @RequestBody SimulatedDateRequest request,
+            Principal researcher) {
         if (!setSimulatedDate.set(parse(personaId), request.date())) {
             throw unknown(personaId);
         }
+        log.atInfo().setMessage("Simulated date set").addKeyValue("personaId", personaId)
+                .addKeyValue("simulatedDate", request.date()).addKeyValue("researcher", researcher.getName()).log();
     }
 
     private static PersonaId parse(String personaId) {

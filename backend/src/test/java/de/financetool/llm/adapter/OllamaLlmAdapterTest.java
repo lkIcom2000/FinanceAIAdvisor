@@ -173,6 +173,23 @@ class OllamaLlmAdapterTest {
         server.verify();
     }
 
+    /** Ollama lists a pulled untagged model as {@code <name>:latest}; the configuration binds plain {@code bge-m3}. */
+    @Test
+    void verifyMatchesAnUntaggedBindingToTheLatestTag() {
+        OllamaLlmAdapter adapter = adapter(agent("phrase-a"), Optional.of(LOCK));
+        Map<String, String> served = new java.util.HashMap<>(SERVED);
+        served.remove("bge-m3");
+        served.put("bge-m3:latest", "sha256:e");
+        server.expect(requestTo(URL + "/api/tags")).andRespond(withSuccess(tags(served), MediaType.APPLICATION_JSON));
+        server.expect(requestTo(URL + "/api/chat"))
+                .andRespond(withSuccess(chat("{\"ok\": true}", 20, "stop"), MediaType.APPLICATION_JSON));
+        server.expect(requestTo(URL + "/api/chat"))
+                .andRespond(withSuccess(chat("{\"ok\": true}", 20, "stop"), MediaType.APPLICATION_JSON));
+
+        adapter.verify();
+        server.verify();
+    }
+
     @Test
     void verifyFailsOnADigestMismatch() {
         OllamaLlmAdapter adapter = adapter(agent("phrase-a"), Optional.of(LOCK));

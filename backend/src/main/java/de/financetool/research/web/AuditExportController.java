@@ -35,6 +35,7 @@ class AuditExportController {
             @RequestParam(required = false) String runId, HttpServletResponse response) throws IOException {
         response.setContentType(JSONL);
         response.setCharacterEncoding("UTF-8");
-        exportAudit.export(runId, response.getOutputStream());
+        // An empty ?runId= means no filter, not the empty run id.
+        exportAudit.export(runId == null || runId.isBlank() ? null : runId, response.getOutputStream());
     }
 }

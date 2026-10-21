@@ -33,7 +33,7 @@ public abstract class PostgresIntegrationTest {
 
     public static final String DEMO_PASSWORD = "fine-demo";
 
-    public static final String APP_DB_PASSWORD = "fine-app-test";
+    public static final String APP_DB_PASSWORD = "fine-app's test";
 
     protected static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer(
             DockerImageName.parse("pgvector/pgvector:0.8.2-pg17").asCompatibleSubstituteFor("postgres"));

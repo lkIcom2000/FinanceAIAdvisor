@@ -55,6 +55,14 @@ class ResetPersonaUseCaseTest {
     }
 
     @Test
+    void theRegistrationCheckRunsInEveryProfile() {
+        assertThat(ResetOrderCheck.class.isAnnotationPresent(org.springframework.context.annotation.Profile.class))
+                .isFalse();
+        assertThatThrownBy(() -> new ResetOrderCheck(List.of(owner("knowledge", new ArrayList<>()))))
+                .hasMessageContaining("knowledge");
+    }
+
+    @Test
     void anOwnerOutsideTheResetOrderStopsStartup() {
         assertThatThrownBy(() -> new ResetPersonaUseCase(mock(PersonaClock.class),
                 List.of(owner("knowledge", new ArrayList<>()))))

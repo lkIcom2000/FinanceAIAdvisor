@@ -66,6 +66,27 @@ context:
 - Given `models/lock.json`, when the app starts against the compose Ollama, then all bound models verify and the `nlu`/`judge` smoke calls return valid JSON, else startup stops.
 - Given two configurations differing only in the phrasing tag, when each is active, then phrasing calls use its tag without code change, and tag and digest are in the result for the Audit Record.
 
+### Review Findings
+
+Joint code review 2026-10-21 of 00b341b..1e2e9e5.
+
+- [x] [Review][Patch] The `:latest` fallback that `bge-m3` depends on is never exercised by a test (`/api/tags` reports `bge-m3:latest`) [backend/src/test/java/de/financetool/llm/adapter/OllamaLlmAdapterTest.java]
+- [x] [Review][Patch] Nothing checks that every model bound in `config/agent/*.yaml` is listed in `models/tags.txt` and pinned in `models/lock.json`; a config edit can break startup with a green build [backend/src/test/java/de/financetool/DeploymentConfigTest.java]
+- [x] [Review][Patch] No test asserts that the startup verification runner exists by default (`verify-on-startup` true / missing) [backend/src/main/java/de/financetool/llm/adapter/OllamaConfiguration.java:35]
+- [x] [Review][Patch] `models/README.md` says bound models are compared "with the lock"; only the digest is checked, `ggufSha256` is recorded, not verified [models/README.md:10]
+- [x] [Review][Patch] `update-lock.sh` discards `ollama pull` stderr, so a failed pull aborts the script without a message [models/update-lock.sh:27]
+- [x] [Review][Defer] `truncated` misses prompts Ollama cut or served from the KV cache (`prompt_eval_count < numCtx`) [backend/src/main/java/de/financetool/llm/adapter/OllamaLlmAdapter.java:83] — deferred: maybe-false, medium if true; settle with the AD-5 prompt budget (own token count) in the advisory epic.
+
+Rejected:
+- Null bodies from `/api/chat`, `/api/embed`, `/api/tags` cause NPEs (low: Ollama always answers with a body; failure is loud).
+- Malformed or duplicate `lock.json` entries fail with bare exceptions; `byTag()` rebuilt per call (low: loud at startup; negligible cost).
+- Empty digest when the lock lacks a tag and verification is off (low: only test configurations switch verification off).
+- Smoke calls use the 10-minute read timeout (low: a hung Ollama is visible in the log; a second client adds complexity).
+- `LlmResult` lacks `eval_count`/`done_reason`, `Embeddings` holds `float[]`, no vector-count check (low: shape fixed by AD-5; Ollama returns one vector per input).
+- `update-lock.sh` regex depends on field order; namespaced tags unsupported (low: fails with "could not read digest"; no such tags bound).
+- `OllamaConfiguration` receives `AgentConfiguration` as a bean-method parameter (low: wiring only, no harm named).
+- Missing `asOf` in the spec's payload list (rejected: the fix would edit the spec; `asOf` is kept).
+
 ## Implementation Notes
 
 - Timing: start 2026-10-21T18:40+02:00.
@@ -77,6 +98,9 @@ context:
 - Verified: `./mvnw -B verify -Dfine.it.required=true` BUILD SUCCESS, 111 tests, 0 failures, 0 skipped (`OllamaLlmAdapterTest` 11).
 - Verified with Docker Compose (CPU only, Ryzen 5 1600): models pulled and locked (`llama3.1:8b-instruct-q4_K_M`, `bge-m3`); app log "Models verified against models/lock.json and smoke calls passed in 55689 ms"; `/actuator/health` UP after the checks.
 - Timing: end 2026-10-21T19:05+02:00.
+
+- Review patches applied (2026-10-21): tests for the `:latest` fallback (`verifyMatchesAnUntaggedBindingToTheLatestTag`), for config/`tags.txt`/`lock.json` consistency (`ModelLockConsistencyTest`) and for the startup check being on by default (`OllamaConfigurationTest`); `models/README.md` states that only the digest is compared; `update-lock.sh` prints Ollama's error when a pull fails.
+- Verified after review: `./mvnw -B verify -Dfine.it.required=true` BUILD SUCCESS, 130 tests, 0 failures, 0 skipped; compose stack restarted: app connects as `fine_app` via the new callback, models verified, `/actuator/health` UP.
 
 ## Spec Change Log
 

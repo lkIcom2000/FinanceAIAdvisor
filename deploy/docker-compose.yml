@@ -1,6 +1,6 @@
 # The only compose file (AD-17). Environments differ only in the variables below and the secrets.
 # Usage (from the repository root):
-#   cp deploy/.env.example deploy/.env   # then set FINE_DB_PASSWORD
+#   cp deploy/.env.example deploy/.env   # then set FINE_DB_PASSWORD and FINE_APP_DB_PASSWORD
 #   docker compose -f deploy/docker-compose.yml up -d --build
 name: fine
 

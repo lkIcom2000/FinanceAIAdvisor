@@ -158,7 +158,9 @@ class AuditTrailIntegrationTest extends PostgresIntegrationTest {
             "UPDATE evidence_items SET origin_id = 'changed'",
             "DELETE FROM evidence_items",
             "TRUNCATE evidence_items"})
-    void evenTheOwnerCannotChangeAuditTables(String sql) throws SQLException {
+    // The triggers reject changes on the owner connection too. The owner could still disable or drop them; the
+    // application never connects as the owner (AD-13), so that is outside what these tables protect against.
+    void theTriggersRejectChangesEvenOnTheOwnerConnection(String sql) throws SQLException {
         RequestContext context = context(unique());
         transaction.executeWithoutResult(tx -> {
             writer.write(context, new AuditEntry(AuditKind.NOTIFICATION, null, null, "fixture-1", new Body("x")));

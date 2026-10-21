@@ -18,11 +18,9 @@ spring:
     hibernate:
       ddl-auto: none
   flyway:
-    locations: classpath:db/migration,classpath:db/callback
+    locations: classpath:db/migration
     user: ${SPRING_DATASOURCE_OWNER_USERNAME:fine}
     password: ${SPRING_DATASOURCE_OWNER_PASSWORD:}
-    placeholders:
-      appDbPassword: ${spring.datasource.password}
   mvc:
     problemdetails:
       enabled: true
