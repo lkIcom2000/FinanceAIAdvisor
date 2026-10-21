@@ -5,7 +5,8 @@
 FROM node:24.20.0-bookworm-slim AS frontend
 WORKDIR /src/frontend
 COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci --no-audit --no-fund
+# BuildKit cache mounts keep the npm and Maven downloads between builds (not in the image).
+RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 COPY frontend/ ./
 RUN npm run build
 
@@ -14,10 +15,10 @@ FROM eclipse-temurin:25.0.4.1_1-jdk-noble AS backend
 WORKDIR /src/backend
 COPY backend/.mvn/ .mvn/
 COPY backend/mvnw backend/pom.xml ./
-RUN sed -i 's/\r$//' mvnw && chmod +x mvnw && ./mvnw -B -q dependency:go-offline
+RUN --mount=type=cache,target=/root/.m2 sed -i 's/\r$//' mvnw && chmod +x mvnw && ./mvnw -B -q dependency:go-offline
 COPY backend/src/ src/
 COPY --from=frontend /src/frontend/dist/frontend/browser/ src/main/resources/static/
-RUN ./mvnw -B -q package -DskipTests && cp target/fine-backend-*.jar /tmp/app.jar
+RUN --mount=type=cache,target=/root/.m2 ./mvnw -B -q package -DskipTests && cp target/fine-backend-*.jar /tmp/app.jar
 
 # --- Stage 3: runtime ---
 FROM eclipse-temurin:25.0.4.1_1-jre-noble
