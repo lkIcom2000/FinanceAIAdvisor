@@ -2,6 +2,16 @@ import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core
 import { MatDialog } from '@angular/material/dialog';
 import { WhyDialogComponent, WhyDialogData } from './why-dialog.component';
 
+/** Opens the "Why?" dialog for a figure; focus returns to the element that had it when the dialog closes. */
+export function openWhyDialog(dialog: MatDialog, provId: string): void {
+  dialog.open<WhyDialogComponent, WhyDialogData>(WhyDialogComponent, {
+    data: { provId },
+    width: '560px',
+    maxWidth: '90vw',
+    restoreFocus: true,
+  });
+}
+
 /** The "Why?" link next to a figure. The dialog returns focus to this trigger when it closes (Esc or Close). */
 @Component({
   selector: 'app-why-link',
@@ -26,11 +36,6 @@ export class WhyLinkComponent {
   readonly provId = input.required<string>();
 
   protected open(): void {
-    this.dialog.open<WhyDialogComponent, WhyDialogData>(WhyDialogComponent, {
-      data: { provId: this.provId() },
-      width: '560px',
-      maxWidth: '90vw',
-      restoreFocus: true,
-    });
+    openWhyDialog(this.dialog, this.provId());
   }
 }

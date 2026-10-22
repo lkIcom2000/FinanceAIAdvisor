@@ -113,6 +113,25 @@
         "tags" : [ "overview" ]
       }
     },
+    "/api/overview/liquidity" : {
+      "get" : {
+        "operationId" : "liquidity",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/LiquidityOverview"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "The Liquidity tab: balances, emergency fund and the three-month cash-flow forecast",
+        "tags" : [ "overview" ]
+      }
+    },
     "/api/persona" : {
       "get" : {
         "operationId" : "current",
@@ -183,6 +202,50 @@
   },
   "components" : {
     "schemas" : {
+      "DatedFigure" : {
+        "type" : "object",
+        "description" : "A balance on a day, e.g. the first forecast day below zero",
+        "properties" : {
+          "amount" : {
+            "$ref" : "#/components/schemas/Figure"
+          },
+          "date" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "wholeEuros" : {
+            "type" : "string",
+            "description" : "The amount rounded to whole euros (half up), for the chart marker and running text",
+            "example" : "-90",
+            "pattern" : "^-?\\d+$"
+          }
+        },
+        "required" : [ "amount", "date", "wholeEuros" ]
+      },
+      "EmergencyFund" : {
+        "type" : "object",
+        "description" : "The emergency fund (overnight deposit) against its target",
+        "properties" : {
+          "current" : {
+            "$ref" : "#/components/schemas/Figure"
+          },
+          "monthlyExpenses" : {
+            "$ref" : "#/components/schemas/Figure"
+          },
+          "months" : {
+            "$ref" : "#/components/schemas/Figure",
+            "description" : "Months of expenses in the target"
+          },
+          "target" : {
+            "$ref" : "#/components/schemas/Figure",
+            "description" : "Minimum target"
+          },
+          "targetMax" : {
+            "$ref" : "#/components/schemas/Figure"
+          }
+        },
+        "required" : [ "current", "monthlyExpenses", "months", "target", "targetMax" ]
+      },
       "Figure" : {
         "type" : "object",
         "description" : "A figure from Fine's calculation engine with the key of its provenance",
@@ -207,6 +270,56 @@
         },
         "required" : [ "label", "provId", "unit", "value" ]
       },
+      "Forecast" : {
+        "type" : "object",
+        "description" : "The daily current account forecast over three months (EUR)",
+        "properties" : {
+          "assumptions" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "expectedEnd" : {
+            "$ref" : "#/components/schemas/Figure"
+          },
+          "points" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ForecastPoint"
+            }
+          },
+          "provId" : {
+            "type" : "string",
+            "description" : "Key of the forecast's provenance",
+            "pattern" : "^[0-9a-f]{16}$"
+          }
+        },
+        "required" : [ "assumptions", "expectedEnd", "points", "provId" ]
+      },
+      "ForecastPoint" : {
+        "type" : "object",
+        "description" : "One forecast day: the expected balance and its possible range",
+        "properties" : {
+          "date" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "expected" : {
+            "type" : "string",
+            "pattern" : "^-?\\d+(\\.\\d+)?$"
+          },
+          "high" : {
+            "type" : "string",
+            "pattern" : "^-?\\d+(\\.\\d+)?$"
+          },
+          "low" : {
+            "type" : "string",
+            "pattern" : "^-?\\d+(\\.\\d+)?$"
+          }
+        },
+        "required" : [ "date", "expected", "high", "low" ]
+      },
       "HomeOverview" : {
         "type" : "object",
         "properties" : {
@@ -215,6 +328,38 @@
           }
         },
         "required" : [ "currentAccount" ]
+      },
+      "LiquidityOverview" : {
+        "type" : "object",
+        "properties" : {
+          "currentAccount" : {
+            "$ref" : "#/components/schemas/Figure"
+          },
+          "emergencyFund" : {
+            "$ref" : "#/components/schemas/EmergencyFund"
+          },
+          "forecast" : {
+            "$ref" : "#/components/schemas/Forecast"
+          },
+          "liquidAssets" : {
+            "$ref" : "#/components/schemas/Figure"
+          },
+          "lowestBalance" : {
+            "$ref" : "#/components/schemas/DatedFigure"
+          },
+          "overnightDeposit" : {
+            "$ref" : "#/components/schemas/Figure",
+            "description" : "Absent if there is no overnight deposit"
+          },
+          "shortfall" : {
+            "$ref" : "#/components/schemas/DatedFigure",
+            "description" : "The first day the expected balance is below zero; absent if it never is"
+          },
+          "variableSpending" : {
+            "$ref" : "#/components/schemas/Figure"
+          }
+        },
+        "required" : [ "currentAccount", "emergencyFund", "forecast", "liquidAssets", "lowestBalance", "variableSpending" ]
       },
       "LoginRequest" : {
         "type" : "object",

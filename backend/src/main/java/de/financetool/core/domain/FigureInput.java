@@ -1,5 +1,6 @@
 package de.financetool.core.domain;
 
+import de.financetool.shared.domain.SourcedNumber;
 import de.financetool.shared.domain.Unit;
 import java.math.BigDecimal;
 import java.util.Objects;
@@ -27,5 +28,14 @@ public record FigureInput(String label, BigDecimal value, Unit unit, String text
 
     public static FigureInput number(String label, BigDecimal value, Unit unit) {
         return new FigureInput(label, value, unit, null, null);
+    }
+
+    /** An input that is itself a stored Core figure, with its key for drill-down. */
+    public static FigureInput figure(String label, SourcedNumber figure) {
+        return new FigureInput(label, figure.value(), figure.unit(), null, figure.provId());
+    }
+
+    public static FigureInput text(String label, String text) {
+        return new FigureInput(label, null, null, text, null);
     }
 }

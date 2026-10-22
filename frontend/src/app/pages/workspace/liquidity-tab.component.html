@@ -1,0 +1,114 @@
+@let s = state();
+@if (s.status === 'ready') {
+  @let l = s.liquidity;
+  <div class="tiles">
+    <section class="card tile" aria-labelledby="liq-current-title">
+      <h2 id="liq-current-title" class="label">Current account</h2>
+      <div class="main">
+        <span class="figure-lg" [class.negative]="l.currentAccount.value.startsWith('-')">{{
+          l.currentAccount.value | figure: l.currentAccount.unit
+        }}</span>
+        <app-why-link [provId]="l.currentAccount.provId" />
+      </div>
+      @if (marker(); as m) {
+        <p class="risk">{{ m.callout }}</p>
+      }
+    </section>
+
+    <section class="card tile" aria-labelledby="liq-overnight-title">
+      <h2 id="liq-overnight-title" class="label">Overnight deposit</h2>
+      @if (l.overnightDeposit; as overnight) {
+        <div class="main">
+          <span class="figure-lg">{{ overnight.value | figure: overnight.unit }}</span>
+          <app-why-link [provId]="overnight.provId" />
+        </div>
+      } @else {
+        <p class="supporting">You don't have an overnight deposit.</p>
+      }
+    </section>
+
+    <section class="card tile" aria-labelledby="liq-fund-title">
+      <h2 id="liq-fund-title" class="label">Emergency fund</h2>
+      <div class="main">
+        <span class="figure-lg">{{
+          l.emergencyFund.current.value | figure: l.emergencyFund.current.unit
+        }}</span>
+        <app-why-link [provId]="l.emergencyFund.current.provId" />
+      </div>
+      <p class="supporting">
+        of {{ l.emergencyFund.target.value | figure: l.emergencyFund.target.unit }} target ({{
+          l.emergencyFund.months.value | figure: l.emergencyFund.months.unit
+        }}
+        of expenses)
+        <app-why-link [provId]="l.emergencyFund.target.provId" />
+      </p>
+    </section>
+  </div>
+
+  <section class="card forecast" aria-labelledby="liq-forecast-title">
+    <div class="forecast-head">
+      <h2 id="liq-forecast-title" class="label">Cash-flow forecast</h2>
+      <app-why-link [provId]="l.forecast.provId" />
+    </div>
+    <p class="summary">
+      Over the next three months, your expected balance is lowest at
+      {{ l.lowestBalance.amount.value | figure: l.lowestBalance.amount.unit }} on
+      {{ formatDate(l.lowestBalance.date) }} and ends at
+      {{ l.forecast.expectedEnd.value | figure: l.forecast.expectedEnd.unit }} on
+      {{ formatDate(l.forecast.points[l.forecast.points.length - 1].date) }}.
+    </p>
+    @if (marker(); as m) {
+      <button type="button" class="marker" (click)="openShortfallWhy()">
+        <span class="dot" aria-hidden="true"></span>{{ m.text }}
+      </button>
+    }
+    <div
+      class="chart"
+      echarts
+      aria-hidden="true"
+      [options]="chartOptions()!"
+      [initOpts]="{ renderer: 'svg' }"
+      (chartClick)="onChartClick($event)"
+    ></div>
+    <table class="visually-hidden">
+      <caption>
+        Cash-flow forecast by day
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col">Date</th>
+          <th scope="col">Lower end of the range</th>
+          <th scope="col">Expected balance</th>
+          <th scope="col">Upper end of the range</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (p of l.forecast.points; track p.date) {
+          <tr>
+            <th scope="row">{{ formatDate(p.date) }}</th>
+            <td>{{ p.low | figure: 'EUR' }}</td>
+            <td>{{ p.expected | figure: 'EUR' }}</td>
+            <td>{{ p.high | figure: 'EUR' }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+    <h3 class="assumptions-title">Assumptions</h3>
+    <ul class="assumptions">
+      @for (a of l.forecast.assumptions; track $index) {
+        <li>{{ a }}</li>
+      }
+    </ul>
+  </section>
+} @else if (s.status === 'failed') {
+  <p class="error" role="alert">
+    We couldn't load your liquidity overview. Please try again later.
+  </p>
+} @else {
+  <div class="tiles">
+    @for (i of [1, 2, 3]; track i) {
+      <div class="card skeleton" aria-hidden="true"></div>
+    }
+  </div>
+  <span class="visually-hidden" role="status">Loading your liquidity overview…</span>
+}

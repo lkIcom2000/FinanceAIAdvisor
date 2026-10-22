@@ -107,7 +107,7 @@ final class PersonaFixtureGenerator {
                         2026_1015_01L, oct15, 1974_00,
                         List.of(current(), new AccountSpec(OVERNIGHT, "OVERNIGHT", "Overnight deposit", 400_00)),
                         List.of(
-                                new Recurring("salary", 3, 2400_00, "SALARY", "Example Hospital", "Salary", null),
+                                new Recurring("salary", 2, 2400_00, "SALARY", "Example Hospital", "Salary", null),
                                 rent(1, -850_00),
                                 ticket(),
                                 new Recurring("standing-order-overnight", 4, -300_00, "TRANSFER",

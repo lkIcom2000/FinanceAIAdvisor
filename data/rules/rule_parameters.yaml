@@ -1,0 +1,30 @@
+# Rule Parameters (PRD FR-22): versioned, dated rules used by the Deterministic Core.
+# Read by knowledge.RuleParamPort; a key is refused for a date outside every version's validity.
+# Append-only: a change adds a new entry with a new version and closes the old one with valid_to.
+# Epic 4 extends this file and its loader.
+#
+# Fields: key, value, unit (EUR, FRACTION, MONTHS, YEARS, COUNT), valid_from, valid_to (null = open-ended),
+# source, version.
+
+parameters:
+  - key: emergency_fund_months_min
+    value: 3
+    unit: MONTHS
+    valid_from: 2020-01-01
+    valid_to: null
+    source: "Design parameter (common consumer-protection guidance, e.g. Verbraucherzentrale)"
+    version: "1"
+  - key: emergency_fund_months_max
+    value: 6
+    unit: MONTHS
+    valid_from: 2020-01-01
+    valid_to: null
+    source: "Design parameter (common consumer-protection guidance, e.g. Verbraucherzentrale)"
+    version: "1"
+  - key: forecast_variable_spending_band
+    value: 0.15
+    unit: FRACTION
+    valid_from: 2020-01-01
+    valid_to: null
+    source: "Design parameter (Story 2.3): range of the cash-flow forecast around the average variable spending"
+    version: "1"

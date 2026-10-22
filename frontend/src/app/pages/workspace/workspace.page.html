@@ -13,6 +13,8 @@
           <section class="tab-content" [attr.data-tab]="t.key">
             @if (t.key === 'home') {
               <app-home-tab />
+            } @else if (t.key === 'liquidity') {
+              <app-liquidity-tab />
             }
           </section>
         </mat-tab>

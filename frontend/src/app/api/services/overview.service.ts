@@ -13,6 +13,9 @@ import { StrictHttpResponse } from '../strict-http-response';
 import { home } from '../fn/overview/home';
 import { Home$Params } from '../fn/overview/home';
 import { HomeOverview } from '../models/home-overview';
+import { liquidity } from '../fn/overview/liquidity';
+import { Liquidity$Params } from '../fn/overview/liquidity';
+import { LiquidityOverview } from '../models/liquidity-overview';
 
 
 /**
@@ -56,6 +59,41 @@ export class OverviewService extends BaseService {
     const resp = this.home$Response(params, context);
     return resp.pipe(
       map((r: StrictHttpResponse<HomeOverview>): HomeOverview => r.body)
+    );
+  }
+
+  /** Path part for operation `liquidity()` */
+  static readonly LiquidityPath = '/api/overview/liquidity';
+
+  /**
+   * The Liquidity tab: balances, emergency fund and the three-month cash-flow forecast.
+   *
+   *
+   *
+   * This method provides access to the full `HttpResponse`, allowing access to response headers.
+   * To access only the response body, use `liquidity()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  liquidity$Response(params?: Liquidity$Params, context?: HttpContext): Observable<StrictHttpResponse<LiquidityOverview>> {
+    const obs = liquidity(this.http, this.rootUrl, params, context);
+    return obs;
+  }
+
+  /**
+   * The Liquidity tab: balances, emergency fund and the three-month cash-flow forecast.
+   *
+   *
+   *
+   * This method provides access only to the response body.
+   * To access the full response (for headers, for example), `liquidity$Response()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  liquidity(params?: Liquidity$Params, context?: HttpContext): Observable<LiquidityOverview> {
+    const resp = this.liquidity$Response(params, context);
+    return resp.pipe(
+      map((r: StrictHttpResponse<LiquidityOverview>): LiquidityOverview => r.body)
     );
   }
 

@@ -32,12 +32,33 @@ public final class AccountBalance {
     private AccountBalance() {
     }
 
+    /** Which account a balance is for; part of the figure key and the figure's wording. */
+    public enum Account {
+        CURRENT("current account balance", "Current account balance"),
+        OVERNIGHT("overnight deposit balance", "Overnight deposit balance");
+
+        private final String plainName;
+        private final String label;
+
+        Account(String plainName, String label) {
+            this.plainName = plainName;
+            this.label = label;
+        }
+    }
+
+    /** The current account's balance; see {@link #of(Account, LocalDate, BigDecimal, List, LocalDate)}. */
+    public static CoreComputation of(LocalDate openingDate, BigDecimal openingBalance, List<Booking> bookings,
+            LocalDate asOf) {
+        return of(Account.CURRENT, openingDate, openingBalance, bookings, asOf);
+    }
+
     /**
      * Opening balance plus every given booking up to and including {@code asOf}; later bookings are ignored. Bookings
      * are not checked against the opening date: {@code BankPort} and the fixture catalog never book before it.
      */
-    public static CoreComputation of(LocalDate openingDate, BigDecimal openingBalance, List<Booking> bookings,
-            LocalDate asOf) {
+    public static CoreComputation of(Account account, LocalDate openingDate, BigDecimal openingBalance,
+            List<Booking> bookings, LocalDate asOf) {
+        Objects.requireNonNull(account, "account");
         Objects.requireNonNull(openingDate, "openingDate");
         Objects.requireNonNull(openingBalance, "openingBalance");
         Objects.requireNonNull(asOf, "asOf");
@@ -57,12 +78,13 @@ public final class AccountBalance {
         BigDecimal balance = money(opening.add(bookingsSum));
 
         Map<String, Object> keyInputs = new LinkedHashMap<>();
+        keyInputs.put("account", account);
         keyInputs.put("openingDate", openingDate);
         keyInputs.put("openingBalance", opening);
         keyInputs.put("bookingsSum", bookingsSum);
         keyInputs.put("bookingsCount", count);
 
-        return new CoreComputation(FUNCTION, "current account balance",
+        return new CoreComputation(FUNCTION, account.plainName,
                 "Based on your account data from " + DATE.format(openingDate) + " to " + DATE.format(asOf) + ".",
                 keyInputs,
                 List.of(
@@ -70,7 +92,7 @@ public final class AccountBalance {
                                 opening, Unit.EUR),
                         FigureInput.number("Money in and out since then", bookingsSum, Unit.EUR),
                         FigureInput.number("Number of bookings", BigDecimal.valueOf(count), Unit.COUNT)),
-                List.of(new Figure(OUTPUT, "Current account balance", balance, Unit.EUR)),
+                List.of(new Figure(OUTPUT, account.label, balance, Unit.EUR)),
                 List.of("Includes every booking up to the end of " + DATE.format(asOf) + "."),
                 Map.of());
     }
