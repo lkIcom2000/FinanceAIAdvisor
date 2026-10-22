@@ -202,7 +202,7 @@ flowchart LR
   - **Roles.** The roles are `PERSONA`, `ADVISOR` and `RESEARCHER`.
   - **Persona endpoints.** Persona endpoints take the persona id only from the authenticated principal. Persona-scoped repository methods require a `PersonaScope`.
   - **Advisor endpoints.** `/api/advisor/**` can only read escalation cases, post replies and close cases. There is no advisor UI; the advisor uses Swagger UI or `deploy/research/advisor.sh`.
-  - **Research endpoints.** `/api/research/**` covers reset, simulated date, monitoring run, study preparation and audit export. A study preset may set a `plantedOverride` for one Document type and field, which swaps a grounded value into a different field on the Fact Card (PRD §8.4). The override is recorded in the `DOCUMENT_EXTRACTION` Audit Record. It exists only with the Spring profile `research`. There is no Research Console UI: research endpoints are used through Swagger UI (research profile only) and scripts in `deploy/research/`, and the `RESEARCHER` login lands on Swagger UI.
+  - **Research endpoints.** `/api/research/**` covers reset, simulated date, monitoring run, study preparation and audit export. A study preset may set a `plantedOverride` for one Document type and field, which swaps a grounded value into a different field on the Fact Card (PRD §8.4). The override is recorded in the `DOCUMENT_EXTRACTION` Audit Record. It exists only with the Spring profile `research`. Researcher actions (reset, simulated date) are written to the application log, not as Audit Records (Epic 1 as-built). There is no Research Console UI: research endpoints are used through Swagger UI (research profile only) and scripts in `deploy/research/`, and the `RESEARCHER` login lands on Swagger UI.
 
 ### AD-12: Each module owns its tables; cross-module changes go through the owner
 
@@ -210,7 +210,9 @@ flowchart LR
 - **Prevents:** two modules writing one entity with different invariants.
 - **Rule:**
   - **Owners.** The Spring Modulith modules below are the only writers of their tables.
-  - **Module API.** A module's API is the types in its **base package** only. A port used by another module is declared in the providing module's base package (e.g. `llm.LlmPort`, `bank.BankReadPort`, `knowledge.RuleParamPort`, `audit.EvidenceStore`). Sub-packages are internal.
+  - **Module API.** A module's API is the types in its **base package** plus any named interface it declares. A port used by another module is declared in the providing module's base package (e.g. `llm.LlmPort`, `bank.BankReadPort`, `knowledge.RuleParamPort`, `audit.EvidenceStore`). Sub-packages are internal. Two exceptions (Epic 2 as-built):
+    - `shared.RequestContextFactory` lives in the open `shared` module, because `core` use cases build a `RequestContext` and `core` may not depend on `personas`.
+    - The types `CoreGateway` returns stay in `core.domain` (the domain functions build them, AD-1) and form the named interface `results`; a caller allows `"core :: results"` next to `"core"`. It exposes exactly the types the gateway signatures reach, so the Core's functions stay behind the gateway (AD-2). `ModulithTest` checks this.
   - **No shared entities.** Module APIs exchange only immutable records, never JPA entities. A reference across modules is an id only: no JPA associations and no foreign keys across modules.
   - **Dependency direction.** Modules depend only along the graph below.
   - **Cycles and events.** The only cycle-breaker is a synchronous `@EventListener` inside the caller's transaction, for example `escalation` publishes `AdvisorReplyPosted` and `advisory` appends the message. `@ApplicationModuleListener`, `@Async` and `@TransactionalEventListener` are not allowed.
@@ -255,8 +257,9 @@ flowchart BT
 - **Rule:**
   - **Append-only enforcement.** `audit_records` and `evidence_items` have triggers that reject UPDATE, DELETE and TRUNCATE. The app connects as a non-owner role with INSERT and SELECT only on these tables, and Flyway migrates as the owner.
   - **Record fields.** A record holds `kind (RESPONSE|ACTION|NOTIFICATION|DOCUMENT_EXTRACTION)`, `runId` (null outside acceptance runs), `personaId`, `turnId` or `actionId`, `fixtureVersion`, `schemaVersion` and a JSONB payload.
-  - **Payload.** The payload contains the class, outcome, evidence `provId`s, all `CheckResult`s, the Judge verdict and parse status, the gate decision with capping criteria, model tags and digests, prompt hashes, `truncated`, the config id and the config fingerprint (AD-14), the KB snapshot id, seeds, the first draft and the final text. It also records the selection inputs for a Category Recommendation (FR-27).
+  - **Payload.** The payload contains the `asOf`, the class, outcome, evidence `provId`s, all `CheckResult`s, the Judge verdict and parse status, the gate decision with capping criteria, model tags and digests, prompt hashes, `truncated`, the config id and the config fingerprint (AD-14), the KB snapshot id, seeds, the first draft and the final text. It also records the selection inputs for a Category Recommendation (FR-27).
   - **Document extraction payload.** A `DOCUMENT_EXTRACTION` payload holds the Document sha256, the type, model tags and digests, the prompt hash, the redacted extraction JSON, the grounding and plausibility results, `truncated` and `plantedOverride`. It never holds Document text or unredacted values, so deleting a Document (FR-60) needs no change to audit records.
+  - **Not audited.** Researcher actions (reset, simulated date) are logged, not recorded (AD-11).
   - **Serialisation.** The payload is serialised by one `AuditPayloadMapper`, not by Hibernate's internal JSON mapper, so that its format is fixed.
   - **Export.** Records are exportable as JSONL via `/api/research/audit/export` for requirement verification.
 
@@ -268,6 +271,7 @@ flowchart BT
   - **Configuration file.** The `AgentConfiguration` is one YAML file, `config/agent/<id>.yaml`, bound to `@ConfigurationProperties` and validated at startup. Its fields are `id`, `llm` (role → model tag for `phrasing`, `nlu` and `judge`), `retrieval`, `rolePrompt`, `compliance` (`A | A+B | A+B+C`), `dataExposure`, `decoding` and `seeds`.
   - **Selection.** The active file is selected by `APP_AGENT_CONFIG`.
   - **Config fingerprint.** At startup, one `ConfigFingerprint` is computed: a SHA-256 over the raw, LF-normalised bytes of every AD-25 file (agent config, prompts, `autonomy.yaml`, `profile-minimums.yaml`, `models/lock.json`), of `config/documents.yaml` and `config/letters/`, and of `data/rules`, in sorted path order. The fingerprint and the per-file hashes go into every Audit Record. `.gitattributes` forces LF for these paths.
+  - **Rule Parameters.** `data/rules/rule_parameters.yaml` is read through `knowledge.RuleParamPort` (minimal since Story 2.3: key, value, unit, validity, a `source` note and version; Story 4.1 adds the legal source text and the AD-25 `derivedFrom` block). Values without an experiment behind them are design parameters and say so in `source`: `emergency_fund_months_min`/`_max`, `forecast_variable_spending_band` (±15 %), `projection_default_horizon_years`, and the parametric projection model's `projection_equity_mean_return` and `projection_equity_volatility`.
   - **File location.** `config/`, `data/` and `models/` are read from `APP_HOME` (repository root locally, `/app` in the image, mounted read-only in compose).
   - **No other flags.** No other feature flags exist.
 
@@ -309,6 +313,7 @@ flowchart BT
     - `ollama` (`ollama/ollama:0.40.6`, `OLLAMA_KEEP_ALIVE=-1`).
   - **Azure host (deferred).** One EU GPU VM (NCas_T4_v3, Sweden Central or West Europe) with `caddy` for TLS, only if a remote study becomes necessary. The user study runs locally in person (scope reduction 2026-10-21).
   - **Environment differences.** Environments differ only in environment variables: `SPRING_DATASOURCE_*`, `APP_OLLAMA_URL`, `APP_AGENT_CONFIG`, `SPRING_PROFILES_ACTIVE`, and the secrets.
+  - **Development override.** `deploy/docker-compose.local.yml` only publishes `db` and `ollama` on 127.0.0.1 for running the backend outside compose. It is a development tool, not an environment (`DeploymentConfigTest` keeps it to loopback ports).
 
 ### AD-18: Models are pinned by digest and served by Ollama
 
@@ -317,7 +322,7 @@ flowchart BT
 - **Rule:**
   - **Model files.** Every model bound in the active `AgentConfiguration`, plus the embedding model, is defined in `models/`. Pulled tags are listed there, and imported GGUFs (e.g. finance-chat) get a checked-in Modelfile with the correct chat template.
   - **Lock file.** `models/lock.json` records each tag, its `/api/tags` digest and the GGUF sha256.
-  - **Startup checks.** The adapter verifies the lock at startup and fails fast on a mismatch. A startup smoke test checks JSON-schema output for the models bound to `nlu` and `judge`.
+  - **Startup checks.** At startup the adapter compares each bound tag's `/api/tags` digest with the lock and fails fast on a mismatch; `ggufSha256` is recorded only. A startup smoke test checks JSON-schema output for the models bound to `nlu` and `judge`.
 
 ### AD-19: The Angular SPA uses generated types; figure keys link chat and panel
 
@@ -356,7 +361,7 @@ flowchart BT
 - **Rule:**
   - **Contents.** `RequestContext(agentConfig, configFingerprint, thresholds, kbSnapshot, seeds, asOf, personaId, runId)` is an immutable record in `shared`. It holds only plain records, no Spring beans.
   - **Creation and use.** The use case builds it from the active configuration and `personas` state, then passes it explicitly to every service. Services unpack it into plain arguments for domain functions (AD-1).
-  - **No other sources.** No service reads configuration or time from anywhere else.
+  - **No other sources.** No service reads configuration or time from anywhere else. One exception: the LLM adapter (`OllamaLlmAdapter`) binds the model tag per role at startup, as infrastructure binding (Epic 1 as-built).
 
 ### AD-23: A profile stated in the message applies to that turn only
 

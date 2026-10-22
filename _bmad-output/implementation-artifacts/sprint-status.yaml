@@ -42,7 +42,7 @@
 #   configuration with a derivedFrom block (AD-25). Check E3 before 3.9, E1 before 4.2/4.3.
 
 generated: 10-21-2026 13:52
-last_updated: 10-22-2026 14:52
+last_updated: 10-22-2026 17:04
 project: FinanceTool
 project_key: NOKEY
 tracking_system: file-system
@@ -201,7 +201,7 @@ action_items:
     action: "A2: Before Epic 3 - expose CoreGateway result types as a named interface
       or move them to the core base package"
     owner: "Dev (Claude)"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-10-22.md"
   - id: "epic-2-retro-item-10-a3-decide-monte-carlo-data-source-provid"
     epic: 2
@@ -215,21 +215,21 @@ action_items:
     action: "A4: Commit a local compose override publishing db/ollama on 127.0.0.1
       plus a stop/start note for local live checks"
     owner: "Dev (Claude)"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-10-22.md"
   - id: "epic-2-retro-item-12-a5-low-priority-cleanup-shared-provid-pa"
     epic: 2
     action: "A5: Low-priority cleanup - shared provId pattern constant, global visually-hidden
       style, tests calling the gateway mapping"
     owner: "Dev (Claude)"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-10-22.md"
   - id: "epic-2-retro-item-13-a6-treat-figure-key-inputs-of-a-released"
     epic: 2
     action: "A6: Treat figure-key inputs of a released figure as frozen; changes are
       noted in the spec and stored references checked"
     owner: "Dev (Claude)"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-10-22.md"
   - id: "epic-2-retro-item-14-a7-check-the-ui-once-in-a-browser-at-136"
     epic: 2

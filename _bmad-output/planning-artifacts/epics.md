@@ -618,7 +618,7 @@ So that I understand where my long-term savings stand without a false promise.
 
 **Acceptance Criteria:**
 
-**Given** a pure `MonteCarloProjection` on historical index data from `data/index/` using `RandomGeneratorFactory.of("L64X128MixRandom").create(seed)` with the seed from `RequestContext.seeds`
+**Given** a pure `MonteCarloProjection` that bootstraps historical monthly index returns from `data/index/` when a series of more than 24 months is present, and otherwise draws normally distributed returns from the design Rule Parameters `projection_equity_mean_return` and `projection_equity_volatility`, stating the model in its assumptions (decision Commc 2026-10-22, Epic 2 retro A3), using `RandomGeneratorFactory.of("L64X128MixRandom").create(seed)` with the seed from `RequestContext.seeds`
 **When** it runs twice with the same inputs and seed
 **Then** both results are identical, and each result has p10/p50/p90 plus assumptions (return model, costs, inflation, horizon)
 
