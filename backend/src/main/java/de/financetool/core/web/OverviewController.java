@@ -6,7 +6,10 @@ import de.financetool.core.application.ShowWealthOverviewUseCase;
 import de.financetool.core.domain.AccountBalance;
 import de.financetool.core.domain.CashFlowForecast;
 import de.financetool.core.domain.CoreResult;
+import de.financetool.core.domain.CoverageFlag;
 import de.financetool.core.domain.EmergencyFundTarget;
+import de.financetool.core.domain.InsuranceFigures;
+import de.financetool.core.domain.InsurancePremium;
 import de.financetool.core.domain.Investments;
 import de.financetool.core.domain.Liquidity;
 import de.financetool.core.domain.LiquidityFigures;
@@ -26,6 +29,7 @@ import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -49,9 +53,6 @@ class OverviewController {
         static Figure of(SourcedNumber number) {
             return new Figure(number.provId(), number.label(), number.value().toPlainString(), number.unit());
         }
-    }
-
-    record HomeOverview(@Schema(requiredMode = Schema.RequiredMode.REQUIRED) Figure currentAccount) {
     }
 
     @Schema(description = "A balance on a day, e.g. the first forecast day below zero")
@@ -105,6 +106,52 @@ class OverviewController {
             @Schema(description = "The first day the expected balance is below zero; absent if it never is")
             DatedFigure shortfall,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) DatedFigure lowestBalance) {
+    }
+
+    @Schema(description = "An insurance or pension contract on which you are insured")
+    record InsuranceContract(
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String id,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "Contract type in plain words",
+                    example = "Private liability insurance") String type,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String policyholder,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "Whether you are co-insured on someone else's policy") boolean coInsured,
+            @Schema(description = "The premium per payment interval; absent if you don't pay it") Figure premium,
+            @Schema(description = "Absent without a premium", allowableValues = {"monthly", "quarterly", "yearly"})
+            String paymentInterval,
+            @Schema(description = "The next due date after today; absent without a premium") LocalDate nextDueDate) {
+    }
+
+    enum FlagKind {
+        DUPLICATE_COVERAGE, MISSING_COVER
+    }
+
+    @Schema(description = "A plain-words note on your insurance: cover you may pay twice for, or essential cover"
+            + " you don't have")
+    record InsuranceFlag(
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) FlagKind kind,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "The cover in plain words",
+                    example = "liability") String coverage,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, pattern = "^[0-9a-f]{16}$",
+                    description = "Key of the check's provenance") String provId,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "Ids of every contract involved (empty for a missing cover)")
+            List<String> contractIds) {
+    }
+
+    record Insurance(
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<InsuranceContract> contracts,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<InsuranceFlag> flags) {
+    }
+
+    record HomeOverview(
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Figure currentAccount,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "The lowest expected balance in the next three months") DatedFigure lowestBalance,
+            @Schema(description = "The first day the expected balance is below zero; absent if it never is")
+            DatedFigure shortfall,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) EmergencyFund emergencyFund,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Insurance insurance) {
     }
 
     @Schema(description = "A holding in the securities account")
@@ -177,32 +224,61 @@ class OverviewController {
     @Operation(summary = "The Home tab's summary figures")
     @GetMapping("/api/overview/home")
     HomeOverview home(@Parameter(hidden = true) PersonaScope scope) {
-        return new HomeOverview(Figure.of(showHome.show(scope).currentAccount()));
+        ShowHomeOverviewUseCase.HomeOverview home = showHome.show(scope);
+        LiquidityFigures f = home.liquidity();
+        InsuranceFigures insurance = home.insurance();
+        List<InsuranceContract> contracts = insurance.contracts().stream()
+                .map(c -> new InsuranceContract(c.contract().id(), c.contract().cover().typeName(),
+                        c.contract().policyholder(), c.contract().coInsured(),
+                        c.premium() == null ? null : Figure.of(c.premium().number(InsurancePremium.OUTPUT)),
+                        c.premium() == null ? null : c.contract().intervalWords(), c.nextDueDate()))
+                .toList();
+        List<InsuranceFlag> flags = new ArrayList<>();
+        insurance.duplicateFlags().forEach(flag -> flags.add(flag(flag, insurance.duplicates())));
+        insurance.missingFlags().forEach(flag -> flags.add(flag(flag, insurance.missing())));
+        return new HomeOverview(
+                Figure.of(f.currentAccount().number(AccountBalance.OUTPUT)),
+                DatedFigure.of(f.shortfall().number(ShortfallDetection.OUTPUT_LOWEST), f.lowestDate()),
+                shortfall(f),
+                emergencyFund(f.emergencyFund()),
+                new Insurance(contracts, flags));
+    }
+
+    private static InsuranceFlag flag(CoverageFlag flag, CoreResult result) {
+        return new InsuranceFlag(FlagKind.valueOf(flag.kind().name()), flag.cover().plainWords(),
+                result.number(flag.outputKey()).provId(), flag.contractIds());
+    }
+
+    private static DatedFigure shortfall(LiquidityFigures f) {
+        return f.shortfallDate() == null ? null
+                : DatedFigure.of(f.shortfall().number(ShortfallDetection.OUTPUT_SHORTFALL), f.shortfallDate());
+    }
+
+    private static EmergencyFund emergencyFund(CoreResult fund) {
+        return new EmergencyFund(
+                Figure.of(fund.number(EmergencyFundTarget.OUTPUT_CURRENT)),
+                Figure.of(fund.number(EmergencyFundTarget.OUTPUT_TARGET)),
+                Figure.of(fund.number(EmergencyFundTarget.OUTPUT_TARGET_MAX)),
+                Figure.of(fund.number(EmergencyFundTarget.OUTPUT_MONTHS)),
+                Figure.of(fund.number(EmergencyFundTarget.OUTPUT_MONTHLY_EXPENSES)));
     }
 
     @Operation(summary = "The Liquidity tab: balances, emergency fund and the three-month cash-flow forecast")
     @GetMapping("/api/overview/liquidity")
     LiquidityOverview liquidity(@Parameter(hidden = true) PersonaScope scope) {
         LiquidityFigures f = showLiquidity.show(scope);
-        CoreResult fund = f.emergencyFund();
         SourcedNumber expectedEnd = f.forecast().number(CashFlowForecast.OUTPUT_EXPECTED);
         return new LiquidityOverview(
                 Figure.of(f.currentAccount().number(AccountBalance.OUTPUT)),
                 f.overnightDeposit() == null ? null : Figure.of(f.overnightDeposit().number(AccountBalance.OUTPUT)),
                 Figure.of(f.liquidAssets().number(Liquidity.OUTPUT)),
                 Figure.of(f.variableSpending().number(VariableSpending.OUTPUT)),
-                new EmergencyFund(
-                        Figure.of(fund.number(EmergencyFundTarget.OUTPUT_CURRENT)),
-                        Figure.of(fund.number(EmergencyFundTarget.OUTPUT_TARGET)),
-                        Figure.of(fund.number(EmergencyFundTarget.OUTPUT_TARGET_MAX)),
-                        Figure.of(fund.number(EmergencyFundTarget.OUTPUT_MONTHS)),
-                        Figure.of(fund.number(EmergencyFundTarget.OUTPUT_MONTHLY_EXPENSES))),
+                emergencyFund(f.emergencyFund()),
                 new Forecast(expectedEnd.provId(), Figure.of(expectedEnd),
                         f.points().stream().map(p -> new ForecastPoint(p.date(), p.low().toPlainString(),
                                 p.expected().toPlainString(), p.high().toPlainString())).toList(),
                         f.forecastAssumptions()),
-                f.shortfallDate() == null ? null
-                        : DatedFigure.of(f.shortfall().number(ShortfallDetection.OUTPUT_SHORTFALL), f.shortfallDate()),
+                shortfall(f),
                 DatedFigure.of(f.shortfall().number(ShortfallDetection.OUTPUT_LOWEST), f.lowestDate()));
     }
 

@@ -2,6 +2,7 @@ package de.financetool.core;
 
 import de.financetool.audit.EvidenceOrigin;
 import de.financetool.core.domain.CoreResult;
+import de.financetool.core.domain.InsuranceFigures;
 import de.financetool.core.domain.LiquidityFigures;
 import de.financetool.core.domain.WealthFigures;
 import de.financetool.shared.RequestContext;
@@ -33,4 +34,11 @@ public interface CoreGateway {
      * @throws IllegalStateException if a Rule Parameter has no version valid at {@code asOf}
      */
     WealthFigures wealth(RequestContext context, EvidenceOrigin origin);
+
+    /**
+     * The insurance figures at the end of {@code asOf}: each contract started by then with its keyed premium and next
+     * due date (none if the persona does not pay it), the Duplicate Coverage check and the missing-essential-cover
+     * check; each flag names the output whose key it carries.
+     */
+    InsuranceFigures insurance(RequestContext context, EvidenceOrigin origin);
 }

@@ -1,21 +1,112 @@
 @let s = state();
-<div class="tiles">
-  @if (s.status === 'ready') {
-    <section class="card tile" aria-labelledby="current-account-title">
-      <h2 id="current-account-title" class="label">Current account</h2>
+@if (s.status === 'ready') {
+  @let h = s.home;
+  <div class="tiles">
+    <section class="card tile" aria-labelledby="home-current-title">
+      <h2 id="home-current-title" class="label">Current account</h2>
       <div class="main">
-        <span class="figure-lg" [class.negative]="s.home.currentAccount.value.startsWith('-')">{{
-          s.home.currentAccount.value | figure: s.home.currentAccount.unit
+        <span class="figure-lg" [class.negative]="h.currentAccount.value.startsWith('-')">{{
+          h.currentAccount.value | figure: h.currentAccount.unit
         }}</span>
-        <app-why-link [provId]="s.home.currentAccount.provId" />
+        <app-why-link [provId]="h.currentAccount.provId" />
       </div>
     </section>
-  } @else if (s.status === 'failed') {
-    <p class="error" role="alert">We couldn't load your overview. Please try again later.</p>
-  } @else {
+
+    <section class="card tile" aria-labelledby="home-lowest-title">
+      <h2 id="home-lowest-title" class="label">Lowest balance in the next three months</h2>
+      <div class="main">
+        <span class="figure-lg" [class.negative]="h.lowestBalance.amount.value.startsWith('-')">{{
+          h.lowestBalance.amount.value | figure: h.lowestBalance.amount.unit
+        }}</span>
+        <app-why-link [provId]="h.lowestBalance.amount.provId" />
+      </div>
+      <p class="supporting">on {{ formatDate(h.lowestBalance.date) }}</p>
+      @if (callout(); as c) {
+        <p class="risk">{{ c }}</p>
+      }
+    </section>
+
+    <section class="card tile" aria-labelledby="home-fund-title">
+      <h2 id="home-fund-title" class="label">Emergency fund</h2>
+      <div class="main">
+        <span class="figure-lg">{{
+          h.emergencyFund.current.value | figure: h.emergencyFund.current.unit
+        }}</span>
+        <app-why-link [provId]="h.emergencyFund.current.provId" />
+      </div>
+      <p class="supporting">
+        of {{ h.emergencyFund.target.value | figure: h.emergencyFund.target.unit }} target ({{
+          h.emergencyFund.months.value | figure: h.emergencyFund.months.unit
+        }}
+        of expenses)
+        <app-why-link [provId]="h.emergencyFund.target.provId" />
+      </p>
+    </section>
+  </div>
+
+  <section class="card section" aria-labelledby="home-notifications-title">
+    <h2 id="home-notifications-title" class="label">Notifications</h2>
+    <p class="empty">
+      Nothing needs your attention right now. Fine checks your accounts regularly and will let you
+      know.
+    </p>
+  </section>
+
+  <section class="card section" aria-labelledby="home-rules-title">
+    <h2 id="home-rules-title" class="label">Your rules</h2>
+    <p class="empty">
+      You haven't set up any rules. With a rule, Fine can take care of small things for you, like
+      keeping your current account above zero.
+    </p>
+  </section>
+
+  <section class="card section insurance" aria-labelledby="home-insurance-title">
+    <h2 id="home-insurance-title" class="label">Your insurance</h2>
+    @if (flagLines().length) {
+      <ul class="flags">
+        @for (f of flagLines(); track f.provId + f.text) {
+          <li class="flag">
+            <span class="flag-icon" aria-hidden="true">!</span>
+            <div>
+              <span class="flag-text">{{ f.text }}</span>
+              <app-why-link [provId]="f.provId" />
+              @if (f.holders) {
+                <p class="supporting">{{ f.holders }}</p>
+              }
+            </div>
+          </li>
+        }
+      </ul>
+    }
+    @if (h.insurance.contracts.length) {
+      <ul class="contracts">
+        @for (c of h.insurance.contracts; track c.id) {
+          <li class="contract">
+            <span class="contract-type">{{ c.type }}</span>
+            @if (c.premium; as premium) {
+              <span class="contract-premium">
+                <span class="premium">{{ premium.value | figure: premium.unit }}</span>
+                <span class="interval">{{ c.paymentInterval }}</span>
+                <app-why-link [provId]="premium.provId" />
+              </span>
+              @if (c.nextDueDate) {
+                <span class="due">Next due {{ formatDate(c.nextDueDate) }}</span>
+              }
+            } @else {
+              <span class="paid-by">Paid by {{ c.policyholder }}</span>
+            }
+          </li>
+        }
+      </ul>
+    }
+  </section>
+} @else if (s.status === 'failed') {
+  <p class="error" role="alert">We couldn't load your overview. Please try again later.</p>
+} @else {
+  <div class="tiles">
     @for (i of [1, 2, 3]; track i) {
       <div class="card skeleton" aria-hidden="true"></div>
     }
-    <span class="visually-hidden" role="status">Loading your overview…</span>
-  }
-</div>
+  </div>
+  <span class="visually-hidden" role="status">Loading your overview…</span>
+}

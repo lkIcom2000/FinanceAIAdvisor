@@ -4,11 +4,19 @@
   height: 100%;
 }
 
+// Overview at least 560 px, chat 440 px (500 px from 1440 px wide): nothing overlaps at 1366 or 1440 px.
 .workspace {
+  --fine-chat-width: 440px;
   flex: 1;
   display: grid;
   grid-template-columns: minmax(560px, 1fr) var(--fine-chat-width);
   min-height: 0;
+}
+
+@media (min-width: 1440px) {
+  .workspace {
+    --fine-chat-width: 500px;
+  }
 }
 
 .overview {

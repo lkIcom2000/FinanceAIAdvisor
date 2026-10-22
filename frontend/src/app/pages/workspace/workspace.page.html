@@ -1,12 +1,14 @@
 <app-header />
 
 <div class="workspace">
-  <main class="overview" aria-label="Financial overview">
+  <main #overview class="overview" aria-label="Financial overview">
     <mat-tab-group
       mat-stretch-tabs="false"
       mat-align-tabs="start"
+      preserveContent
       [selectedIndex]="selectedIndex()"
       (selectedIndexChange)="select($event)"
+      (animationDone)="restoreScroll()"
     >
       @for (t of tabs; track t.key) {
         <mat-tab [label]="t.label">

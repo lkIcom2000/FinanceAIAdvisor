@@ -8,6 +8,7 @@ import de.financetool.bank.AccountType;
 import de.financetool.bank.AssetClass;
 import de.financetool.bank.BankReadPort;
 import de.financetool.bank.BankSnapshot;
+import de.financetool.bank.InsuredRole;
 import de.financetool.core.CoreGateway;
 import de.financetool.core.domain.AccountBalance;
 import de.financetool.core.domain.CashFlowForecast;
@@ -17,11 +18,16 @@ import de.financetool.core.domain.CoreResult;
 import de.financetool.core.domain.DataConfidence;
 import de.financetool.core.domain.EmergencyFundTarget;
 import de.financetool.core.domain.Figure;
+import de.financetool.core.domain.DuplicateCoverage;
 import de.financetool.core.domain.FigureKey;
+import de.financetool.core.domain.InsuranceContract;
+import de.financetool.core.domain.InsuranceFigures;
+import de.financetool.core.domain.InsurancePremium;
 import de.financetool.core.domain.LedgerEntry;
 import de.financetool.core.domain.Liquidity;
 import de.financetool.core.domain.Investments;
 import de.financetool.core.domain.LiquidityFigures;
+import de.financetool.core.domain.MissingEssentialCover;
 import de.financetool.core.domain.MonteCarloProjection;
 import de.financetool.core.domain.RuleParameterValue;
 import de.financetool.core.domain.ShortfallDetection;
@@ -177,6 +183,41 @@ class CoreGatewayService implements CoreGateway {
         CoreResult projectionResult = record(context, origin, projection.computation(), List.of(), parameters);
         return new WealthFigures(holdings, plans, totals, projectionResult, projection.points(),
                 projection.assumptions());
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public InsuranceFigures insurance(RequestContext context, EvidenceOrigin origin) {
+        LocalDate asOf = context.asOf();
+        BankSnapshot snapshot = bank.snapshot(context.personaId(), asOf);
+        List<InsuranceContract> contracts = snapshot.contracts().stream()
+                .filter(c -> c.startDate() == null || !c.startDate().isAfter(asOf))
+                .map(CoreGatewayService::insuranceContract)
+                .toList();
+        List<InsuranceFigures.Contract> rows = contracts.stream()
+                .map(c -> {
+                    if (c.premium() == null) {
+                        return new InsuranceFigures.Contract(c, null, null);
+                    }
+                    InsurancePremium.Result premium = InsurancePremium.of(c, asOf);
+                    return new InsuranceFigures.Contract(c,
+                            record(context, origin, premium.computation(), List.of(), Map.of()),
+                            premium.nextDueDate());
+                })
+                .toList();
+        DuplicateCoverage.Result duplicates = DuplicateCoverage.detect(contracts, context.personaId().value());
+        MissingEssentialCover.Result missing = MissingEssentialCover.detect(contracts);
+        return new InsuranceFigures(rows,
+                record(context, origin, duplicates.computation(), List.of(), Map.of()), duplicates.flags(),
+                record(context, origin, missing.computation(), List.of(), Map.of()), missing.flags());
+    }
+
+    /** A contract without a complete premium (e.g. co-insured on a family policy) has no premium figure. */
+    private static InsuranceContract insuranceContract(BankSnapshot.Contract c) {
+        boolean paid = c.premium() != null && c.paymentInterval() != null && c.nextDueDate() != null;
+        return new InsuranceContract(c.id().toString(), InsuranceContract.Cover.valueOf(c.coverage().name()),
+                c.policyholder(), c.insuredRole() == InsuredRole.CO_INSURED, paid ? c.premium() : null,
+                paid ? c.paymentInterval().months() : null, paid ? c.nextDueDate() : null);
     }
 
     private static BankSnapshot.Account currentAccount(BankSnapshot snapshot, RequestContext context) {

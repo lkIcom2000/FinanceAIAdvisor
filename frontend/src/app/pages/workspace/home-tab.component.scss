@@ -2,6 +2,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 16px;
+  margin-bottom: 16px;
 }
 
 .card {
@@ -9,6 +10,11 @@
   border: 1px solid var(--mat-sys-outline-variant);
   border-radius: var(--fine-radius-card);
   background: var(--mat-sys-surface);
+}
+
+.section + .section,
+.tiles + .section {
+  margin-top: 16px;
 }
 
 .skeleton {
@@ -39,6 +45,90 @@
   &.negative {
     color: var(--mat-sys-error);
   }
+}
+
+.supporting {
+  margin: 8px 0 0;
+  font: var(--fine-body-sm);
+  color: var(--mat-sys-on-surface-variant);
+  font-variant-numeric: tabular-nums;
+}
+
+// Money risk: coral marks it on a tint and never carries text (DESIGN.md).
+.risk {
+  margin: 12px 0 0;
+  padding: 10px 14px;
+  border-left: 4px solid #ff5a46;
+  border-radius: 8px;
+  background: #ffe3df;
+  font: var(--fine-body-sm);
+  color: var(--mat-sys-on-surface);
+}
+
+.empty {
+  margin: 0;
+  font: var(--fine-body);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.flags,
+.contracts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.flag {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 0;
+  font: var(--fine-body);
+  color: var(--mat-sys-on-surface);
+
+  .supporting {
+    margin-top: 2px;
+  }
+}
+
+.flag-icon {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--mat-sys-on-surface);
+  font: var(--fine-label);
+}
+
+.contract {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 4px 16px;
+  align-items: baseline;
+  padding: 12px 0;
+  border-top: 1px solid var(--mat-sys-outline-variant);
+  font: var(--fine-body);
+  color: var(--mat-sys-on-surface);
+}
+
+.contract-type {
+  font-weight: 600;
+}
+
+.contract-premium {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.due,
+.paid-by,
+.interval {
+  font: var(--fine-body-sm);
+  color: var(--mat-sys-on-surface-variant);
 }
 
 .error {

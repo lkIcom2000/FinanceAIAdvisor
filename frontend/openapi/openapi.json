@@ -367,9 +367,105 @@
         "properties" : {
           "currentAccount" : {
             "$ref" : "#/components/schemas/Figure"
+          },
+          "emergencyFund" : {
+            "$ref" : "#/components/schemas/EmergencyFund"
+          },
+          "insurance" : {
+            "$ref" : "#/components/schemas/Insurance"
+          },
+          "lowestBalance" : {
+            "$ref" : "#/components/schemas/DatedFigure",
+            "description" : "The lowest expected balance in the next three months"
+          },
+          "shortfall" : {
+            "$ref" : "#/components/schemas/DatedFigure",
+            "description" : "The first day the expected balance is below zero; absent if it never is"
           }
         },
-        "required" : [ "currentAccount" ]
+        "required" : [ "currentAccount", "emergencyFund", "insurance", "lowestBalance" ]
+      },
+      "Insurance" : {
+        "type" : "object",
+        "properties" : {
+          "contracts" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/InsuranceContract"
+            }
+          },
+          "flags" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/InsuranceFlag"
+            }
+          }
+        },
+        "required" : [ "contracts", "flags" ]
+      },
+      "InsuranceContract" : {
+        "type" : "object",
+        "description" : "An insurance or pension contract on which you are insured",
+        "properties" : {
+          "coInsured" : {
+            "type" : "boolean",
+            "description" : "Whether you are co-insured on someone else's policy"
+          },
+          "id" : {
+            "type" : "string"
+          },
+          "nextDueDate" : {
+            "type" : "string",
+            "format" : "date",
+            "description" : "The next due date after today; absent without a premium"
+          },
+          "paymentInterval" : {
+            "type" : "string",
+            "description" : "Absent without a premium",
+            "enum" : [ "monthly", "quarterly", "yearly" ]
+          },
+          "policyholder" : {
+            "type" : "string"
+          },
+          "premium" : {
+            "$ref" : "#/components/schemas/Figure",
+            "description" : "The premium per payment interval; absent if you don't pay it"
+          },
+          "type" : {
+            "type" : "string",
+            "description" : "Contract type in plain words",
+            "example" : "Private liability insurance"
+          }
+        },
+        "required" : [ "coInsured", "id", "policyholder", "type" ]
+      },
+      "InsuranceFlag" : {
+        "type" : "object",
+        "description" : "A plain-words note on your insurance: cover you may pay twice for, or essential cover you don't have",
+        "properties" : {
+          "contractIds" : {
+            "type" : "array",
+            "description" : "Ids of every contract involved (empty for a missing cover)",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "coverage" : {
+            "type" : "string",
+            "description" : "The cover in plain words",
+            "example" : "liability"
+          },
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "DUPLICATE_COVERAGE", "MISSING_COVER" ]
+          },
+          "provId" : {
+            "type" : "string",
+            "description" : "Key of the check's provenance",
+            "pattern" : "^[0-9a-f]{16}$"
+          }
+        },
+        "required" : [ "contractIds", "coverage", "kind", "provId" ]
       },
       "LiquidityOverview" : {
         "type" : "object",

@@ -93,6 +93,65 @@ describe('WorkspacePage', () => {
     );
   });
 
+  it('keeps the scroll position of each tab for the session', async () => {
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const fixture = TestBed.createComponent(WorkspacePage);
+    fixture.detectChanges();
+    answerPersona();
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+    const overview = element.querySelector('.overview') as HTMLElement;
+    let top = 0;
+    Object.defineProperty(overview, 'scrollTop', {
+      configurable: true,
+      get: () => top,
+      set: (value: number) => (top = value),
+    });
+    const tabs = () => element.querySelectorAll('[role="tab"]') as NodeListOf<HTMLElement>;
+
+    top = 300;
+    // The tab body reports the end of its slide (in jsdom after the 100 ms fallback); then the position returns.
+    const switchTo = async (index: number) => {
+      tabs()[index].click();
+      fixture.detectChanges();
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      await fixture.whenStable();
+    };
+
+    await switchTo(1);
+    expect(top).toBe(0);
+
+    top = 40;
+    await switchTo(0);
+    expect(top).toBe(300);
+
+    await switchTo(1);
+    expect(top).toBe(40);
+  });
+
+  it('keeps the chat at 440 px, 500 px from 1440 px, next to an Overview of at least 560 px', () => {
+    TestBed.createComponent(WorkspacePage).detectChanges();
+    const rules = Array.from(document.styleSheets).flatMap((sheet) => Array.from(sheet.cssRules));
+    const workspace = rules.find(
+      (r): r is CSSStyleRule => r instanceof CSSStyleRule && /\.workspace/.test(r.selectorText),
+    );
+    expect(workspace?.style.getPropertyValue('grid-template-columns')).toBe(
+      'minmax(560px, 1fr) var(--fine-chat-width)',
+    );
+    const chat = (rule: CSSRule | undefined) =>
+      Number(/--fine-chat-width:\s*(\d+)px/.exec(rule?.cssText ?? '')?.[1]);
+    const narrow = chat(workspace);
+    const media = rules.find(
+      (r): r is CSSMediaRule => r instanceof CSSMediaRule && /min-width:\s*1440px/.test(r.conditionText),
+    );
+    const wide = chat(media?.cssRules[0]);
+    expect(narrow).toBe(440);
+    expect(wide).toBe(500);
+    // The Overview's 560 px minimum fits next to the chat at both reference widths.
+    expect(1366 - narrow).toBeGreaterThanOrEqual(560);
+    expect(1440 - wide).toBeGreaterThanOrEqual(560);
+  });
+
   it('logs out on the server and returns to Login', async () => {
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
     const fixture = TestBed.createComponent(WorkspacePage);

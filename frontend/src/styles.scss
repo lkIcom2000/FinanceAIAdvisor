@@ -51,7 +51,6 @@ html {
   --fine-highlight-ring: #00bbff;
   --fine-radius-card: 20px;
   --fine-header-height: 64px;
-  --fine-chat-width: 440px;
   --fine-headline: 700 24px / 32px #{$font};
   --fine-title: 600 18px / 26px #{$font};
   --fine-body: 400 16px / 24px #{$font};
@@ -74,12 +73,6 @@ html {
       text-label-text-weight: 600,
     )
   );
-}
-
-@media (min-width: 1440px) {
-  html {
-    --fine-chat-width: 500px;
-  }
 }
 
 body {
