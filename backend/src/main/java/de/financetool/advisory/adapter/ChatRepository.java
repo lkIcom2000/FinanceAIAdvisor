@@ -1,11 +1,13 @@
 package de.financetool.advisory.adapter;
 
 import de.financetool.advisory.domain.ChatMessage;
+import de.financetool.advisory.domain.PromptPayload;
 import de.financetool.advisory.domain.ResponseOutcome;
 import de.financetool.shared.PersonaScope;
 import de.financetool.shared.domain.PersonaId;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -69,6 +71,26 @@ public class ChatRepository {
                 .param(scope.id())
                 .query(ChatRepository::message)
                 .list();
+    }
+
+    /**
+     * The last {@code limit} released turns before the user message {@code messageId}, oldest first: each user
+     * message with the agent message answering it. Unanswered questions and advisor messages are not turns.
+     */
+    public List<PromptPayload.HistoryTurn> releasedTurnsBefore(PersonaScope scope, UUID messageId, int limit) {
+        List<PromptPayload.HistoryTurn> turns = new ArrayList<>(jdbc.sql("""
+                SELECT q.text AS user_text, a.text AS agent_text
+                FROM messages q
+                JOIN messages a ON a.reply_to = q.id AND a.persona_id = q.persona_id AND a.author = 'AGENT'
+                WHERE q.persona_id = ? AND q.author = 'USER'
+                  AND q.seq < (SELECT c.seq FROM messages c WHERE c.id = ? AND c.persona_id = ?)
+                ORDER BY q.seq DESC
+                LIMIT ?""")
+                .params(scope.id(), messageId, scope.id(), limit)
+                .query((rs, row) -> new PromptPayload.HistoryTurn(rs.getString("user_text"),
+                        rs.getString("agent_text")))
+                .list());
+        return turns.reversed();
     }
 
     /** The persona's dialog state, if one is stored. */

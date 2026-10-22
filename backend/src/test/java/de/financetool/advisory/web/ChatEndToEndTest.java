@@ -110,21 +110,23 @@ class ChatEndToEndTest extends PostgresIntegrationTest {
         assertThat(body).containsEntry("class", "INFORM").containsEntry("outcome", "INFORM")
                 .containsEntry("evidence", List.of()).containsEntry("checks", List.of())
                 .containsEntry("modelTag", StubLlm.MODEL_TAG).containsEntry("modelDigest", StubLlm.DIGEST)
-                .containsEntry("promptHash", fingerprint.fileHashes().get("config/prompts/role-advisor.txt"))
-                .containsEntry("truncated", false).containsEntry("firstDraft", StubLlm.DEFAULT_TEXT)
+                .containsEntry("promptHashes", promptHashes())
+                .containsEntry("truncated", false).containsEntry("droppedHistoryTurns", 0)
+                .containsEntry("droppedPassages", 0).containsEntry("firstDraft", StubLlm.DEFAULT_TEXT)
                 .containsEntry("finalText", StubLlm.DEFAULT_TEXT).containsEntry("regenerated", false)
                 .containsEntry("complianceLevel", "A+B+C")
                 .containsEntry("passThroughStages", List.of("DIALOG_STATE", "NLU", "CLASSIFY", "TOOL_PLAN",
-                        "KB_RETRIEVE", "EXPOSURE_FILTER", "SHADOW_CHECKS", "RULE_ENGINE", "JUDGE", "BLOCK_ROUTING"))
+                        "KB_RETRIEVE", "SHADOW_CHECKS", "RULE_ENGINE", "JUDGE", "BLOCK_ROUTING"))
                 .doesNotContainKeys("judgeVerdict", "judgeParseStatus");
 
-        // One phrasing call: the role prompt as system message, the question only in the data slot.
+        // One phrasing call: role prompt and compliance rules as system message, the question only in the slot.
         assertThat(llm.calls()).singleElement().satisfies(call -> {
             assertThat(call.role()).isEqualTo(LlmRole.PHRASING);
             assertThat(call.messages()).hasSize(2);
             assertThat(call.messages().get(0).author()).isEqualTo(LlmMessage.Author.SYSTEM);
-            assertThat(call.messages().get(0).content()).doesNotContain(QUESTION).contains("financial advisor");
-            assertThat(call.messages().get(1).content()).contains("\n" + QUESTION + "\n");
+            assertThat(call.messages().get(0).content()).doesNotContain(QUESTION).contains("financial advisor")
+                    .contains("Rules you must follow:", "7. Tone: plain language");
+            assertThat(call.messages().get(1).content()).endsWith("<user_message>\n" + QUESTION + "\n</user_message>");
         });
 
         // The conversation lists both, oldest first; it survives a new login.
@@ -133,6 +135,68 @@ class ChatEndToEndTest extends PostgresIntegrationTest {
         List<String> ids = JsonPath.read(chat, "$.messages[*].id");
         assertThat(ids).containsSubsequence(questionId, turnId);
         assertThat(ids.indexOf(turnId)).isEqualTo(ids.indexOf(questionId) + 1);
+    }
+
+    Map<String, String> promptHashes() {
+        return Map.of("role-advisor.txt", fingerprint.fileHashes().get("config/prompts/role-advisor.txt"),
+                "compliance-rules.txt", fingerprint.fileHashes().get("config/prompts/compliance-rules.txt"));
+    }
+
+    /** Asks and answers {@code question}; the stubbed model answers {@code answer}. */
+    void turn(MockHttpSession session, String question, String answer) throws Exception {
+        llm.answer(answer);
+        answer(session, ask(session, question)).andExpect(status().isOk());
+    }
+
+    String lastUserPart() {
+        return llm.calls().getLast().messages().get(1).content();
+    }
+
+    @Test
+    void theThirdQuestionSeesBothEarlierTurnsFilteredAndTheRecordHoldsBothPromptHashes() throws Exception {
+        MockHttpSession lena = login(mvc, "p-lena");
+        turn(lena, "I'm 34 and have 12,400 EUR saved.", "Thanks, noted your savings.");
+        turn(lena, "What is an ETF?", "An ETF is a fund traded on an exchange.");
+
+        String questionId = ask(lena, "Should I start a savings plan?");
+        llm.answer("Here is how a savings plan works.");
+        String answer = content(answer(lena, questionId).andExpect(status().isOk()));
+
+        String user = lastUserPart();
+        assertThat(user).contains("EARLIER CONVERSATION (oldest first):")
+                .contains("Customer: I'm 30s and have 10,000\u201315,000 EUR saved.\n"
+                        + "Assistant: Thanks, noted your savings.\n"
+                        + "Customer: What is an ETF?\nAssistant: An ETF is a fund traded on an exchange.\n\n"
+                        + "<user_message>\nShould I start a savings plan?\n</user_message>")
+                .doesNotContain("12,400").doesNotContain("Lena").doesNotContain("p-lena");
+        assertThat(llm.calls().getLast().messages().get(0).content()).contains("Rules you must follow:")
+                .doesNotContain("Should I start").doesNotContain("noted your savings")
+                .doesNotContain("traded on an exchange").doesNotContain("12,400");
+
+        String payload = jdbc.queryForObject("SELECT payload::text FROM audit_records WHERE kind = 'RESPONSE' "
+                + "AND turn_id = ?::uuid", String.class, (String) JsonPath.read(answer, "$.id"));
+        Map<String, Object> body = JsonPath.read(payload, "$.body");
+        assertThat(body).containsEntry("promptHashes", promptHashes());
+        assertThat(promptHashes().values()).doesNotContainNull();
+    }
+
+    @Test
+    void theHistoryIsTheLastThreeReleasedTurnsWithoutUnansweredQuestions() throws Exception {
+        MockHttpSession jonas = login(mvc, "p-jonas");
+        for (int i = 1; i <= 5; i++) {
+            turn(jonas, "question " + i, "answer " + i);
+        }
+        ask(jonas, "unanswered question");
+
+        turn(jonas, "current question", "current answer");
+
+        String user = lastUserPart();
+        assertThat(user).contains("EARLIER CONVERSATION (oldest first):\n"
+                + "Customer: question 3\nAssistant: answer 3\n"
+                + "Customer: question 4\nAssistant: answer 4\n"
+                + "Customer: question 5\nAssistant: answer 5\n\n"
+                + "<user_message>\ncurrent question\n</user_message>")
+                .doesNotContain("question 2").doesNotContain("unanswered");
     }
 
     @Test

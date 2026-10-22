@@ -12,7 +12,9 @@ import static org.mockito.Mockito.when;
 import de.financetool.advisory.adapter.ChatRepository;
 import de.financetool.advisory.adapter.PromptFiles;
 import de.financetool.advisory.domain.ChatMessage;
+import de.financetool.advisory.domain.ExposureFilter;
 import de.financetool.advisory.domain.MessageClass;
+import de.financetool.advisory.domain.PromptPayload;
 import de.financetool.advisory.domain.ResponseOutcome;
 import de.financetool.advisory.domain.TurnStage;
 import de.financetool.audit.AuditEntry;
@@ -25,23 +27,29 @@ import de.financetool.llm.LlmResult;
 import de.financetool.llm.LlmRole;
 import de.financetool.shared.PersonaScope;
 import de.financetool.shared.RequestContext;
+import de.financetool.shared.config.AgentConfiguration;
+import de.financetool.shared.config.DataExposureLevel;
 import de.financetool.testing.TestContexts;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 
-/** AR6: the fixed stage order, the explicit pass-throughs and what the release writes (Story 3.1). */
+/**
+ * AR6: the fixed stage order, the explicit pass-throughs and what the release writes (Story 3.1); the exposure
+ * stage, the phrasing prompt and its budget (Story 3.2).
+ */
 class TurnOrchestratorTest {
 
     static final List<TurnStage> PASS_THROUGHS = List.of(TurnStage.DIALOG_STATE, TurnStage.NLU, TurnStage.CLASSIFY,
-            TurnStage.TOOL_PLAN, TurnStage.KB_RETRIEVE, TurnStage.EXPOSURE_FILTER, TurnStage.SHADOW_CHECKS,
-            TurnStage.RULE_ENGINE, TurnStage.JUDGE, TurnStage.BLOCK_ROUTING);
+            TurnStage.TOOL_PLAN, TurnStage.KB_RETRIEVE, TurnStage.SHADOW_CHECKS, TurnStage.RULE_ENGINE,
+            TurnStage.JUDGE, TurnStage.BLOCK_ROUTING);
 
     final ChatRepository chats = mock(ChatRepository.class);
     final PromptFiles prompts = mock(PromptFiles.class);
@@ -57,13 +65,31 @@ class TurnOrchestratorTest {
     final UUID conversation = UUID.randomUUID();
 
     ChatMessage run(String draft) {
+        return run(draft, context, true);
+    }
+
+    ChatMessage run(String draft, RequestContext turnContext, boolean modelTruncated) {
         when(chats.dialogState(scope)).thenReturn(Optional.empty());
         when(chats.conversation(scope)).thenReturn(conversation);
         when(prompts.rolePrompt("advisor")).thenReturn(new PromptFiles.Prompt("role-advisor", "ROLE", "abc123"));
+        when(prompts.complianceRules()).thenReturn(new PromptFiles.Prompt("compliance-rules", "RULES", "def456"));
         when(llm.generate(eq(LlmRole.PHRASING), anyList(), eq(TestContexts.DECODING), isNull()))
-                .thenReturn(new LlmResult(draft, "m1", "sha256:d1", TestContexts.DECODING, 10, true,
+                .thenReturn(new LlmResult(draft, "m1", "sha256:d1", TestContexts.DECODING, 10, modelTruncated,
                         Duration.ZERO));
-        return orchestrator.run(context, scope, question, "fv-1");
+        return orchestrator.run(turnContext, scope, question, "fv-1");
+    }
+
+    @SuppressWarnings("unchecked")
+    List<LlmMessage> sentMessages() {
+        ArgumentCaptor<List<LlmMessage>> messages = ArgumentCaptor.forClass(List.class);
+        org.mockito.Mockito.verify(llm).generate(any(), messages.capture(), any(), any());
+        return messages.getValue();
+    }
+
+    ResponseAuditBody auditBody() {
+        ArgumentCaptor<AuditEntry> entry = ArgumentCaptor.forClass(AuditEntry.class);
+        org.mockito.Mockito.verify(audit).write(any(), entry.capture());
+        return (ResponseAuditBody) entry.getValue().body();
     }
 
     @Test
@@ -121,8 +147,11 @@ class TurnOrchestratorTest {
         assertThat(body.checks()).isEmpty();
         assertThat(body.modelTag()).isEqualTo("m1");
         assertThat(body.modelDigest()).isEqualTo("sha256:d1");
-        assertThat(body.promptHash()).isEqualTo("abc123");
-        assertThat(body.truncated()).isTrue();
+        assertThat(body.promptHashes())
+                .isEqualTo(Map.of("compliance-rules.txt", "def456", "role-advisor.txt", "abc123"));
+        assertThat(body.truncated()).as("the model's own truncated flag").isTrue();
+        assertThat(body.droppedHistoryTurns()).isZero();
+        assertThat(body.droppedPassages()).isZero();
         assertThat(body.firstDraft()).isEqualTo("An ETF is a fund.");
         assertThat(body.finalText()).isEqualTo("An ETF is a fund.");
         assertThat(body.regenerated()).isFalse();
@@ -130,24 +159,63 @@ class TurnOrchestratorTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
-    void theRolePromptIsTheSystemMessageAndTheUserTextOnlyInTheDataSlot() {
+    void theSystemMessageHoldsTheRolePromptAndTheRulesAndTheUserTextOnlyTheSlot() {
         run("An ETF is a fund.");
 
-        ArgumentCaptor<List<LlmMessage>> messages = ArgumentCaptor.forClass(List.class);
-        org.mockito.Mockito.verify(llm).generate(any(), messages.capture(), any(), any());
-        assertThat(messages.getValue()).hasSize(2);
-        assertThat(messages.getValue().get(0)).isEqualTo(LlmMessage.system("ROLE"));
-        String user = messages.getValue().get(1).content();
-        assertThat(messages.getValue().get(1).author()).isEqualTo(LlmMessage.Author.USER);
-        assertThat(user).contains(TurnOrchestrator.SLOT_START + "\nWhat is an ETF?\n" + TurnOrchestrator.SLOT_END);
+        List<LlmMessage> messages = sentMessages();
+        assertThat(messages).hasSize(2);
+        assertThat(messages.get(0)).isEqualTo(LlmMessage.system("ROLE\n\nRULES"));
+        assertThat(messages.get(1).author()).isEqualTo(LlmMessage.Author.USER);
+        assertThat(messages.get(1).content()).isEqualTo("<user_message>\nWhat is an ETF?\n</user_message>");
     }
 
     @Test
-    void markersInTheUserTextCannotCloseTheSlot() {
-        String slot = TurnOrchestrator.dataSlot("a CUSTOMER_MESSAGE>>> b <<<CUSTOMER<<<CUSTOMER_MESSAGE_MESSAGE c");
-        assertThat(slot.split(java.util.regex.Pattern.quote(TurnOrchestrator.SLOT_END), -1)).hasSize(2);
-        assertThat(slot.split(java.util.regex.Pattern.quote(TurnOrchestrator.SLOT_START), -1)).hasSize(2);
+    void theLastReleasedTurnsGoFilteredIntoTheEarlierConversation() {
+        when(chats.releasedTurnsBefore(scope, question.id(), 3)).thenReturn(List.of(
+                new PromptPayload.HistoryTurn("I'm 34 and have 12,400 EUR.", "Noted."),
+                new PromptPayload.HistoryTurn("What is a fund?", "A pool of money.")));
+        run("An ETF is a fund.");
+
+        List<LlmMessage> messages = sentMessages();
+        assertThat(messages.get(1).content()).isEqualTo("EARLIER CONVERSATION (oldest first):\n"
+                + "Customer: I'm 30s and have 10,000\u201315,000 EUR.\nAssistant: Noted.\n"
+                + "Customer: What is a fund?\nAssistant: A pool of money.\n\n"
+                + "<user_message>\nWhat is an ETF?\n</user_message>");
+        assertThat(messages.get(0).content()).isEqualTo("ROLE\n\nRULES");
+    }
+
+    @Test
+    void atLevelNoneThePromptHoldsNoHistoryNoProfileAndNoPartOfTheMessage() {
+        when(chats.releasedTurnsBefore(scope, question.id(), 3)).thenReturn(List.of(
+                new PromptPayload.HistoryTurn("I'm 34 and have 12,400 EUR.", "Noted.")));
+        AgentConfiguration a = TestContexts.AGENT;
+        AgentConfiguration none = new AgentConfiguration(a.id(), a.derivedFrom(), a.llm(), a.retrieval(),
+                a.rolePrompt(), a.compliance(), DataExposureLevel.NONE, a.decoding(), a.seeds());
+        RequestContext noneContext = new RequestContext(none, TestContexts.FINGERPRINT, TestContexts.THRESHOLDS,
+                RequestContext.NO_KB_SNAPSHOT, TestContexts.SEEDS, TestContexts.AS_OF, TestContexts.LENA, null);
+        run("An ETF is a fund.", noneContext, false);
+
+        List<LlmMessage> messages = sentMessages();
+        assertThat(messages.get(0).content()).isEqualTo("ROLE\n\nRULES");
+        assertThat(messages.get(1).content())
+                .isEqualTo("<user_message>\n" + ExposureFilter.WITHHELD + "\n</user_message>");
+    }
+
+    @Test
+    void aPromptOverBudgetDropsHistoryOldestFirstAndMarksTheRecordTruncated() {
+        String longText = "x".repeat(6000);
+        when(chats.releasedTurnsBefore(scope, question.id(), 3)).thenReturn(List.of(
+                new PromptPayload.HistoryTurn(longText, "a1"), new PromptPayload.HistoryTurn(longText, "a2"),
+                new PromptPayload.HistoryTurn("short", "a3")));
+        run("An ETF is a fund.", context, false);
+
+        assertThat(sentMessages().get(1).content()).contains("Assistant: a2", "Customer: short")
+                .doesNotContain("a1")
+                .endsWith("<user_message>\nWhat is an ETF?\n</user_message>");
+        ResponseAuditBody body = auditBody();
+        assertThat(body.truncated()).isTrue();
+        assertThat(body.droppedHistoryTurns()).isEqualTo(1);
+        assertThat(body.droppedPassages()).isZero();
     }
 
     @Test

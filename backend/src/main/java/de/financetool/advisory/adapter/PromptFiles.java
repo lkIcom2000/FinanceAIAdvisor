@@ -23,7 +23,15 @@ public class PromptFiles {
 
     /** A prompt's text and the sha256 (hex) of its UTF-8 bytes with LF line endings. */
     public record Prompt(String name, String text, String hash) {
+
+        /** The file name in {@code config/prompts/}, the key of the Audit Record's prompt hashes. */
+        public String fileName() {
+            return name + ".txt";
+        }
     }
+
+    /** The compliance rules every compliance level gives to the phrasing role. */
+    public static final String COMPLIANCE_RULES = "compliance-rules";
 
     private final Map<String, Prompt> prompts = new TreeMap<>();
 
@@ -43,9 +51,18 @@ public class PromptFiles {
 
     /** The role prompt {@code role-<rolePrompt>.txt}. */
     public Prompt rolePrompt(String rolePrompt) {
-        Prompt prompt = prompts.get("role-" + rolePrompt);
+        return named("role-" + rolePrompt);
+    }
+
+    /** The compliance rules {@code compliance-rules.txt}. */
+    public Prompt complianceRules() {
+        return named(COMPLIANCE_RULES);
+    }
+
+    private Prompt named(String name) {
+        Prompt prompt = prompts.get(name);
         if (prompt == null) {
-            throw new IllegalStateException("No prompt file config/prompts/role-" + rolePrompt + ".txt");
+            throw new IllegalStateException("No prompt file config/prompts/" + name + ".txt");
         }
         return prompt;
     }
