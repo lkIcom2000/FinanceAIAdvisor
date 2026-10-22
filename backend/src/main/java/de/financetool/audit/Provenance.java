@@ -45,8 +45,13 @@ public record Provenance(String provId, String function, Source source, String l
         }
     }
 
-    /** A Rule Parameter the figure depends on, with its version. */
-    public record RuleParameter(String id, String version) {
+    /**
+     * A Rule Parameter the figure depends on, with its version and validity.
+     *
+     * @param validFrom first day the version applies, or {@code null} if unknown
+     * @param validTo last day the version applies, or {@code null} if open-ended or unknown
+     */
+    public record RuleParameter(String id, String version, LocalDate validFrom, LocalDate validTo) {
 
         public RuleParameter {
             Objects.requireNonNull(id, "id");

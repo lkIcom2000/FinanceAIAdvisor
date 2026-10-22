@@ -22,12 +22,17 @@ export function formatFigure(value: string, unit: FigureUnit): string {
     case 'PP':
       return `${sign}${group(digits)} pp`;
     case 'MONTHS':
-      return `${sign}${group(digits)} ${digits === '1' ? 'month' : 'months'}`;
+      return `${sign}${group(digits)} ${isOne(digits) ? 'month' : 'months'}`;
     case 'YEARS':
-      return `${sign}${group(digits)} ${digits === '1' ? 'year' : 'years'}`;
+      return `${sign}${group(digits)} ${isOne(digits) ? 'year' : 'years'}`;
     case 'COUNT':
       return `${sign}${group(digits)}`;
   }
+}
+
+/** Whether the decimal text equals one ("1", "1.0", "01.00"), compared as text. */
+function isOne(digits: string): boolean {
+  return /^0*1(\.0*)?$/.test(digits);
 }
 
 /** Thousands separators on the integer part: "1974.00" becomes "1,974.00". */

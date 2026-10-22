@@ -14,6 +14,14 @@ import { ProvenanceService } from '../api/services/provenance.service';
 import { ProvenanceResponse } from '../api/models/provenance-response';
 import { FigurePipe } from './figure.pipe';
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** An ISO date as "1 Oct 2026", read from the text (no time zone involved). */
+function formatDate(iso: string): string {
+  const [year, month, day] = iso.split('-');
+  return `${Number(day)} ${MONTHS[Number(month) - 1]} ${year}`;
+}
+
 export interface WhyDialogData {
   provId: string;
 }
@@ -37,14 +45,19 @@ export class WhyDialogComponent {
   private readonly stack = signal<ProvenanceResponse[]>([]);
   protected readonly current = computed(() => this.stack().at(-1));
   protected readonly canGoBack = computed(() => this.stack().length > 1);
-  protected readonly loading = signal(true);
+  /** True while the initial figure or a drill-down is loading. */
+  protected readonly loading = signal(false);
   protected readonly failed = signal(false);
 
   constructor() {
     void this.open(inject<WhyDialogData>(MAT_DIALOG_DATA).provId);
   }
 
+  /** Loads a figure and shows it on top of the stack; clicks while a figure is loading are ignored. */
   protected async open(provId: string): Promise<void> {
+    if (this.loading()) {
+      return;
+    }
     this.loading.set(true);
     this.failed.set(false);
     try {
@@ -52,6 +65,7 @@ export class WhyDialogComponent {
       this.stack.update((s) => [...s, figure]);
       this.focusHeading();
     } catch {
+      // Without a figure the error replaces the content; during a drill-down it shows inline.
       this.failed.set(true);
     } finally {
       this.loading.set(false);
@@ -59,9 +73,20 @@ export class WhyDialogComponent {
   }
 
   protected back(): void {
+    if (this.loading()) {
+      return;
+    }
     this.failed.set(false);
     this.stack.update((s) => s.slice(0, -1));
     this.focusHeading();
+  }
+
+  /** "valid from 1 Jan 2026 to 31 Dec 2026"; missing dates are left out. */
+  protected validity(from?: string, to?: string): string {
+    const parts = [from && `from ${formatDate(from)}`, to && `to ${formatDate(to)}`].filter(
+      Boolean,
+    );
+    return parts.length ? `, valid ${parts.join(' ')}` : '';
   }
 
   /** After the content changed in place, keyboard and screen-reader users continue at the new title. */

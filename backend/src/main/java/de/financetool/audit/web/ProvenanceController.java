@@ -50,9 +50,12 @@ class ProvenanceController {
             @Schema(description = "The input's own figure key, where it is itself a figure") String provId) {
     }
 
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     record ProvenanceRuleParameter(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String id,
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String version) {
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String version,
+            @Schema(description = "First day this version applies; absent if unknown") LocalDate validFrom,
+            @Schema(description = "Last day this version applies; absent if open-ended") LocalDate validTo) {
     }
 
     record ProvenanceCheck(
@@ -102,7 +105,9 @@ class ProvenanceController {
                 p.inputs().stream().map(i -> new ProvenanceInput(i.label(), plain(i.value()), i.unit(), i.text(),
                         i.provId())).toList(),
                 p.assumptions(),
-                p.ruleParameters().stream().map(r -> new ProvenanceRuleParameter(r.id(), r.version())).toList(),
+                p.ruleParameters().stream()
+                        .map(r -> new ProvenanceRuleParameter(r.id(), r.version(), r.validFrom(), r.validTo()))
+                        .toList(),
                 p.checks().stream().map(c -> new ProvenanceCheck(c.id(), c.passed(), c.description())).toList());
     }
 

@@ -20,6 +20,10 @@ describe('formatFigure', () => {
     expect(formatFigure('-0.5', 'PP')).toBe('−0.5 pp');
     expect(formatFigure('3', 'MONTHS')).toBe('3 months');
     expect(formatFigure('1', 'YEARS')).toBe('1 year');
+    expect(formatFigure('1.0', 'MONTHS')).toBe('1.0 month');
+    expect(formatFigure('1.00', 'YEARS')).toBe('1.00 year');
+    expect(formatFigure('1.5', 'MONTHS')).toBe('1.5 months');
+    expect(formatFigure('-1', 'MONTHS')).toBe('−1 month');
     expect(formatFigure('1250', 'COUNT')).toBe('1,250');
   });
 });

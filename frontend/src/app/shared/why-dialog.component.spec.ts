@@ -59,7 +59,7 @@ describe('"Why?" dialog', () => {
     http = TestBed.inject(HttpTestingController);
   });
 
-  async function openDialog() {
+  async function openDialog(first: ProvenanceResponse | null = BALANCE) {
     const fixture = TestBed.createComponent(HostComponent);
     fixture.detectChanges();
     const trigger = (fixture.nativeElement as HTMLElement).querySelector(
@@ -69,7 +69,12 @@ describe('"Why?" dialog', () => {
     trigger.focus();
     trigger.click();
     fixture.detectChanges();
-    http.expectOne('/api/provenance/aaaaaaaaaaaaaaaa').flush(BALANCE);
+    const request = http.expectOne('/api/provenance/aaaaaaaaaaaaaaaa');
+    if (first) {
+      request.flush(first);
+    } else {
+      request.flush({ code: 'NOT_FOUND' }, { status: 404, statusText: 'Not Found' });
+    }
     await settle(fixture);
     return {
       fixture,
@@ -163,5 +168,76 @@ describe('"Why?" dialog', () => {
 
     expect(document.querySelector('app-why-dialog')).toBeNull();
     expect(document.activeElement).toBe(trigger);
+  });
+
+  it('replaces the content with an alert when the figure cannot be loaded', async () => {
+    const { dialog } = await openDialog(null);
+
+    expect(dialog().querySelector('[role="alert"]')?.textContent).toContain(
+      "We couldn't load this explanation.",
+    );
+    expect(dialog().querySelectorAll('h3').length).toBe(0);
+    expect(dialog().querySelector('.close')).not.toBeNull();
+  });
+
+  it('keeps the current figure when a drill-down fails and shows the error inline', async () => {
+    const { fixture, dialog } = await openDialog();
+    (dialog().querySelector('.inputs .why') as HTMLElement).click();
+    await settle(fixture);
+    expect(dialog().querySelector('[role="status"]')?.textContent).toContain('Loading…');
+
+    http
+      .expectOne('/api/provenance/bbbbbbbbbbbbbbbb')
+      .flush({ code: 'NOT_FOUND' }, { status: 404, statusText: 'Not Found' });
+    await settle(fixture);
+
+    expect(dialog().querySelector('[role="alert"]')?.textContent).toContain(
+      "We couldn't load this explanation.",
+    );
+    expect(dialog().querySelector('h2')?.textContent).toContain('Current account balance');
+    expect(dialog().querySelectorAll('h3').length).toBe(4);
+    expect(dialog().querySelector('.inputs .why')).not.toBeNull();
+    expect(dialog().querySelector('[role="status"]')).toBeNull();
+  });
+
+  it('ignores a second input click while a figure is loading', async () => {
+    const { fixture, dialog } = await openDialog();
+    const why = dialog().querySelector('.inputs .why') as HTMLElement;
+    why.click();
+    why.click();
+    await settle(fixture);
+
+    http.expectOne('/api/provenance/bbbbbbbbbbbbbbbb').flush(INCOME);
+    await settle(fixture);
+    http.verify();
+
+    expect(dialog().querySelector('h2')?.textContent).toContain('Average net income');
+    (dialog().querySelector('.back') as HTMLElement).click();
+    await settle(fixture);
+    expect(dialog().querySelector('h2')?.textContent).toContain('Current account balance');
+    expect(dialog().querySelector('.back')).toBeNull();
+  });
+
+  it('lists rule parameters with version and validity under the source', async () => {
+    const { dialog } = await openDialog({
+      ...BALANCE,
+      ruleParameters: [
+        {
+          id: 'emergency_fund_months_min',
+          version: '2026-1',
+          validFrom: '2026-01-01',
+          validTo: '2026-12-31',
+        },
+        { id: 'projection_inflation', version: '3' },
+      ],
+    });
+
+    const rules = Array.from(dialog().querySelectorAll('.rules li')).map((li) =>
+      li.textContent?.replace(/\s+/g, ' ').trim(),
+    );
+    expect(rules).toEqual([
+      'Rule emergency_fund_months_min, version 2026-1, valid from 1 Jan 2026 to 31 Dec 2026',
+      'Rule projection_inflation, version 3',
+    ]);
   });
 });

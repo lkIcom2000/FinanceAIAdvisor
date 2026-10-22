@@ -30,5 +30,9 @@ public record CoreComputation(String function, String plainName, String basis, M
         if (outputs.isEmpty()) {
             throw new IllegalArgumentException("a Core function has at least one output");
         }
+        if (outputs.stream().map(Figure::outputKey).distinct().count() != outputs.size()) {
+            // Equal output keys would give equal figure keys, and the store would keep only the first.
+            throw new IllegalArgumentException("output keys must be unique in " + function);
+        }
     }
 }

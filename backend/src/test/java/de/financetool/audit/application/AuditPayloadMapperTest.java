@@ -46,7 +46,8 @@ class AuditPayloadMapperTest {
                 new BigDecimal("1974.00"), Unit.EUR, LocalDate.of(2026, 10, 15),
                 List.of(new Provenance.Input("Opening", new BigDecimal("-12.50"), Unit.EUR, null, null),
                         new Provenance.Input("Note", null, null, "text", "fedcba9876543210")),
-                List.of("Includes every booking."), List.of(new Provenance.RuleParameter("rp", "v1")),
+                List.of("Includes every booking."),
+                List.of(new Provenance.RuleParameter("rp", "v1", LocalDate.of(2026, 1, 1), null)),
                 List.of(new Provenance.Check("NUMBER_MATCH", true, "Every number matches")));
 
         Provenance back = mapper.fromJson(mapper.toJson(provenance), Provenance.class);

@@ -397,6 +397,16 @@
           "id" : {
             "type" : "string"
           },
+          "validFrom" : {
+            "type" : "string",
+            "format" : "date",
+            "description" : "First day this version applies; absent if unknown"
+          },
+          "validTo" : {
+            "type" : "string",
+            "format" : "date",
+            "description" : "Last day this version applies; absent if open-ended"
+          },
           "version" : {
             "type" : "string"
           }

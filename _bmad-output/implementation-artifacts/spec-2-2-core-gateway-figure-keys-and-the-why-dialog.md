@@ -2,10 +2,10 @@
 title: 'Story 2.2: Core gateway, figure keys and the "Why?" dialog'
 type: 'feature'
 created: '2026-10-21'
-status: 'in-review'
+status: 'done'
 baseline_revision: '0fb8853f037dd4520ff89b22dc3821bb48ff128e'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-2-context.md'
   - '{project-root}/_bmad-output/planning-artifacts/ux-designs/ux-FinanceTool-2026-10-21/DESIGN.md'
@@ -94,6 +94,47 @@ deferred: []
 
 ## Review Triage Log
 
+### 2026-10-22 — Review pass
+- verdicts: 37 findings — high 0, medium 7, low 19, false 11, maybe-false 0
+- findings:
+  - `[low]` `[reject]` BH: "No checks apply to this figure." reads as false assurance — overview figures are not checked answers; the Check Chain (Epic 3) applies to chat turns, so the sentence is accurate.
+  - `[low]` `[patch]` BH: rule parameters and asOf not rendered — rule parameters now render under the source; asOf is already in the source sentence ("from … to 15 Oct 2026").
+  - `[medium]` `[patch]` BH: drill-down race and no loading feedback — clicks ignored while loading, status line shown.
+  - `[medium]` `[patch]` BH: failed drill-down hides the current figure — error now inline, figure stays.
+  - `[low]` `[reject]` BH: 64-bit key collisions / text changes keep old provenance — accepted by AD-2 (key excludes wording by design); a collision is astronomically unlikely per persona.
+  - `[low]` `[patch]` BH: AccountBalance sums bookings before the opening date — Javadoc corrected; BankPort (2.1) and the catalog prevent such bookings.
+  - `[low]` `[reject]` BH: findFirst on CURRENT accounts / missing account 500 — the fixture catalog enforces exactly one CURRENT account; no account only for a researcher date before the history.
+  - `[low]` `[reject]` BH: stored evidence may stop deserialising after a later shape change — additive changes deserialise (missing record fields become null); a rename is handled when it happens.
+  - `[low]` `[reject]` BH: provId regex in four places — cosmetic.
+  - `[false]` `[reject]` BH: no Cache-Control on provenance — Spring Security sets `Cache-Control: no-cache, no-store` on every response by default.
+  - `[false]` `[reject]` BH: "-0.00" renders as negative — BigDecimal has no negative zero; the backend never emits "-0.00".
+  - `[low]` `[patch]` BH: "1.0 years" singular — pipe uses the singular whenever the value equals one.
+  - `[medium]` `[patch]` BH: missing tests (dialog error state, frontend 400/404) — dialog error tests added; the remaining wishes (sort order, NON_NULL, concurrency) rejected as low.
+  - `[false]` `[reject]` BH: three skeletons for one tile — UX: three skeleton cards per tab on cold load.
+  - `[low]` `[reject]` BH: no retry on the Home error — a reload retries; no UX copy exists for a retry.
+  - `[false]` `[reject]` BH: Prettier noise and the RequestContextFactory move — the move is the recorded design decision; ModulithTest/ArchitectureTest are green.
+  - `[low]` `[reject]` IA: "any Core function" but a one-method gateway — each later Core function adds its gateway method; the private `record` is the single path.
+  - `[low]` `[patch]` IA: Rule Parameter validity missing — validFrom/validTo added (nullable until Epic 4).
+  - `[false]` `[reject]` IA: drill-down not reachable with live data — no input of the balance is a figure; the forecast (2.3) provides the first live drill-down.
+  - `[false]` `[reject]` IA: viewport checks not in the diff — process step; recorded in Implementation Notes (not visually inspected).
+  - `[false]` `[reject]` IA: A5/A7 bookkeeping not visible — outside the review diff (sprint-status shows A5 done; A7 note in Design Notes).
+  - `[false]` `[reject]` IA: RequestContextFactory moved without mention — Design Notes record it.
+  - `[medium]` `[patch]` VG: dialog load-failure path untested — tests added (initial 404, failed drill-down, no double request).
+  - `[medium]` `[patch]` VG other: failed drill-down strands or skips figures — same root cause as the BH finding; patched there.
+  - `[medium]` `[patch]` EC: failed drill-down without Back — same root cause; patched.
+  - `[medium]` `[patch]` EC: repeated clicks while in flight — same root cause as the race; patched.
+  - `[low]` `[patch]` EC: no loading feedback during drill-down — patched with the race.
+  - `[low]` `[reject]` EC: no CURRENT account → 500 — same as the BH account finding.
+  - `[false]` `[reject]` EC: several CURRENT accounts — the catalog rejects such a fixture (Story 2.1 review patch).
+  - `[low]` `[reject]` EC: asOf before the opening date → 500 — only reachable by a researcher setting a date before the history.
+  - `[low]` `[reject]` EC: evidence content of other origins is not a Provenance → 500 — only Core figures exist today; Epic 3 must keep the provenance shape when it adds turn evidence.
+  - `[low]` `[reject]` EC: null lists in stored JSON → NPE — rows are written only by the gateway, which never stores nulls.
+  - `[low]` `[patch]` EC: duplicate output keys → same provId — CoreComputation rejects duplicates.
+  - `[low]` `[reject]` EC: non-String map key → ClassCastException — inputs are built in code with String keys.
+  - `[false]` `[reject]` EC: newline in key components collides — persona ids, function names, output keys and the hex fingerprint cannot contain newlines.
+  - `[false]` `[reject]` EC: unknown unit renders blank — the switch is exhaustive over the generated union type; a new unit fails compilation after regeneration.
+  - `[low]` `[patch]` EC: "1.0 months" — same as the BH singular finding; patched.
+
 ## Design Notes
 
 - **Context factory in `shared` (decision):** `core` serves the overview but may not depend on `personas`; the factory interface moves to `shared` (dependency inversion), the implementation stays in `personas`. Alternative (adding core→personas to the AD-12 graph) rejected as an architecture change.
@@ -120,3 +161,17 @@ Deviations from the bmad-build-auto workflow (user rules, 2026-10-21):
 
 **Manual checks (if no CLI):**
 - Live (local, no image rebuild): `./mvnw spring-boot:run` against compose `db`/`ollama` (compose app stopped meanwhile); login p-lena → `/api/overview/home` 1974.00 → `/api/provenance/{id}` 200; p-marco → 404. UI at 1366×768 and 1440: card and dialog render, focus returns.
+
+## Auto Run Result
+
+Status: done
+
+**Summary:** `CoreResult`/`SourcedNumber`/`Unit`, deterministic `provId` (`FigureKey`, SHA-1, 16 hex), `core.CoreGateway` as the single entry point persisting every figure via `EvidenceStore.putIfAbsent` (first production caller), `GET /api/overview/home` (current account balance) and persona-scoped `GET /api/provenance/{provId}`, and the Angular "Why?" dialog (four sections, in-place drill-down with Back, focus return) on a Home "Current account" card. `RequestContextFactory` moved to `shared`. A5 done (`testing/TestContexts`); A7 stays open (first `AuditWriter` caller in Epic 3 adds the export test).
+
+**Review:** 37 findings from four layers (Blind Hunter and Intent Alignment on `sonnet`). 7 fixes patched (medium: failed drill-down keeps the figure; no concurrent drill-down requests; dialog error-path tests. Low: rule parameter validity rendered; singular for "1.0"; AccountBalance Javadoc; duplicate output keys rejected). 0 deferred. 21 rejected with reasons in the triage log.
+
+**Follow-up review recommendation:** true by the rule (more than one medium patched); the named risk is the reworked dialog state handling (loading, inline error, back). It is covered by the new dialog specs; a further pass is optional.
+
+**Verification:** backend `verify -Dfine.it.required=true` 188 tests, 0 failures, 0 skipped (187 before the fixes); frontend 32 tests, build green, generated client up to date. Live check before the review: see Implementation Notes (local run, API behaviour as specified; UI not inspected visually).
+
+**Residual risks:** `core.domain.CoreResult` is returned by the `core` API from an internal package; once another module calls the gateway (Epic 3), `core.domain` needs a named interface or the result types move to the `core` base package.

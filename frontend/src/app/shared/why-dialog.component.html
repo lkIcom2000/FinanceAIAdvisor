@@ -8,14 +8,26 @@
 </h2>
 
 <mat-dialog-content>
-  @if (loading() && !figure) {
+  @if (loading()) {
     <p class="status" role="status">Loading…</p>
-  } @else if (failed()) {
+  }
+  @if (failed()) {
     <p class="status" role="alert">We couldn't load this explanation. Please try again later.</p>
-  } @else if (figure) {
+  }
+  @if (figure) {
     <section class="section">
       <h3>Where this number comes from</h3>
       <p class="sub">{{ figure.source.description }}</p>
+      @if (figure.ruleParameters.length > 0) {
+        <ul class="sub rules">
+          @for (rule of figure.ruleParameters; track rule.id) {
+            <li>
+              Rule {{ rule.id }}, version {{ rule.version
+              }}{{ validity(rule.validFrom, rule.validTo) }}
+            </li>
+          }
+        </ul>
+      }
     </section>
 
     <section class="section">

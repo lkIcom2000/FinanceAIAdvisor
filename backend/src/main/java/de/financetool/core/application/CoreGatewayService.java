@@ -61,7 +61,7 @@ class CoreGatewayService implements CoreGateway {
                 .map(i -> new Provenance.Input(i.label(), i.value(), i.unit(), i.text(), i.provId()))
                 .toList();
         List<Provenance.RuleParameter> ruleParameters = computation.ruleParamVersions().entrySet().stream()
-                .map(e -> new Provenance.RuleParameter(e.getKey(), e.getValue()))
+                .map(e -> new Provenance.RuleParameter(e.getKey(), e.getValue(), null, null))
                 .sorted((a, b) -> a.id().compareTo(b.id()))
                 .toList();
 

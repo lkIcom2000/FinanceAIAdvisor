@@ -3,5 +3,15 @@
 
 export interface ProvenanceRuleParameter {
   id: string;
+
+  /**
+   * First day this version applies; absent if unknown
+   */
+  validFrom?: string;
+
+  /**
+   * Last day this version applies; absent if open-ended
+   */
+  validTo?: string;
   version: string;
 }

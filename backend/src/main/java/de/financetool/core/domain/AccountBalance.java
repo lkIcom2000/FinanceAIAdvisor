@@ -33,8 +33,8 @@ public final class AccountBalance {
     }
 
     /**
-     * Opening balance plus every booking from the opening date up to and including {@code asOf}; later bookings are
-     * ignored.
+     * Opening balance plus every given booking up to and including {@code asOf}; later bookings are ignored. Bookings
+     * are not checked against the opening date: {@code BankPort} and the fixture catalog never book before it.
      */
     public static CoreComputation of(LocalDate openingDate, BigDecimal openingBalance, List<Booking> bookings,
             LocalDate asOf) {
