@@ -4,6 +4,7 @@ import de.financetool.shared.domain.SourcedNumber;
 import de.financetool.shared.domain.Unit;
 import java.math.BigDecimal;
 import java.util.Objects;
+import org.springframework.modulith.NamedInterface;
 
 /**
  * One input of a Core function as shown in "What went in": a number with unit, or a plain text, optionally with the
@@ -14,6 +15,7 @@ import java.util.Objects;
  * @param text the text, or {@code null} for a number input
  * @param provId the input's own figure key, or {@code null} if it is not a Core figure
  */
+@NamedInterface("results")
 public record FigureInput(String label, BigDecimal value, Unit unit, String text, String provId) {
 
     public FigureInput {

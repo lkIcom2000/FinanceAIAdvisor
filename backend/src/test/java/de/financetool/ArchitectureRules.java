@@ -1,5 +1,7 @@
 package de.financetool;
 
+import static com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAnyPackage;
+import static com.tngtech.archunit.core.domain.JavaClass.Predicates.type;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.codeUnits;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
@@ -46,8 +48,10 @@ final class ArchitectureRules {
 
     static final ArchRule DOMAIN_IS_PURE = classes()
             .that().resideInAPackage("..domain..")
-            .should().onlyDependOnClassesThat().resideInAnyPackage("java..", "..domain..")
-            .because("AD-1: the domain is plain Java without frameworks or I/O");
+            .should().onlyDependOnClassesThat(resideInAnyPackage("java..", "..domain..")
+                    .or(type(org.springframework.modulith.NamedInterface.class)))
+            .because("AD-1: the domain is plain Java without frameworks or I/O (the Core's result types carry only "
+                    + "the Modulith named-interface marker)");
 
     static final ArchRule NO_WALL_CLOCK = noClasses()
             .that().resideInAnyPackage("..domain..", "..application..")

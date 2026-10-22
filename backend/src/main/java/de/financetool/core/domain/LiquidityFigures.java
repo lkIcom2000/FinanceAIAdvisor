@@ -3,6 +3,7 @@ package de.financetool.core.domain;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
+import org.springframework.modulith.NamedInterface;
 
 /**
  * The keyed results behind the Liquidity view, from one {@code CoreGateway} call.
@@ -15,6 +16,7 @@ import java.util.Objects;
  *        {@link ShortfallDetection#OUTPUT_SHORTFALL}
  * @param shortfallDate the first day below zero, or {@code null}
  */
+@NamedInterface("results")
 public record LiquidityFigures(CoreResult currentAccount, CoreResult overnightDeposit, CoreResult liquidAssets,
         CoreResult variableSpending, CoreResult emergencyFund, CoreResult forecast, List<CashFlowForecast.Point> points,
         List<String> forecastAssumptions, CoreResult shortfall, LocalDate shortfallDate, LocalDate lowestDate) {

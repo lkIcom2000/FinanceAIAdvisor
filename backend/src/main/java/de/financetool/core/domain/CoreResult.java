@@ -5,11 +5,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import org.springframework.modulith.NamedInterface;
 
 /**
  * The result of a Core call through the {@code CoreGateway}: the computation plus one keyed {@link SourcedNumber} per
  * output, in output order.
  */
+@NamedInterface("results")
 public record CoreResult(String function, List<FigureInput> inputs, List<Figure> outputs, List<String> assumptions,
         Map<String, String> ruleParamVersions, List<SourcedNumber> numbers) {
 

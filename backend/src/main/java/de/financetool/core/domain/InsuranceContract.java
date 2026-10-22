@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Locale;
 import java.util.Objects;
+import org.springframework.modulith.NamedInterface;
 
 /**
  * An insurance or pension contract on which the persona is insured, as the insurance Core functions see it.
@@ -15,10 +16,12 @@ import java.util.Objects;
  * @param intervalMonths the payment interval in months, or {@code null} without a premium
  * @param nextDueDate the stored next due date, or {@code null} without a premium
  */
+@NamedInterface("results")
 public record InsuranceContract(String id, Cover cover, String policyholder, boolean coInsured, BigDecimal premium,
         Integer intervalMonths, LocalDate nextDueDate) {
 
     /** The risk a contract covers, with its wording for customers. */
+    @NamedInterface("results")
     public enum Cover {
         LIABILITY("liability", "Private liability insurance", true),
         CAR("car", "Car insurance", true),

@@ -13,6 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.springframework.modulith.NamedInterface;
 
 /**
  * Core function {@code cashFlowForecast}: the current account's daily balance from the day after {@code asOf} to the
@@ -36,6 +37,7 @@ public record CashFlowForecast(LocalDate asOf, List<Point> points, List<String> 
     static final int HORIZON_MONTHS = 3;
 
     /** One forecast day; {@code low} and {@code high} are the range around {@code expected}. */
+    @NamedInterface("results")
     public record Point(LocalDate date, BigDecimal low, BigDecimal expected, BigDecimal high) {
 
         public Point {

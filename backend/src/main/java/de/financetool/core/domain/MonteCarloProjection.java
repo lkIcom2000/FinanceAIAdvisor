@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.random.RandomGenerator;
 import java.util.random.RandomGeneratorFactory;
+import org.springframework.modulith.NamedInterface;
 
 /**
  * Core function {@code monteCarloProjection}: where a starting value plus a monthly contribution may lead after a
@@ -47,6 +48,7 @@ public record MonteCarloProjection(List<Point> points, List<String> assumptions,
     static final String ALGORITHM = "L64X128MixRandom";
 
     /** The 10th, 50th and 90th percentile of all paths at the end of year {@code year}. */
+    @NamedInterface("results")
     public record Point(int year, BigDecimal p10, BigDecimal p50, BigDecimal p90) {
 
         public Point {

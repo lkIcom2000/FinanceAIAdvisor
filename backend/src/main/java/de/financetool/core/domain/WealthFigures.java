@@ -3,6 +3,7 @@ package de.financetool.core.domain;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Objects;
+import org.springframework.modulith.NamedInterface;
 
 /**
  * The keyed results behind the Wealth &amp; Retirement view, from one {@code CoreGateway} call.
@@ -11,10 +12,12 @@ import java.util.Objects;
  * @param totals the projection's starting value and monthly contribution ({@link Investments#totals}), or
  *        {@code null} without a projection
  */
+@NamedInterface("results")
 public record WealthFigures(List<Holding> holdings, List<SavingsPlan> savingsPlans, CoreResult totals,
         CoreResult projection, List<MonteCarloProjection.Point> points, List<String> assumptions) {
 
     /** A holding with its keyed value ({@link Investments#HOLDING_OUTPUT}). */
+    @NamedInterface("results")
     public record Holding(String name, String assetClass, BigDecimal units, CoreResult value) {
 
         public Holding {
@@ -26,6 +29,7 @@ public record WealthFigures(List<Holding> holdings, List<SavingsPlan> savingsPla
     }
 
     /** An active savings plan with its keyed monthly amount ({@link Investments#PLAN_OUTPUT}). */
+    @NamedInterface("results")
     public record SavingsPlan(String name, CoreResult amount, int dayOfMonth) {
 
         public SavingsPlan {
