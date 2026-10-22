@@ -47,6 +47,23 @@ describe('WorkspacePage', () => {
     expect(element.querySelector('.date-chip')).toBeNull();
   });
 
+  it('mounts the Home tab content under the Home tab only', async () => {
+    const fixture = TestBed.createComponent(WorkspacePage);
+    fixture.detectChanges();
+    answerPersona();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+
+    TestBed.inject(HttpTestingController).expectOne('/api/overview/home');
+    const homeTabs = element.querySelectorAll('app-home-tab');
+    expect(homeTabs.length).toBe(1);
+    expect(homeTabs[0].closest('[data-tab]')?.getAttribute('data-tab')).toBe('home');
+    for (const key of ['liquidity', 'wealth', 'letters']) {
+      expect(element.querySelector(`[data-tab="${key}"] app-home-tab`)).toBeNull();
+    }
+  });
+
   it('shows the simulated-date chip when the backend sends today (research profile)', async () => {
     const fixture = TestBed.createComponent(WorkspacePage);
     fixture.detectChanges();

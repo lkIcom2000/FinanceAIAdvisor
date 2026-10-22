@@ -80,6 +80,15 @@ class ProvenanceEndToEndTest extends PostgresIntegrationTest {
                         "Calculated by Fine's calculation engine (current account balance), not by the language "
                                 + "model. Based on your account data from ")))
                 .andExpect(jsonPath("$.inputs.length()").value(3))
+                .andExpect(jsonPath("$.inputs[0].label").value(
+                        "Balance when the account was opened on 1 Jul 2025"))
+                .andExpect(jsonPath("$.inputs[0].value").value("107.00"))
+                .andExpect(jsonPath("$.inputs[0].unit").value("EUR"))
+                .andExpect(jsonPath("$.inputs[1].value").value("1867.00"))
+                .andExpect(jsonPath("$.inputs[1].unit").value("EUR"))
+                .andExpect(jsonPath("$.inputs[2].value").value("271"))
+                .andExpect(jsonPath("$.inputs[2].unit").value("COUNT"))
+                .andExpect(jsonPath("$.inputs[*].text").isEmpty())
                 .andExpect(jsonPath("$.assumptions[0]").value("Includes every booking up to the end of 15 Oct 2026."))
                 .andExpect(jsonPath("$.checks").isEmpty())
                 .andExpect(jsonPath("$.function").doesNotExist());

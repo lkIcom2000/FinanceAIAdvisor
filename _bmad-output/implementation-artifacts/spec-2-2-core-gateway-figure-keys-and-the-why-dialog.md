@@ -5,7 +5,7 @@ created: '2026-10-21'
 status: 'done'
 baseline_revision: '0fb8853f037dd4520ff89b22dc3821bb48ff128e'
 review_loop_iteration: 0
-followup_review_recommended: true
+followup_review_recommended: false
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-2-context.md'
   - '{project-root}/_bmad-output/planning-artifacts/ux-designs/ux-FinanceTool-2026-10-21/DESIGN.md'
@@ -94,6 +94,41 @@ deferred: []
 
 ## Review Triage Log
 
+### 2026-10-22 — Follow-up review pass (diff 0fb8853..0dff706; Stories 2.3–2.5 not in scope)
+- verdicts: 31 findings — high 0, medium 3, low 18, false 10, maybe-false 0
+- findings:
+  - `[false]` `[reject]` IA: drill-down has no live data — since Story 2.3 the forecast inputs carry provIds and `LiquidityOverviewEndToEndTest` follows them.
+  - `[false]` `[reject]` IA: FigureKey imports `shared.domain.PersonaId` beyond java.* — ArchUnit `DOMAIN_IS_PURE` allows any `..domain..` package; the rule is green.
+  - `[low]` `[reject]` IA: template checks `startsWith('-')` — string inspection for styling, no arithmetic.
+  - `[false]` `[reject]` IA: no architecture test visible — `ArchitectureTest`/`ModulithTest` exist outside the diff and are green.
+  - `[low]` `[reject]` BH: stale evidence when wording changes under the same key — carried: accepted by AD-2 (key excludes wording by design).
+  - `[low]` `[reject]` BH: GET writes evidence; concurrent first requests race — AD-2 requires persisting every figure; the insert is `ON CONFLICT DO NOTHING`, so a race keeps one row.
+  - `[low]` `[reject]` BH: 64-bit key collision silent — carried.
+  - `[low]` `[reject]` BH: no schema version / tolerant read of stored provenance — carried.
+  - `[false]` `[reject]` BH: rule validity always null and checks always empty — at HEAD the gateway fills validity and the data-confidence check (Story 2.3); "No checks apply" for the balance is carried.
+  - `[false]` `[reject]` BH: drill-down without a real end-to-end path — same as the IA drill-down row.
+  - `[false]` `[reject]` BH: three skeletons for one card — carried.
+  - `[false]` `[reject]` BH: duplicated negative check, "-0.00" — carried.
+  - `[low]` `[patch]` BH: invalid `font: … inherit` shorthand in the dialog — replaced by separate font properties.
+  - `[low]` `[reject]` BH: failed check uses the same colour; empty `<dd>` — glyph plus text satisfies the icon-plus-text rule; the empty cell is harmless.
+  - `[false]` `[reject]` BH: formatting churn and import order — carried.
+  - `[low]` `[reject]` BH: duplicated provId regex and styles — carried.
+  - `[low]` `[reject]` BH: no current account 500, CanonicalForm escaping, pre-opening bookings, cache header — carried rows; CanonicalForm quotes and escapes `"` and `\`, so encodings stay unambiguous.
+  - `[low]` `[reject]` EC: no CURRENT account → 500 — carried.
+  - `[false]` `[reject]` EC: several CURRENT accounts — carried.
+  - `[low]` `[reject]` EC: asOf before opening date → 500 — carried.
+  - `[low]` `[reject]` EC: non-Provenance evidence content → 500 — carried.
+  - `[low]` `[reject]` EC: stale provenance on text change — carried.
+  - `[low]` `[reject]` EC: null key input fails in Map.copyOf although CanonicalForm renders null — no caller passes null; failing loudly is acceptable.
+  - `[low]` `[reject]` EC: non-String map keys — carried.
+  - `[low]` `[reject]` EC: Provenance.Input without value or text — only the gateway writes it, from FigureInput, which enforces the invariant.
+  - `[false]` `[reject]` EC: unknown unit renders blank — carried.
+  - `[low]` `[reject]` EC: duplicate check ids in `track` — carried.
+  - `[low]` `[reject]` EC: dialog closed while a request is in flight — signal updates after close are harmless; no error surfaces.
+  - `[medium]` `[patch]` VG: Home tab mounting in the workspace unverified — workspace spec asserts it.
+  - `[medium]` `[patch]` VG: config fingerprint in the gateway's key unverified — gateway integration test with a changed fingerprint.
+  - `[medium]` `[patch]` VG: provenance input values and units unasserted — end-to-end assertions added.
+
 ### 2026-10-22 — Review pass
 - verdicts: 37 findings — high 0, medium 7, low 19, false 11, maybe-false 0
 - findings:
@@ -175,3 +210,5 @@ Status: done
 **Verification:** backend `verify -Dfine.it.required=true` 188 tests, 0 failures, 0 skipped (187 before the fixes); frontend 32 tests, build green, generated client up to date. Live check before the review: see Implementation Notes (local run, API behaviour as specified; UI not inspected visually).
 
 **Residual risks:** `core.domain.CoreResult` is returned by the `core` API from an internal package; once another module calls the gateway (Epic 3), `core.domain` needs a named interface or the result types move to the `core` base package.
+
+**Follow-up review pass (2026-10-22):** four layers again (Blind Hunter and Intent Alignment on `sonnet`) over `0fb8853..0dff706`. 31 findings: 4 patched (invalid font shorthand in the dialog; tests for Home tab mounting, the config fingerprint in the gateway key, and provenance input values/units), 0 deferred, 27 rejected (many carried from the first pass or resolved by Story 2.3). No high finding patched, so the work has converged: `followup_review_recommended: false`. After the fixes: backend 244 tests, 0 failures, 0 skipped; frontend 55 tests, build green.

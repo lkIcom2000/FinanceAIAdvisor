@@ -89,7 +89,9 @@ ul.sub {
   small {
     display: block;
     margin-left: 20px;
-    font: 400 12px / 16px inherit;
+    font-weight: 400;
+    font-size: 12px;
+    line-height: 16px;
     color: var(--mat-sys-outline);
   }
 }

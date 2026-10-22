@@ -9,6 +9,7 @@ import de.financetool.core.domain.CoreResult;
 import de.financetool.shared.PersonaScope;
 import de.financetool.shared.RequestContext;
 import de.financetool.shared.RequestContextFactory;
+import de.financetool.shared.config.ConfigFingerprint;
 import de.financetool.shared.domain.PersonaId;
 import de.financetool.shared.domain.SourcedNumber;
 import de.financetool.shared.domain.Unit;
@@ -72,6 +73,22 @@ class CoreGatewayIntegrationTest extends PostgresIntegrationTest {
         assertThat(earlier.provId()).isNotEqualTo(lena.provId());
         assertThat(earlier.value()).isNotEqualByComparingTo(lena.value());
         assertThat(marco.provId()).isNotIn(lena.provId(), earlier.provId());
+    }
+
+    @Test
+    void anotherConfigurationFingerprintGivesAnotherKeyAndRow() {
+        RequestContext base = context("p-lena", START);
+        RequestContext otherConfig = new RequestContext(base.agentConfig(),
+                new ConfigFingerprint("other", base.configFingerprint().fileHashes()), base.thresholds(),
+                base.kbSnapshot(), base.seeds(), base.asOf(), base.personaId(), base.runId());
+
+        SourcedNumber reference = balance(base);
+        SourcedNumber other = balance(otherConfig);
+
+        assertThat(other.provId()).isNotEqualTo(reference.provId());
+        assertThat(other.value()).isEqualTo(reference.value());
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM evidence_items WHERE prov_id IN (?, ?)", Long.class,
+                reference.provId(), other.provId())).isEqualTo(2L);
     }
 
     @Test
