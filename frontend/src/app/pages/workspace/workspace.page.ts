@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input } from '@an
 import { Router } from '@angular/router';
 import { MatTabsModule } from '@angular/material/tabs';
 import { AppHeaderComponent } from '../../shell/app-header.component';
+import { HomeTabComponent } from './home-tab.component';
 
 /** The Overview tabs; the active one lives in `?tab=` so reloads and deep links keep it. */
 export const OVERVIEW_TABS = [
@@ -16,7 +17,7 @@ export type OverviewTab = (typeof OVERVIEW_TABS)[number]['key'];
 /** Workspace shell: Financial Overview on the left, chat column on the right. */
 @Component({
   selector: 'app-workspace-page',
-  imports: [AppHeaderComponent, MatTabsModule],
+  imports: [AppHeaderComponent, HomeTabComponent, MatTabsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './workspace.page.html',
   styleUrl: './workspace.page.scss',
@@ -28,7 +29,10 @@ export class WorkspacePage {
 
   protected readonly tabs = OVERVIEW_TABS;
   protected readonly selectedIndex = computed(() =>
-    Math.max(0, OVERVIEW_TABS.findIndex((t) => t.key === this.tab())),
+    Math.max(
+      0,
+      OVERVIEW_TABS.findIndex((t) => t.key === this.tab()),
+    ),
   );
 
   protected select(index: number): void {

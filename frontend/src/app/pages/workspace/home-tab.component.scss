@@ -1,0 +1,55 @@
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.card {
+  padding: 24px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--fine-radius-card);
+  background: var(--mat-sys-surface);
+}
+
+.skeleton {
+  min-height: 84px;
+  background: var(--mat-sys-surface-container-low);
+}
+
+.label {
+  margin: 0 0 8px;
+  font: var(--fine-title);
+  color: var(--mat-sys-on-surface);
+}
+
+.main {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.figure-lg {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 36px;
+  font-variant-numeric: tabular-nums;
+  color: var(--mat-sys-on-surface);
+
+  &.negative {
+    color: var(--mat-sys-error);
+  }
+}
+
+.error {
+  font: var(--fine-body);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

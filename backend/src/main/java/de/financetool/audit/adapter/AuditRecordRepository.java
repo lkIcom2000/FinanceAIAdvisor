@@ -1,6 +1,8 @@
 package de.financetool.audit.adapter;
 
+import de.financetool.shared.PersonaScope;
 import java.time.OffsetDateTime;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -39,6 +41,15 @@ public class AuditRecordRepository {
                 ON CONFLICT (prov_id) DO NOTHING""")
                 .params(provId, personaId, origin, originId, content)
                 .update();
+    }
+
+    /** The content of an evidence item, only if it belongs to the scope's persona. */
+    public Optional<String> findEvidence(String provId, PersonaScope scope) {
+        return jdbc.sql("""
+                SELECT content::text FROM evidence_items WHERE prov_id = ? AND persona_id = ?""")
+                .params(provId, scope.id())
+                .query(String.class)
+                .optional();
     }
 
     /** Records in insertion order, optionally of one run. */

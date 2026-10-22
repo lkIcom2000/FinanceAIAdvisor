@@ -1,6 +1,6 @@
 package de.financetool.personas.application;
 
-import de.financetool.personas.RequestContextFactory;
+import de.financetool.shared.RequestContextFactory;
 import de.financetool.personas.adapter.PersonaStateEntity;
 import de.financetool.personas.adapter.PersonaStateRepository;
 import de.financetool.shared.PersonaScope;

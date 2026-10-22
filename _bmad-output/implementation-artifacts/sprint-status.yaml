@@ -42,7 +42,7 @@
 #   configuration with a derivedFrom block (AD-25). Check E3 before 3.9, E1 before 4.2/4.3.
 
 generated: 10-21-2026 13:52
-last_updated: 10-21-2026 22:02
+last_updated: 10-22-2026 09:13
 project: FinanceTool
 project_key: NOKEY
 tracking_system: file-system
@@ -60,7 +60,7 @@ development_status:
 
   epic-2: in-progress  # [critical-path]
   2-1-sandbox-bank-with-seeded-persona-fixtures-and-planted-ground: done  # start 2026-10-21T21:35+02:00, end 2026-10-21T23:20+02:00; A3 done; full 4-layer review, 10 fixes
-  2-2-core-gateway-figure-keys-and-the-why-dialog: backlog
+  2-2-core-gateway-figure-keys-and-the-why-dialog: review  # start 2026-10-21T23:30+02:00; A5 done
   2-3-liquidity-tab-with-cash-flow-forecast-and-emergency-fund: backlog
   2-4-wealth-retirement-tab-with-goal-projection-ranges: backlog
   2-5-home-tab-with-summary-and-your-insurance: backlog
@@ -173,7 +173,7 @@ action_items:
     action: "A5: Shared test fixture for AgentConfiguration/RequestContext instead
       of three copies"
     owner: "Dev (Claude)"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-21.md"
   - id: "epic-1-retro-item-6-a6-mark-stories-touching-secrets-db-role"
     epic: 1

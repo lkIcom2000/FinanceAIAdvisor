@@ -4,7 +4,11 @@ import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { SessionService } from '../../core/session.service';
-import { answerSessionLoad, flushMicrotasks, httpTestingProviders } from '../../testing/session-testing';
+import {
+  answerSessionLoad,
+  flushMicrotasks,
+  httpTestingProviders,
+} from '../../testing/session-testing';
 import { WorkspacePage } from './workspace.page';
 
 describe('WorkspacePage', () => {
@@ -35,7 +39,9 @@ describe('WorkspacePage', () => {
     expect(element.querySelector('.product')?.textContent).toBe('Fine');
     expect(element.querySelector('.user')?.textContent).toBe('Lena');
     expect(element.textContent).toContain('Log out');
-    const labels = Array.from(element.querySelectorAll('[role="tab"]')).map((t) => t.textContent?.trim());
+    const labels = Array.from(element.querySelectorAll('[role="tab"]')).map((t) =>
+      t.textContent?.trim(),
+    );
     expect(labels).toEqual(['Home', 'Liquidity', 'Wealth & Retirement', 'Letters']);
     expect(element.querySelector('aside[aria-label="Chat with Fine"]')).not.toBeNull();
     expect(element.querySelector('.date-chip')).toBeNull();
@@ -59,7 +65,9 @@ describe('WorkspacePage', () => {
     answerPersona();
     await fixture.whenStable();
     const selected = () =>
-      (fixture.nativeElement as HTMLElement).querySelector('[role="tab"][aria-selected="true"]')?.textContent?.trim();
+      (fixture.nativeElement as HTMLElement)
+        .querySelector('[role="tab"][aria-selected="true"]')
+        ?.textContent?.trim();
     expect(selected()).toBe('Wealth & Retirement');
 
     fixture.componentRef.setInput('tab', 'nonsense');
@@ -74,10 +82,15 @@ describe('WorkspacePage', () => {
     answerPersona();
     await fixture.whenStable();
 
-    ((fixture.nativeElement as HTMLElement).querySelectorAll('[role="tab"]')[1] as HTMLElement).click();
+    (
+      (fixture.nativeElement as HTMLElement).querySelectorAll('[role="tab"]')[1] as HTMLElement
+    ).click();
     await fixture.whenStable();
 
-    expect(navigate).toHaveBeenCalledWith([], expect.objectContaining({ queryParams: { tab: 'liquidity' } }));
+    expect(navigate).toHaveBeenCalledWith(
+      [],
+      expect.objectContaining({ queryParams: { tab: 'liquidity' } }),
+    );
   });
 
   it('logs out on the server and returns to Login', async () => {
@@ -116,7 +129,9 @@ describe('WorkspacePage', () => {
 
   it('returns to Login with the expiry message when the session has expired', async () => {
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
-    const request = firstValueFrom(TestBed.inject(HttpClient).get('/api/persona')).catch(() => undefined);
+    const request = firstValueFrom(TestBed.inject(HttpClient).get('/api/persona')).catch(
+      () => undefined,
+    );
     TestBed.inject(HttpTestingController)
       .expectOne('/api/persona')
       .flush({ code: 'UNAUTHENTICATED' }, { status: 401, statusText: 'Unauthorized' });

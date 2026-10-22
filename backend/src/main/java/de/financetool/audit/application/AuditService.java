@@ -5,7 +5,9 @@ import de.financetool.audit.AuditExport;
 import de.financetool.audit.AuditWriter;
 import de.financetool.audit.EvidenceItem;
 import de.financetool.audit.EvidenceStore;
+import de.financetool.audit.Provenance;
 import de.financetool.audit.adapter.AuditRecordRepository;
+import de.financetool.shared.PersonaScope;
 import de.financetool.shared.RequestContext;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -15,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +48,12 @@ class AuditService implements AuditWriter, EvidenceStore, AuditExport {
             records.insertEvidenceIfAbsent(item.provId(), item.personaId().value(),
                     item.origin().name().toLowerCase(Locale.ROOT), item.originId(), mapper.toJson(item.content()));
         }
+    }
+
+    /** The provenance stored under {@code provId}, if it belongs to the scope's persona. */
+    @Transactional(propagation = Propagation.MANDATORY, readOnly = true)
+    public Optional<Provenance> provenance(PersonaScope scope, String provId) {
+        return records.findEvidence(provId, scope).map(json -> mapper.fromJson(json, Provenance.class));
     }
 
     @Override

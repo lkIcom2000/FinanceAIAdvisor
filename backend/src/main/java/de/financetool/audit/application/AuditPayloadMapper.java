@@ -54,4 +54,9 @@ public class AuditPayloadMapper {
     public Map<String, Object> fromJson(String json) {
         return mapper.readValue(json, MAP);
     }
+
+    /** Reads stored JSON back into a type, e.g. an evidence item's {@code Provenance}. */
+    public <T> T fromJson(String json, Class<T> type) {
+        return mapper.readValue(json, type);
+    }
 }

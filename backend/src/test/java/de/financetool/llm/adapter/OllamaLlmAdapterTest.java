@@ -14,10 +14,7 @@ import de.financetool.llm.LlmMessage;
 import de.financetool.llm.LlmResult;
 import de.financetool.llm.LlmRole;
 import de.financetool.shared.config.AgentConfiguration;
-import de.financetool.shared.config.ComplianceLevel;
-import de.financetool.shared.config.DataExposureLevel;
-import de.financetool.shared.config.DerivedFrom;
-import java.time.LocalDate;
+import de.financetool.testing.TestContexts;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -31,14 +28,10 @@ import org.springframework.web.client.RestClient;
 class OllamaLlmAdapterTest {
 
     static final String URL = "http://ollama:11434";
-    static final AgentConfiguration.Decoding DECODING = new AgentConfiguration.Decoding(0.0, 0.9, 42L, 4096, 700);
+    static final AgentConfiguration.Decoding DECODING = TestContexts.DECODING;
 
     static AgentConfiguration agent(String phrasing) {
-        return new AgentConfiguration("reference",
-                new DerivedFrom("none", "none", LocalDate.of(2026, 10, 20), "PRD starting value"),
-                new AgentConfiguration.Llm(phrasing, "nlu-model", "judge-model", "bge-m3"), true, "advisor",
-                ComplianceLevel.A_B_C, DataExposureLevel.AGGREGATED, DECODING,
-                new AgentConfiguration.Seeds(20261020L, 42L));
+        return TestContexts.agent(new AgentConfiguration.Llm(phrasing, "nlu-model", "judge-model", "bge-m3"));
     }
 
     static final ModelLock LOCK = new ModelLock(List.of(

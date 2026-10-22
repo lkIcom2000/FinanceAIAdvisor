@@ -1,0 +1,21 @@
+@let s = state();
+<div class="tiles">
+  @if (s.status === 'ready') {
+    <section class="card tile" aria-labelledby="current-account-title">
+      <h2 id="current-account-title" class="label">Current account</h2>
+      <div class="main">
+        <span class="figure-lg" [class.negative]="s.home.currentAccount.value.startsWith('-')">{{
+          s.home.currentAccount.value | figure: s.home.currentAccount.unit
+        }}</span>
+        <app-why-link [provId]="s.home.currentAccount.provId" />
+      </div>
+    </section>
+  } @else if (s.status === 'failed') {
+    <p class="error" role="alert">We couldn't load your overview. Please try again later.</p>
+  } @else {
+    @for (i of [1, 2, 3]; track i) {
+      <div class="card skeleton" aria-hidden="true"></div>
+    }
+    <span class="visually-hidden" role="status">Loading your overview…</span>
+  }
+</div>

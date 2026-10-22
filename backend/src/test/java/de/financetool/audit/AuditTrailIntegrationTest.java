@@ -8,7 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import de.financetool.PostgresIntegrationTest;
-import de.financetool.personas.RequestContextFactory;
+import de.financetool.shared.RequestContextFactory;
 import de.financetool.shared.PersonaScope;
 import de.financetool.shared.RequestContext;
 import de.financetool.shared.domain.PersonaId;

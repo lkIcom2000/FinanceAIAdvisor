@@ -9,8 +9,14 @@
     "description" : "Generated server url"
   } ],
   "tags" : [ {
+    "description" : "Where a figure comes from",
+    "name" : "provenance"
+  }, {
     "description" : "Session login",
     "name" : "auth"
+  }, {
+    "description" : "The Financial Overview",
+    "name" : "overview"
   }, {
     "description" : "The persona of the session",
     "name" : "persona"
@@ -88,6 +94,25 @@
         "tags" : [ "auth" ]
       }
     },
+    "/api/overview/home" : {
+      "get" : {
+        "operationId" : "home",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HomeOverview"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "The Home tab's summary figures",
+        "tags" : [ "overview" ]
+      }
+    },
     "/api/persona" : {
       "get" : {
         "operationId" : "current",
@@ -106,10 +131,91 @@
         "summary" : "The persona of the current session",
         "tags" : [ "persona" ]
       }
+    },
+    "/api/provenance/{provId}" : {
+      "get" : {
+        "operationId" : "show",
+        "parameters" : [ {
+          "description" : "16 lower-case hex characters",
+          "in" : "path",
+          "name" : "provId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProvenanceResponse"
+                }
+              }
+            },
+            "description" : "The figure's provenance"
+          },
+          "400" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProvenanceResponse"
+                }
+              }
+            },
+            "description" : "Not a figure key"
+          },
+          "404" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProvenanceResponse"
+                }
+              }
+            },
+            "description" : "No such figure for this persona"
+          }
+        },
+        "summary" : "Where a figure comes from: source, inputs, assumptions and checks",
+        "tags" : [ "provenance" ]
+      }
     }
   },
   "components" : {
     "schemas" : {
+      "Figure" : {
+        "type" : "object",
+        "description" : "A figure from Fine's calculation engine with the key of its provenance",
+        "properties" : {
+          "label" : {
+            "type" : "string"
+          },
+          "provId" : {
+            "type" : "string",
+            "pattern" : "^[0-9a-f]{16}$"
+          },
+          "unit" : {
+            "type" : "string",
+            "enum" : [ "EUR", "FRACTION", "PP", "MONTHS", "YEARS", "COUNT" ]
+          },
+          "value" : {
+            "type" : "string",
+            "description" : "Decimal string",
+            "example" : "1974.00",
+            "pattern" : "^-?\\d+(\\.\\d+)?$"
+          }
+        },
+        "required" : [ "label", "provId", "unit", "value" ]
+      },
+      "HomeOverview" : {
+        "type" : "object",
+        "properties" : {
+          "currentAccount" : {
+            "$ref" : "#/components/schemas/Figure"
+          }
+        },
+        "required" : [ "currentAccount" ]
+      },
       "LoginRequest" : {
         "type" : "object",
         "properties" : {
@@ -189,6 +295,126 @@
           }
         },
         "required" : [ "code", "status", "title" ]
+      },
+      "ProvenanceCheck" : {
+        "type" : "object",
+        "properties" : {
+          "description" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string"
+          },
+          "passed" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "description", "id", "passed" ]
+      },
+      "ProvenanceInput" : {
+        "type" : "object",
+        "properties" : {
+          "label" : {
+            "type" : "string"
+          },
+          "provId" : {
+            "type" : "string",
+            "description" : "The input's own figure key, where it is itself a figure"
+          },
+          "text" : {
+            "type" : "string",
+            "description" : "Absent for a number input"
+          },
+          "unit" : {
+            "type" : "string",
+            "description" : "Absent for a text input",
+            "enum" : [ "EUR", "FRACTION", "PP", "MONTHS", "YEARS", "COUNT" ]
+          },
+          "value" : {
+            "type" : "string",
+            "description" : "Decimal string; absent for a text input",
+            "pattern" : "^-?\\d+(\\.\\d+)?$"
+          }
+        },
+        "required" : [ "label" ]
+      },
+      "ProvenanceResponse" : {
+        "type" : "object",
+        "properties" : {
+          "asOf" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "assumptions" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "checks" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ProvenanceCheck"
+            }
+          },
+          "inputs" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ProvenanceInput"
+            }
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "provId" : {
+            "type" : "string",
+            "pattern" : "^[0-9a-f]{16}$"
+          },
+          "ruleParameters" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ProvenanceRuleParameter"
+            }
+          },
+          "source" : {
+            "$ref" : "#/components/schemas/ProvenanceSource"
+          },
+          "unit" : {
+            "type" : "string",
+            "enum" : [ "EUR", "FRACTION", "PP", "MONTHS", "YEARS", "COUNT" ]
+          },
+          "value" : {
+            "type" : "string",
+            "description" : "Decimal string",
+            "pattern" : "^-?\\d+(\\.\\d+)?$"
+          }
+        },
+        "required" : [ "asOf", "assumptions", "checks", "inputs", "label", "provId", "ruleParameters", "source", "unit", "value" ]
+      },
+      "ProvenanceRuleParameter" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "version" ]
+      },
+      "ProvenanceSource" : {
+        "type" : "object",
+        "properties" : {
+          "description" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "CORE_FUNCTION", "RULE_PARAMETER", "KB_CITATION" ]
+          }
+        },
+        "required" : [ "description", "kind" ]
       },
       "SessionInfo" : {
         "type" : "object",

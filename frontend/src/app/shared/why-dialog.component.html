@@ -1,0 +1,78 @@
+@let figure = current();
+<h2 mat-dialog-title #heading tabindex="-1">
+  @if (figure) {
+    {{ figure.label }}: <span class="figure">{{ figure.value | figure: figure.unit }}</span>
+  } @else {
+    Where this number comes from
+  }
+</h2>
+
+<mat-dialog-content>
+  @if (loading() && !figure) {
+    <p class="status" role="status">Loading…</p>
+  } @else if (failed()) {
+    <p class="status" role="alert">We couldn't load this explanation. Please try again later.</p>
+  } @else if (figure) {
+    <section class="section">
+      <h3>Where this number comes from</h3>
+      <p class="sub">{{ figure.source.description }}</p>
+    </section>
+
+    <section class="section">
+      <h3>What went in</h3>
+      <dl class="inputs">
+        @for (input of figure.inputs; track $index) {
+          <div class="input">
+            <dt>{{ input.label }}</dt>
+            <dd class="figure">
+              @if (input.value !== undefined && input.unit) {
+                {{ input.value | figure: input.unit }}
+              } @else {
+                {{ input.text }}
+              }
+            </dd>
+            <dd class="why-cell">
+              @if (input.provId; as id) {
+                <button type="button" class="why" (click)="open(id)">Why?</button>
+              }
+            </dd>
+          </div>
+        }
+      </dl>
+    </section>
+
+    <section class="section">
+      <h3>Assumptions</h3>
+      <ul class="sub">
+        @for (assumption of figure.assumptions; track $index) {
+          <li>{{ assumption }}</li>
+        }
+      </ul>
+    </section>
+
+    <section class="section">
+      <h3>Checks</h3>
+      @if (figure.checks.length === 0) {
+        <p class="sub">No checks apply to this figure.</p>
+      } @else {
+        <ul class="checks">
+          @for (check of figure.checks; track check.id) {
+            <li>
+              <span class="mark" aria-hidden="true">{{ check.passed ? '✔' : '✘' }}</span>
+              <span class="visually-hidden">{{ check.passed ? 'Passed:' : 'Not passed:' }}</span>
+              {{ check.description }}
+              <small>{{ check.id }}</small>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  @if (canGoBack()) {
+    <button mat-button type="button" class="back" (click)="back()">Back</button>
+  }
+  <button mat-stroked-button type="button" class="close" mat-dialog-close>Close</button>
+</mat-dialog-actions>

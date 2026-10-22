@@ -2,7 +2,7 @@ package de.financetool.personas.application;
 
 import de.financetool.personas.PersonaDirectory;
 import de.financetool.personas.PersonaSummary;
-import de.financetool.personas.RequestContextFactory;
+import de.financetool.shared.RequestContextFactory;
 import de.financetool.shared.PersonaScope;
 import de.financetool.shared.RequestContext;
 import java.time.LocalDate;
