@@ -132,6 +132,25 @@
         "tags" : [ "overview" ]
       }
     },
+    "/api/overview/wealth" : {
+      "get" : {
+        "operationId" : "wealth",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WealthOverview"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "The Wealth & Retirement tab: holdings, savings plans and the goal projection",
+        "tags" : [ "overview" ]
+      }
+    },
     "/api/persona" : {
       "get" : {
         "operationId" : "current",
@@ -320,6 +339,29 @@
         },
         "required" : [ "date", "expected", "high", "low" ]
       },
+      "Holding" : {
+        "type" : "object",
+        "description" : "A holding in the securities account",
+        "properties" : {
+          "assetClass" : {
+            "type" : "string",
+            "description" : "Asset class in plain words",
+            "example" : "Equity ETF"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "units" : {
+            "type" : "string",
+            "example" : "17.842300",
+            "pattern" : "^-?\\d+(\\.\\d+)?$"
+          },
+          "value" : {
+            "$ref" : "#/components/schemas/Figure"
+          }
+        },
+        "required" : [ "assetClass", "name", "units", "value" ]
+      },
       "HomeOverview" : {
         "type" : "object",
         "properties" : {
@@ -440,6 +482,83 @@
           }
         },
         "required" : [ "code", "status", "title" ]
+      },
+      "Projection" : {
+        "type" : "object",
+        "description" : "Where the investments may lead: a range, not a promise",
+        "properties" : {
+          "assumptions" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "monthlyContribution" : {
+            "$ref" : "#/components/schemas/Figure"
+          },
+          "p10" : {
+            "$ref" : "#/components/schemas/Figure"
+          },
+          "p50" : {
+            "$ref" : "#/components/schemas/Figure"
+          },
+          "p50TodaysMoney" : {
+            "$ref" : "#/components/schemas/Figure"
+          },
+          "p90" : {
+            "$ref" : "#/components/schemas/Figure"
+          },
+          "paidIn" : {
+            "$ref" : "#/components/schemas/Figure"
+          },
+          "points" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ProjectionPoint"
+            }
+          },
+          "provId" : {
+            "type" : "string",
+            "description" : "Key of the projection's provenance (its middle outcome)",
+            "pattern" : "^[0-9a-f]{16}$"
+          },
+          "startingValue" : {
+            "$ref" : "#/components/schemas/Figure"
+          },
+          "wholeEuros" : {
+            "$ref" : "#/components/schemas/WholeEuros"
+          },
+          "years" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 1
+          }
+        },
+        "required" : [ "assumptions", "monthlyContribution", "p10", "p50", "p50TodaysMoney", "p90", "paidIn", "points", "provId", "startingValue", "wholeEuros", "years" ]
+      },
+      "ProjectionPoint" : {
+        "type" : "object",
+        "description" : "The projection's percentiles at the end of one year (EUR)",
+        "properties" : {
+          "p10" : {
+            "type" : "string",
+            "pattern" : "^-?\\d+(\\.\\d+)?$"
+          },
+          "p50" : {
+            "type" : "string",
+            "pattern" : "^-?\\d+(\\.\\d+)?$"
+          },
+          "p90" : {
+            "type" : "string",
+            "pattern" : "^-?\\d+(\\.\\d+)?$"
+          },
+          "year" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 1
+          }
+        },
+        "required" : [ "p10", "p50", "p90", "year" ]
       },
       "ProvenanceCheck" : {
         "type" : "object",
@@ -571,6 +690,25 @@
         },
         "required" : [ "description", "kind" ]
       },
+      "SavingsPlan" : {
+        "type" : "object",
+        "description" : "An active savings plan",
+        "properties" : {
+          "dayOfMonth" : {
+            "type" : "integer",
+            "format" : "int32",
+            "maximum" : 31,
+            "minimum" : 1
+          },
+          "monthlyAmount" : {
+            "$ref" : "#/components/schemas/Figure"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "dayOfMonth", "monthlyAmount", "name" ]
+      },
       "SessionInfo" : {
         "type" : "object",
         "properties" : {
@@ -583,6 +721,47 @@
           }
         },
         "required" : [ "displayName", "role" ]
+      },
+      "WealthOverview" : {
+        "type" : "object",
+        "properties" : {
+          "holdings" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Holding"
+            }
+          },
+          "projection" : {
+            "$ref" : "#/components/schemas/Projection",
+            "description" : "Absent without holdings and savings plans"
+          },
+          "savingsPlans" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/SavingsPlan"
+            }
+          }
+        },
+        "required" : [ "holdings", "savingsPlans" ]
+      },
+      "WholeEuros" : {
+        "type" : "object",
+        "description" : "The horizon percentiles in whole euros (half up) with thousands separators and a real minus sign, for the summary sentence",
+        "properties" : {
+          "p10" : {
+            "type" : "string",
+            "example" : "38,120"
+          },
+          "p50" : {
+            "type" : "string",
+            "example" : "71,450"
+          },
+          "p90" : {
+            "type" : "string",
+            "example" : "139,800"
+          }
+        },
+        "required" : [ "p10", "p50", "p90" ]
       }
     }
   }

@@ -13,6 +13,8 @@ export type { Home$Params as Home$Params } from './fn/overview/home';
 export { home as home } from './fn/overview/home';
 export type { Liquidity$Params as Liquidity$Params } from './fn/overview/liquidity';
 export { liquidity as liquidity } from './fn/overview/liquidity';
+export type { Wealth$Params as Wealth$Params } from './fn/overview/wealth';
+export { wealth as wealth } from './fn/overview/wealth';
 export type { Current$Params as Current$Params } from './fn/persona/current';
 export { current as current } from './fn/persona/current';
 export type { Show$Params as Show$Params } from './fn/provenance/show';

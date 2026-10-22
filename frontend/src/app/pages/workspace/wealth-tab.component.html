@@ -1,0 +1,104 @@
+@let s = state();
+@if (s.status === 'ready') {
+  @let w = s.wealth;
+  @if (w.holdings.length === 0 && w.savingsPlans.length === 0) {
+    <section class="card empty">
+      <p>You don't have any investments or savings plans yet.</p>
+    </section>
+  } @else {
+    <div class="tiles">
+      @for (h of w.holdings; track $index) {
+        <section class="card tile holding" [attr.aria-label]="h.name">
+          <h2 class="label">{{ h.name }}</h2>
+          <div class="main">
+            <span class="figure-lg">{{ h.value.value | figure: h.value.unit }}</span>
+            <app-why-link [provId]="h.value.provId" />
+          </div>
+          <p class="supporting">{{ h.assetClass }}, {{ h.units | figure: 'COUNT' }} units</p>
+        </section>
+      }
+      @for (p of w.savingsPlans; track $index) {
+        <section class="card tile plan" [attr.aria-label]="p.name">
+          <h2 class="label">{{ p.name }}</h2>
+          <div class="main">
+            <span class="figure-lg">{{
+              p.monthlyAmount.value | figure: p.monthlyAmount.unit
+            }}</span>
+            <app-why-link [provId]="p.monthlyAmount.provId" />
+          </div>
+          <p class="supporting">a month, on day {{ p.dayOfMonth }}</p>
+        </section>
+      }
+    </div>
+
+    @if (w.projection; as pr) {
+      <section class="card projection" aria-labelledby="wealth-projection-title">
+        <div class="projection-head">
+          <h2 id="wealth-projection-title" class="label">Where your investments may lead</h2>
+          <app-why-link [provId]="pr.provId" />
+        </div>
+        <p class="summary">
+          Between {{ pr.wholeEuros.p10 }} and {{ pr.wholeEuros.p90 }} EUR after
+          {{ pr.years }} years. The middle outcome is {{ pr.wholeEuros.p50 }} EUR. This is a range,
+          not a promise.
+        </p>
+        <div
+          class="chart"
+          echarts
+          aria-hidden="true"
+          [options]="chartOptions()!"
+          [initOpts]="{ renderer: 'svg' }"
+        ></div>
+        <table class="visually-hidden">
+          <caption>
+            Goal projection by year
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Year</th>
+              <th scope="col">{{ legend.lower }}</th>
+              <th scope="col">{{ legend.middle }}</th>
+              <th scope="col">{{ legend.higher }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of pr.points; track p.year) {
+              <tr>
+                <th scope="row">{{ p.year }}</th>
+                <td>{{ p.p10 | figure: 'EUR' }}</td>
+                <td>{{ p.p50 | figure: 'EUR' }}</td>
+                <td>{{ p.p90 | figure: 'EUR' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+        <dl class="figures">
+          @for (f of figureRows(); track f.figure.provId) {
+            <div class="figure-row">
+              <dt>{{ f.name }}</dt>
+              <dd>
+                {{ f.figure.value | figure: f.figure.unit }}
+                <app-why-link [provId]="f.figure.provId" />
+              </dd>
+            </div>
+          }
+        </dl>
+        <h3 class="assumptions-title">Assumptions</h3>
+        <ul class="assumptions">
+          @for (a of pr.assumptions; track $index) {
+            <li>{{ a }}</li>
+          }
+        </ul>
+      </section>
+    }
+  }
+} @else if (s.status === 'failed') {
+  <p class="error" role="alert">We couldn't load your wealth overview. Please try again later.</p>
+} @else {
+  <div class="tiles">
+    @for (i of [1, 2, 3]; track i) {
+      <div class="card skeleton" aria-hidden="true"></div>
+    }
+  </div>
+  <span class="visually-hidden" role="status">Loading your wealth overview…</span>
+}

@@ -4,6 +4,7 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { AppHeaderComponent } from '../../shell/app-header.component';
 import { HomeTabComponent } from './home-tab.component';
 import { LiquidityTabComponent } from './liquidity-tab.component';
+import { WealthTabComponent } from './wealth-tab.component';
 
 /** The Overview tabs; the active one lives in `?tab=` so reloads and deep links keep it. */
 export const OVERVIEW_TABS = [
@@ -18,7 +19,13 @@ export type OverviewTab = (typeof OVERVIEW_TABS)[number]['key'];
 /** Workspace shell: Financial Overview on the left, chat column on the right. */
 @Component({
   selector: 'app-workspace-page',
-  imports: [AppHeaderComponent, HomeTabComponent, LiquidityTabComponent, MatTabsModule],
+  imports: [
+    AppHeaderComponent,
+    HomeTabComponent,
+    LiquidityTabComponent,
+    WealthTabComponent,
+    MatTabsModule,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './workspace.page.html',
   styleUrl: './workspace.page.scss',

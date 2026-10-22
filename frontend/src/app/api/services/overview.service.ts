@@ -16,6 +16,9 @@ import { HomeOverview } from '../models/home-overview';
 import { liquidity } from '../fn/overview/liquidity';
 import { Liquidity$Params } from '../fn/overview/liquidity';
 import { LiquidityOverview } from '../models/liquidity-overview';
+import { wealth } from '../fn/overview/wealth';
+import { Wealth$Params } from '../fn/overview/wealth';
+import { WealthOverview } from '../models/wealth-overview';
 
 
 /**
@@ -94,6 +97,41 @@ export class OverviewService extends BaseService {
     const resp = this.liquidity$Response(params, context);
     return resp.pipe(
       map((r: StrictHttpResponse<LiquidityOverview>): LiquidityOverview => r.body)
+    );
+  }
+
+  /** Path part for operation `wealth()` */
+  static readonly WealthPath = '/api/overview/wealth';
+
+  /**
+   * The Wealth & Retirement tab: holdings, savings plans and the goal projection.
+   *
+   *
+   *
+   * This method provides access to the full `HttpResponse`, allowing access to response headers.
+   * To access only the response body, use `wealth()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  wealth$Response(params?: Wealth$Params, context?: HttpContext): Observable<StrictHttpResponse<WealthOverview>> {
+    const obs = wealth(this.http, this.rootUrl, params, context);
+    return obs;
+  }
+
+  /**
+   * The Wealth & Retirement tab: holdings, savings plans and the goal projection.
+   *
+   *
+   *
+   * This method provides access only to the response body.
+   * To access the full response (for headers, for example), `wealth$Response()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  wealth(params?: Wealth$Params, context?: HttpContext): Observable<WealthOverview> {
+    const resp = this.wealth$Response(params, context);
+    return resp.pipe(
+      map((r: StrictHttpResponse<WealthOverview>): WealthOverview => r.body)
     );
   }
 

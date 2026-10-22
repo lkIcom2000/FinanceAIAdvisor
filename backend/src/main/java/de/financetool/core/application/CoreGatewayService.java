@@ -5,6 +5,7 @@ import de.financetool.audit.EvidenceOrigin;
 import de.financetool.audit.EvidenceStore;
 import de.financetool.audit.Provenance;
 import de.financetool.bank.AccountType;
+import de.financetool.bank.AssetClass;
 import de.financetool.bank.BankReadPort;
 import de.financetool.bank.BankSnapshot;
 import de.financetool.core.CoreGateway;
@@ -19,16 +20,20 @@ import de.financetool.core.domain.Figure;
 import de.financetool.core.domain.FigureKey;
 import de.financetool.core.domain.LedgerEntry;
 import de.financetool.core.domain.Liquidity;
+import de.financetool.core.domain.Investments;
 import de.financetool.core.domain.LiquidityFigures;
+import de.financetool.core.domain.MonteCarloProjection;
 import de.financetool.core.domain.RuleParameterValue;
 import de.financetool.core.domain.ShortfallDetection;
 import de.financetool.core.domain.VariableSpending;
+import de.financetool.core.domain.WealthFigures;
 import de.financetool.knowledge.RuleParamPort;
 import de.financetool.knowledge.RuleParameter;
 import de.financetool.shared.RequestContext;
 import de.financetool.shared.domain.SourcedNumber;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -45,11 +50,14 @@ class CoreGatewayService implements CoreGateway {
     private final BankReadPort bank;
     private final EvidenceStore evidence;
     private final RuleParamPort ruleParameters;
+    private final IndexReturns indexReturns;
 
-    CoreGatewayService(BankReadPort bank, EvidenceStore evidence, RuleParamPort ruleParameters) {
+    CoreGatewayService(BankReadPort bank, EvidenceStore evidence, RuleParamPort ruleParameters,
+            IndexReturns indexReturns) {
         this.bank = bank;
         this.evidence = evidence;
         this.ruleParameters = ruleParameters;
+        this.indexReturns = indexReturns;
     }
 
     @Override
@@ -118,6 +126,59 @@ class CoreGatewayService implements CoreGateway {
                 shortfall.shortfallDate(), shortfall.lowestDate());
     }
 
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public WealthFigures wealth(RequestContext context, EvidenceOrigin origin) {
+        LocalDate asOf = context.asOf();
+        BankSnapshot snapshot = bank.snapshot(context.personaId(), asOf);
+
+        List<WealthFigures.Holding> holdings = snapshot.holdings().stream()
+                .map(h -> new WealthFigures.Holding(h.name(), assetClass(h.assetClass()), h.units(),
+                        record(context, origin, Investments.holdingValue(h.id().toString(), h.name(), h.units(),
+                                h.unitPrice(), h.valuationDate()), List.of(), Map.of())))
+                .toList();
+        List<WealthFigures.SavingsPlan> plans = snapshot.savingsPlans().stream()
+                .filter(p -> !p.startDate().isAfter(asOf))
+                .map(p -> new WealthFigures.SavingsPlan(p.name(),
+                        record(context, origin, Investments.savingsPlanAmount(p.id().toString(), p.name(),
+                                p.amount(), p.dayOfMonth(), p.startDate()), List.of(), Map.of()),
+                        p.dayOfMonth()))
+                .toList();
+        if (holdings.isEmpty() && plans.isEmpty()) {
+            return new WealthFigures(List.of(), List.of(), null, null, List.of(), List.of());
+        }
+
+        CoreResult totals = record(context, origin, Investments.totals(
+                holdings.stream().map(h -> h.value().number(Investments.HOLDING_OUTPUT)).toList(),
+                holdings.stream().map(WealthFigures.Holding::name).toList(),
+                plans.stream().map(p -> p.amount().number(Investments.PLAN_OUTPUT)).toList(),
+                plans.stream().map(WealthFigures.SavingsPlan::name).toList()), List.of(), Map.of());
+
+        RuleParameterValue horizon = parameter(MonteCarloProjection.HORIZON, asOf);
+        RuleParameterValue ter = parameter(MonteCarloProjection.TER, asOf);
+        RuleParameterValue inflation = parameter(MonteCarloProjection.INFLATION, asOf);
+        Map<String, RuleParameterValue> parameters = new HashMap<>(Map.of(horizon.key(), horizon,
+                ter.key(), ter, inflation.key(), inflation));
+        MonteCarloProjection.ReturnModel model;
+        Optional<IndexReturns.Series> series = indexReturns.series()
+                .filter(s -> s.monthlyReturns().size() > MonteCarloProjection.MIN_BOOTSTRAP_MONTHS);
+        if (series.isPresent()) {
+            model = new MonteCarloProjection.Bootstrap(series.get().source(), series.get().monthlyReturns());
+        } else {
+            RuleParameterValue mean = parameter(MonteCarloProjection.MEAN_RETURN, asOf);
+            RuleParameterValue volatility = parameter(MonteCarloProjection.VOLATILITY, asOf);
+            parameters.put(mean.key(), mean);
+            parameters.put(volatility.key(), volatility);
+            model = new MonteCarloProjection.Parametric(mean, volatility);
+        }
+        MonteCarloProjection projection = MonteCarloProjection.project(totals.number(Investments.OUTPUT_INITIAL),
+                totals.number(Investments.OUTPUT_MONTHLY), horizon, MonteCarloProjection.DEFAULT_PATHS,
+                context.seeds().core(), model, ter, inflation);
+        CoreResult projectionResult = record(context, origin, projection.computation(), List.of(), parameters);
+        return new WealthFigures(holdings, plans, totals, projectionResult, projection.points(),
+                projection.assumptions());
+    }
+
     private static BankSnapshot.Account currentAccount(BankSnapshot snapshot, RequestContext context) {
         return snapshot.accounts().stream()
                 .filter(a -> a.type() == AccountType.CURRENT)
@@ -138,6 +199,14 @@ class CoreGatewayService implements CoreGateway {
     private static LedgerEntry entry(BankSnapshot.Transaction t) {
         return new LedgerEntry(t.bookingDate(), t.amount(), t.category() == null ? null : t.category().name(),
                 t.reference() != null ? t.reference() : t.counterparty(), t.recurrenceId(), t.contractId() != null);
+    }
+
+    private static String assetClass(AssetClass assetClass) {
+        return switch (assetClass) {
+            case EQUITY_ETF -> "Equity ETF";
+            case BOND_ETF -> "Bond ETF";
+            case MONEY_MARKET_FUND -> "Money market fund";
+        };
     }
 
     private static String premiumDescription(BankSnapshot.Contract contract) {

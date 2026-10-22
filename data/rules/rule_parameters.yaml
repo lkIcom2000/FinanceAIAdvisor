@@ -28,3 +28,40 @@ parameters:
     valid_to: null
     source: "Design parameter (Story 2.3): range of the cash-flow forecast around the average variable spending"
     version: "1"
+  # Goal projection (Story 2.4); values from experiments/data/rules/rule_parameters.yaml.
+  # Mean return and volatility are used only while no historical index series is present in data/index/.
+  - key: projection_equity_mean_return
+    value: 0.06
+    unit: FRACTION
+    valid_from: 2020-01-01
+    valid_to: null
+    source: "Design assumption; replace by bootstrap on historical index data (data/index/) when available"
+    version: "1"
+  - key: projection_equity_volatility
+    value: 0.15
+    unit: FRACTION
+    valid_from: 2020-01-01
+    valid_to: null
+    source: "Design assumption; replace by bootstrap on historical index data (data/index/) when available"
+    version: "1"
+  - key: reference_ter_world_equity_etf
+    value: 0.002
+    unit: FRACTION
+    valid_from: 2020-01-01
+    valid_to: null
+    source: "Design parameter: typical TER of a broad world equity ETF"
+    version: "1"
+  - key: projection_inflation
+    value: 0.02
+    unit: FRACTION
+    valid_from: 2020-01-01
+    valid_to: null
+    source: "Design assumption (ECB medium-term inflation target)"
+    version: "1"
+  - key: projection_default_horizon_years
+    value: 30
+    unit: YEARS
+    valid_from: 2020-01-01
+    valid_to: null
+    source: "Design parameter (Story 2.4): default horizon of the goal projection"
+    version: "1"

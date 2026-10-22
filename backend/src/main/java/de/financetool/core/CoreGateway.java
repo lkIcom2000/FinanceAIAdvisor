@@ -3,6 +3,7 @@ package de.financetool.core;
 import de.financetool.audit.EvidenceOrigin;
 import de.financetool.core.domain.CoreResult;
 import de.financetool.core.domain.LiquidityFigures;
+import de.financetool.core.domain.WealthFigures;
 import de.financetool.shared.RequestContext;
 
 /**
@@ -23,4 +24,13 @@ public interface CoreGateway {
      * @throws IllegalStateException if a Rule Parameter has no version valid at {@code asOf}
      */
     LiquidityFigures liquidity(RequestContext context, EvidenceOrigin origin);
+
+    /**
+     * The wealth figures at the end of {@code asOf}: each holding's value, each active savings plan's monthly amount
+     * and, if there is at least one of them, the seeded goal projection (seed {@code context.seeds().core()}) with its
+     * starting value and monthly contribution.
+     *
+     * @throws IllegalStateException if a Rule Parameter has no version valid at {@code asOf}
+     */
+    WealthFigures wealth(RequestContext context, EvidenceOrigin origin);
 }
