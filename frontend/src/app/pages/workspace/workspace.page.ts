@@ -2,13 +2,14 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
+  afterNextRender,
   computed,
   inject,
   input,
   viewChild,
 } from '@angular/core';
 import { Router } from '@angular/router';
-import { MatTabsModule } from '@angular/material/tabs';
+import { MatTabGroup, MatTabsModule } from '@angular/material/tabs';
 import { AppHeaderComponent } from '../../shell/app-header.component';
 import { HomeTabComponent } from './home-tab.component';
 import { LiquidityTabComponent } from './liquidity-tab.component';
@@ -55,13 +56,18 @@ export class WorkspacePage {
   );
 
   private readonly overview = viewChild.required<ElementRef<HTMLElement>>('overview');
+  private readonly tabGroup = viewChild.required(MatTabGroup);
   private readonly scrollPositions = new Map<OverviewTab, number>();
-  private shownTab: OverviewTab | null = null;
+  /** The index of the tab whose content is on screen, read from the tab group once a switch has settled. */
+  private shownIndex = 0;
 
+  constructor() {
+    afterNextRender(() => (this.shownIndex = this.tabGroup().selectedIndex ?? 0));
+  }
+
+  /** Runs on every index change of the tab group, from a click or from `?tab=`. */
   protected select(index: number): void {
-    const scroller = this.overview().nativeElement;
-    this.scrollPositions.set(this.shownTab ?? OVERVIEW_TABS[this.selectedIndex()].key, scroller.scrollTop);
-    this.shownTab = OVERVIEW_TABS[index].key;
+    this.scrollPositions.set(OVERVIEW_TABS[this.shownIndex].key, this.overview().nativeElement.scrollTop);
     void this.router.navigate([], {
       queryParams: { tab: OVERVIEW_TABS[index].key },
       queryParamsHandling: 'merge',
@@ -71,7 +77,8 @@ export class WorkspacePage {
 
   /** After the tab switch has settled, return to the scroll position the shown tab had (top on its first visit). */
   protected restoreScroll(): void {
-    const tab = this.shownTab ?? OVERVIEW_TABS[this.selectedIndex()].key;
-    this.overview().nativeElement.scrollTop = this.scrollPositions.get(tab) ?? 0;
+    this.shownIndex = this.tabGroup().selectedIndex ?? 0;
+    this.overview().nativeElement.scrollTop =
+      this.scrollPositions.get(OVERVIEW_TABS[this.shownIndex].key) ?? 0;
   }
 }

@@ -1,6 +1,7 @@
 import { HttpTestingController } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
+import { By } from '@angular/platform-browser';
 import { provideEchartsCore } from 'ngx-echarts';
 import { LiquidityOverview } from '../../api/models/liquidity-overview';
 import { httpTestingProviders } from '../../testing/session-testing';
@@ -134,6 +135,19 @@ describe('LiquidityTabComponent', () => {
     const marker = element.querySelector<HTMLButtonElement>('button.marker');
     expect(marker?.textContent?.trim()).toBe('−90 EUR on 1 Nov');
     marker?.click();
+    expect(open).toHaveBeenCalledOnce();
+    expect(open.mock.calls[0][1]?.data).toEqual({ provId: 'a00000000000000b' });
+  });
+
+  it('opens the shortfall Why? from a click on the chart marker, and nothing from other chart clicks', async () => {
+    const { fixture } = await render(lena());
+    const open = vi.spyOn(TestBed.inject(MatDialog), 'open').mockReturnValue(undefined as never);
+    const chart = fixture.debugElement.query(By.css('[echarts]'));
+
+    chart.triggerEventHandler('chartClick', { componentType: 'series' });
+    expect(open).not.toHaveBeenCalled();
+
+    chart.triggerEventHandler('chartClick', { componentType: 'markPoint' });
     expect(open).toHaveBeenCalledOnce();
     expect(open.mock.calls[0][1]?.data).toEqual({ provId: 'a00000000000000b' });
   });

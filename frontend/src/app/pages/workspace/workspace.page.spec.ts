@@ -129,6 +129,39 @@ describe('WorkspacePage', () => {
     expect(top).toBe(40);
   });
 
+  it('keeps the scroll position of each tab when ?tab= changes the tab', async () => {
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const fixture = TestBed.createComponent(WorkspacePage);
+    fixture.componentRef.setInput('tab', 'home');
+    fixture.detectChanges();
+    answerPersona();
+    await fixture.whenStable();
+    const overview = (fixture.nativeElement as HTMLElement).querySelector('.overview') as HTMLElement;
+    let top = 0;
+    Object.defineProperty(overview, 'scrollTop', {
+      configurable: true,
+      get: () => top,
+      set: (value: number) => (top = value),
+    });
+    const switchTo = async (tab: string) => {
+      fixture.componentRef.setInput('tab', tab);
+      fixture.detectChanges();
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      await fixture.whenStable();
+    };
+
+    top = 300;
+    await switchTo('wealth');
+    expect(top).toBe(0);
+
+    top = 70;
+    await switchTo('home');
+    expect(top).toBe(300);
+
+    await switchTo('wealth');
+    expect(top).toBe(70);
+  });
+
   it('keeps the chat at 440 px, 500 px from 1440 px, next to an Overview of at least 560 px', () => {
     TestBed.createComponent(WorkspacePage).detectChanges();
     const rules = Array.from(document.styleSheets).flatMap((sheet) => Array.from(sheet.cssRules));

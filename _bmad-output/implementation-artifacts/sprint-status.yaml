@@ -63,7 +63,7 @@ development_status:
   2-2-core-gateway-figure-keys-and-the-why-dialog: done  # start 2026-10-21T23:30+02:00, end 2026-10-22; A5 done, A7 partly (evidence path); 4-layer review, 7 fixes
   2-3-liquidity-tab-with-cash-flow-forecast-and-emergency-fund: done  # start 2026-10-22, end 2026-10-22; review deferred to joint review 2.3-2.5
   2-4-wealth-retirement-tab-with-goal-projection-ranges: done  # start 2026-10-22, end 2026-10-22; review deferred to joint review 2.3-2.5
-  2-5-home-tab-with-summary-and-your-insurance: review  # start 2026-10-22
+  2-5-home-tab-with-summary-and-your-insurance: done  # start 2026-10-22, end 2026-10-22; joint review 2.3-2.5 (13 fixes)
   epic-2-retrospective: optional
 
   epic-3: backlog  # [critical-path]

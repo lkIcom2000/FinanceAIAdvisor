@@ -50,4 +50,10 @@ public final class TestContexts {
         return new RequestContext(AGENT, FINGERPRINT, THRESHOLDS, RequestContext.NO_KB_SNAPSHOT, SEEDS, asOf,
                 personaId, null);
     }
+
+    /** A context for p-lena at {@link #AS_OF} with other thresholds or seeds. */
+    public static RequestContext context(AutonomyThresholds thresholds, AgentConfiguration.Seeds seeds) {
+        return new RequestContext(AGENT, FINGERPRINT, thresholds, RequestContext.NO_KB_SNAPSHOT, seeds, AS_OF, LENA,
+                null);
+    }
 }

@@ -14,7 +14,7 @@ import java.util.Objects;
 /**
  * Core function {@code variableSpending}: the mean monthly variable spending of the last three complete months. Pure.
  * Variable spending is every debit on the current account that belongs to no standing order or direct debit
- * ({@code recurrenceId}), is no premium and is no transfer between own accounts.
+ * ({@code recurrenceId}), is no premium, no savings plan payment and no transfer between own accounts.
  */
 public final class VariableSpending {
 
@@ -33,7 +33,8 @@ public final class VariableSpending {
 
     static boolean isVariable(LedgerEntry entry) {
         return entry.isDebit() && entry.recurrenceId() == null && !entry.premium()
-                && !LedgerEntry.TRANSFER.equals(entry.category());
+                && !LedgerEntry.TRANSFER.equals(entry.category())
+                && !LedgerEntry.SAVINGS_PLAN.equals(entry.category());
     }
 
     /** Variable spending in {@code month}, as a positive amount. */
@@ -72,7 +73,8 @@ public final class VariableSpending {
                 keyInputs, inputs,
                 List.of(new Figure(OUTPUT, "Average monthly variable spending", mean, Unit.EUR)),
                 List.of("Variable spending is everything you paid from your current account that is not a regular"
-                                + " payment, an insurance premium or a transfer between your own accounts.",
+                                + " payment, an insurance premium, a savings plan payment or a transfer between your own"
+                                + " accounts.",
                         "Uses the average of the last " + MONTHS + " complete months (" + Wording.month(first)
                                 + " to " + Wording.month(last) + ")."),
                 Map.of());

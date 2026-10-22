@@ -34,6 +34,14 @@ class CsvIndexReturnsTest {
     }
 
     @Test
+    void anUpperCaseExtensionIsRead() throws Exception {
+        Path index = Files.createDirectories(data.resolve("index"));
+        Files.writeString(index.resolve("WORLD.CSV"), "month,return\n2020-01,0.012\n");
+
+        assertThat(new CsvIndexReturns(index).series().orElseThrow().source()).isEqualTo("WORLD.CSV");
+    }
+
+    @Test
     void aMalformedFileFailsNamingTheFile() throws Exception {
         Path index = Files.createDirectories(data.resolve("index"));
         Path file = index.resolve("world.csv");

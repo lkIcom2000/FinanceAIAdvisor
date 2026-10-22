@@ -10,6 +10,7 @@ import com.jayway.jsonpath.JsonPath;
 import de.financetool.PostgresIntegrationTest;
 import de.financetool.personas.PersonaClock;
 import de.financetool.shared.domain.PersonaId;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
@@ -65,6 +66,9 @@ class LiquidityOverviewEndToEndTest extends PostgresIntegrationTest {
 
         assertThat((String) JsonPath.read(body, "$.currentAccount.value")).isEqualTo("1974.00");
         assertThat((String) JsonPath.read(body, "$.overnightDeposit.unit")).isEqualTo("EUR");
+        assertThat(new BigDecimal((String) JsonPath.read(body, "$.liquidAssets.value"))).isEqualByComparingTo(
+                new BigDecimal((String) JsonPath.read(body, "$.currentAccount.value"))
+                        .add(new BigDecimal((String) JsonPath.read(body, "$.overnightDeposit.value"))));
         assertThat((String) JsonPath.read(body, "$.shortfall.amount.value")).isEqualTo("-90.00");
         assertThat((String) JsonPath.read(body, "$.shortfall.date")).isEqualTo("2026-11-01");
         assertThat((String) JsonPath.read(body, "$.shortfall.wholeEuros")).isEqualTo("-90");
@@ -113,6 +117,7 @@ class LiquidityOverviewEndToEndTest extends PostgresIntegrationTest {
         String shortfall = provenance(lena, JsonPath.read(body, "$.shortfall.amount.provId"));
         assertThat((String) JsonPath.read(shortfall, "$.inputs[0].provId"))
                 .isEqualTo(JsonPath.read(body, "$.forecast.provId"));
+        assertThat((String) JsonPath.read(shortfall, "$.checks[0].id")).isEqualTo("data-confidence");
 
         String target = provenance(lena, JsonPath.read(body, "$.emergencyFund.target.provId"));
         assertThat((List<String>) JsonPath.read(target, "$.ruleParameters[*].id"))
@@ -135,10 +140,11 @@ class LiquidityOverviewEndToEndTest extends PostgresIntegrationTest {
                 .andExpect(jsonPath("$.emergencyFund.current.value").value("300.00"))
                 .andExpect(jsonPath("$.emergencyFund.target.value").value("6000.00"));
 
-        mvc.perform(get("/api/overview/liquidity").session(login(mvc, "p-tim")))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.overnightDeposit").doesNotExist())
-                .andExpect(jsonPath("$.emergencyFund.current.value").value("0.00"));
+        String tim = liquidity(login(mvc, "p-tim"));
+        assertThat((Object) JsonPath.read(tim, "$.overnightDeposit")).isNull();
+        assertThat((String) JsonPath.read(tim, "$.emergencyFund.current.value")).isEqualTo("0.00");
+        assertThat((String) JsonPath.read(tim, "$.liquidAssets.value"))
+                .isEqualTo(JsonPath.read(tim, "$.currentAccount.value"));
     }
 
     @Test

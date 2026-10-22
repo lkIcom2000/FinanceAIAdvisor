@@ -6,6 +6,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -64,7 +65,7 @@ public final class InsurancePremium {
         return new Result(new CoreComputation(FUNCTION, "contract premium",
                 "Based on your " + type + " contract data.", keyInputs,
                 List.of(FigureInput.text("Contract", type),
-                        FigureInput.text("Payment interval", Character.toUpperCase(interval.charAt(0))
+                        FigureInput.text("Payment interval", interval.substring(0, 1).toUpperCase(Locale.ROOT)
                                 + interval.substring(1)),
                         FigureInput.text("Due date on file", Wording.date(contract.nextDueDate())),
                         FigureInput.text("Next due date", Wording.date(next))),

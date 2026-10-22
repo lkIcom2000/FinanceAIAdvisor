@@ -146,6 +146,9 @@ public record CashFlowForecast(LocalDate asOf, List<Point> points, List<String> 
         if (!BAND.equals(band.key())) {
             throw new IllegalArgumentException("expected Rule Parameter " + BAND + ", got " + band.key());
         }
+        if (band.value().signum() < 0 || band.value().compareTo(BigDecimal.ONE) >= 0) {
+            throw new IllegalArgumentException(BAND + " must be at least 0 and below 1, got " + band.value());
+        }
         LocalDate end = asOf.plusMonths(HORIZON_MONTHS);
         BigDecimal v = variableMonthly.value();
         BigDecimal vLow = v.multiply(BigDecimal.ONE.add(band.value()));

@@ -5,6 +5,7 @@ import de.financetool.shared.domain.Unit;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -68,7 +69,7 @@ public final class ShortfallDetection {
         CoreComputation computation = new CoreComputation(FUNCTION, "shortfall check",
                 "Based on your cash-flow forecast from " + from + " to " + to + ".",
                 Map.of("forecast", forecastFigure.provId()),
-                List.of(FigureInput.figure("Cash-flow forecast (" + forecastFigure.label().toLowerCase() + ")",
+                List.of(FigureInput.figure("Cash-flow forecast (" + forecastFigure.label().toLowerCase(Locale.ROOT) + ")",
                         forecastFigure)),
                 outputs,
                 List.of("Uses the expected balance of the forecast, not its possible range.",

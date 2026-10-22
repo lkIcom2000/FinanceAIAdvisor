@@ -10,7 +10,8 @@ import java.util.Objects;
 /**
  * Data Confidence: whether the transaction data is complete enough to act on. It is high when at least
  * {@code minCoverage} of the bookings in the last {@value #WINDOW_DAYS} days have a category and no gap between two
- * booking days (or between the last booking and {@code asOf}) is longer than {@code maxGapDays}. Pure; the thresholds
+ * booking days (or between the window start and the first booking, or between the last booking and {@code asOf}) is
+ * longer than {@code maxGapDays}. Pure; the thresholds
  * come from the configuration ({@code config/autonomy.yaml}).
  */
 public final class DataConfidence {
@@ -58,6 +59,7 @@ public final class DataConfidence {
             longestGap = Math.max(longestGap, ChronoUnit.DAYS.between(days.get(i - 1), days.get(i)));
         }
         if (!days.isEmpty()) {
+            longestGap = Math.max(longestGap, ChronoUnit.DAYS.between(windowStart, days.getFirst()));
             longestGap = Math.max(longestGap, ChronoUnit.DAYS.between(days.getLast(), asOf));
         }
         boolean high = !window.isEmpty() && coverage.compareTo(minCoverage) >= 0 && longestGap <= maxGapDays;

@@ -61,9 +61,13 @@ export class HomeTabComponent {
     const { contracts, flags } = s.home.insurance;
     return flags.map((flag: InsuranceFlag) => {
       if (flag.kind === 'DUPLICATE_COVERAGE') {
-        const holders = flag.contractIds
-          .map((id) => contracts.find((c) => c.id === id)?.policyholder)
-          .filter((h): h is string => !!h);
+        const holders = [
+          ...new Set(
+            flag.contractIds
+              .map((id) => contracts.find((c) => c.id === id)?.policyholder)
+              .filter((h): h is string => !!h),
+          ),
+        ];
         return {
           text: `You may be paying twice for ${flag.coverage} insurance`,
           holders: holders.length ? `Policies held by ${joinNames(holders)}` : null,

@@ -9,9 +9,15 @@ import de.financetool.audit.Provenance;
 import de.financetool.bank.AccountType;
 import de.financetool.bank.AssetClass;
 import de.financetool.bank.BankSnapshot;
+import de.financetool.bank.TransactionCategory;
+import de.financetool.bank.TransactionOrigin;
+import de.financetool.core.domain.MonteCarloProjection;
 import de.financetool.core.domain.WealthFigures;
 import de.financetool.knowledge.RuleParamPort;
 import de.financetool.knowledge.RuleParameter;
+import de.financetool.shared.RequestContext;
+import de.financetool.shared.config.AgentConfiguration;
+import de.financetool.shared.config.AutonomyThresholds;
 import de.financetool.testing.TestContexts;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -52,7 +58,9 @@ class CoreGatewayServiceTest {
 
     static final Map<String, String> PROJECTION_PARAMETERS = Map.of("projection_equity_mean_return", "0.06",
             "projection_equity_volatility", "0.15", "reference_ter_world_equity_etf", "0.002",
-            "projection_inflation", "0.02", "projection_default_horizon_years", "30");
+            "projection_inflation", "0.02", "projection_default_horizon_years", "30",
+            "forecast_variable_spending_band", "0.15", "emergency_fund_months_min", "3",
+            "emergency_fund_months_max", "6");
     static final RuleParamPort PARAMETERS = (key, asOf) -> new RuleParameter(key,
             new BigDecimal(PROJECTION_PARAMETERS.get(key)), "FRACTION", LocalDate.of(2020, 1, 1), null, "test", "1");
 
@@ -90,6 +98,62 @@ class CoreGatewayServiceTest {
             assertThat(h.assetClass()).isEqualTo("Equity ETF");
             assertThat(h.value().numbers().getFirst().value()).isEqualTo("1000.00");
         });
+    }
+
+    /** A current account with a categorised booking every third day over the last 90 days. */
+    static BankSnapshot everyThirdDay() {
+        UUID current = UUID.randomUUID();
+        List<BankSnapshot.Transaction> transactions = new ArrayList<>();
+        for (LocalDate day = TestContexts.AS_OF; day.isAfter(TestContexts.AS_OF.minusDays(90));
+                day = day.minusDays(3)) {
+            transactions.add(new BankSnapshot.Transaction(UUID.randomUUID(), current, day, new BigDecimal("-1.00"),
+                    TransactionCategory.GROCERIES, "Shop", null, null, null, TransactionOrigin.FIXTURE));
+        }
+        return new BankSnapshot(TestContexts.LENA, TestContexts.AS_OF,
+                List.of(new BankSnapshot.Account(current, AccountType.CURRENT, "Current account", "DE00",
+                        LocalDate.of(2025, 7, 1), new BigDecimal("100.00"), new BigDecimal("100.00"))),
+                List.of(), transactions, List.of(), List.of());
+    }
+
+    static Provenance.Check forecastConfidence(RequestContext context) {
+        List<EvidenceItem> stored = new ArrayList<>();
+        CoreGatewayService gateway = new CoreGatewayService((persona, asOf) -> everyThirdDay(), stored::addAll,
+                PARAMETERS, Optional::empty);
+        gateway.liquidity(context, EvidenceOrigin.OVERVIEW);
+        return stored.stream().map(i -> (Provenance) i.content())
+                .filter(p -> p.function().equals("cashFlowForecast"))
+                .findFirst().orElseThrow().checks().getFirst();
+    }
+
+    @Test
+    void theConfiguredThresholdsDecideTheDataConfidenceCheck() {
+        Provenance.Check passing = forecastConfidence(TestContexts.context());
+        assertThat(passing.id()).isEqualTo("data-confidence");
+        assertThat(passing.passed()).isTrue();
+
+        AutonomyThresholds strict = new AutonomyThresholds(TestContexts.PRD,
+                TestContexts.THRESHOLDS.investmentShareOfLiquidAssets(), new BigDecimal("0.95"), 2);
+        Provenance.Check failing = forecastConfidence(TestContexts.context(strict, TestContexts.SEEDS));
+        assertThat(failing.id()).isEqualTo("data-confidence");
+        assertThat(failing.passed()).isFalse();
+    }
+
+    @Test
+    void theProjectionUsesTheCoreSeedOfTheContext() {
+        CoreGatewayService gateway = new CoreGatewayService((persona, asOf) -> withHolding(true), items -> { },
+                PARAMETERS, Optional::empty);
+        AgentConfiguration.Seeds otherCore = new AgentConfiguration.Seeds(TestContexts.SEEDS.core() + 1,
+                TestContexts.SEEDS.llm());
+
+        BigDecimal p50 = gateway.wealth(TestContexts.context(), EvidenceOrigin.OVERVIEW).projection()
+                .number(MonteCarloProjection.OUTPUT_P50).value();
+        BigDecimal again = gateway.wealth(TestContexts.context(), EvidenceOrigin.OVERVIEW).projection()
+                .number(MonteCarloProjection.OUTPUT_P50).value();
+        BigDecimal other = gateway.wealth(TestContexts.context(TestContexts.THRESHOLDS, otherCore),
+                EvidenceOrigin.OVERVIEW).projection().number(MonteCarloProjection.OUTPUT_P50).value();
+
+        assertThat(again).isEqualTo(p50);
+        assertThat(other).isNotEqualTo(p50);
     }
 
     @Test

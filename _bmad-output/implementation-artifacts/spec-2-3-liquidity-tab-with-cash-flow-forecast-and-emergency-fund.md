@@ -71,6 +71,22 @@ deferred: []
 
 ## Review Triage Log
 
+### 2026-10-22 — Joint review pass 2.3–2.5 (Edge Case Hunter + Verification Gap; rows for Story 2.3)
+- verdicts (joint pass, all stories): 21 findings — high 0, medium 5, low 13, false 3, maybe-false 0; Story 2.3 rows: 12
+- findings:
+  - `[low]` `[patch]` EC: spending band not range-checked — CashFlowForecast rejects a band outside [0, 1).
+  - `[low]` `[reject]` EC: emergency-fund expenses with less than 12 months of history — all fixtures have 15 months; revisit when a shorter-history persona exists.
+  - `[low]` `[reject]` EC: variable spending with less than 3 months of history — same as above.
+  - `[low]` `[patch]` EC: SAVINGS_PLAN debit without recurrenceId counted as variable — excluded, as in EmergencyFundTarget.
+  - `[medium]` `[patch]` EC: DataConfidence ignores the gap before the first booking — leading (and trailing) gap included.
+  - `[low]` `[reject]` EC: second CURRENT/OVERNIGHT account dropped — the catalog enforces one CURRENT account; no fixture has two overnight deposits.
+  - `[false]` `[reject]` EC: contract starting after asOf enters the forecast — BankReadPort already filters contracts by startDate <= asOf (Story 2.1).
+  - `[low]` `[patch]` EC: default-locale toLowerCase — Locale.ROOT.
+  - `[medium]` `[patch]` VG: liquidAssets value never asserted — asserted for p-lena and p-tim.
+  - `[medium]` `[patch]` VG: shortfall data-confidence check and failing thresholds unverified — end-to-end assertion and a failing-threshold gateway test.
+  - `[medium]` `[patch]` VG: chart markPoint click never exercised — spec triggers chartClick.
+  - `[low]` `[reject]` VG other: test copies of the gateway mapping can drift — the end-to-end tests cover the same personas through the real gateway.
+
 ## Implementation Notes
 
 - No per-story review (user rule 2026-10-21): joint review of Stories 2.3–2.5 after 2.5 (Edge Case Hunter + Verification Gap only); this spec goes to done after verification with "review deferred to joint review 2.3-2.5".
@@ -104,3 +120,5 @@ Status: done — review deferred to joint review 2.3-2.5.
 **Verification:** backend `verify -Dfine.it.required=true` 207 tests, 0 failures, 0 skipped; frontend 38 tests, build green; `ngx-echarts@22.0.0` (2026-06-11) and `echarts@6.1.0` (2026-05-19) pinned. Live (image rebuilt, `data/` changed): Lena re-seeded with the new hash; `/api/overview/liquidity` current 1974.00, shortfall −90.00 on 2026-11-01, 92 daily points (1 Nov: low −166.65, expected −90.00, high −13.35), 5 assumptions; p-shortfall −82.04 on 2026-11-28; Marco no shortfall (implementer's check).
 
 **Residual risks:** UI not inspected in a browser (chart band and marker layout only covered by component specs with a stubbed chart); the Home current-account `provId` changed once (account type is now a key input).
+
+**Joint review 2.3–2.5 (2026-10-22):** Edge Case Hunter + Verification Gap over the combined diff; 21 findings, 13 patched in one commit (rows for this story in the Review Triage Log), 1 deferred (2.4), 7 rejected. After the fixes: backend 243 tests, 0 failures, 0 skipped; frontend 54 tests, build green.

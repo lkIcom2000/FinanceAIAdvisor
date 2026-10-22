@@ -2,7 +2,7 @@
 title: 'Story 2.5: Home tab with summary and "Your insurance"'
 type: 'feature'
 created: '2026-10-22'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'bb75de716e9ec76efd64414ce8dc04ba9df3cb68'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -63,6 +63,13 @@ deferred: []
 
 ## Review Triage Log
 
+### 2026-10-22 — Joint review pass 2.3–2.5 (Edge Case Hunter + Verification Gap; rows for Story 2.5)
+- verdicts (joint pass, all stories): 21 findings — high 0, medium 5, low 13, false 3, maybe-false 0; Story 2.5 rows: 3
+- findings:
+  - `[low]` `[patch]` EC: "Policies held by Jonas and Jonas" — holder names de-duplicated.
+  - `[low]` `[patch]` EC: scroll position stored under the cached tab after an external ?tab= change — tab derived from the selected index.
+  - `[false]` `[reject]` EC: interval words could violate the OpenAPI enum — PaymentInterval has exactly the three published values.
+
 ## Implementation Notes
 
 - No per-story review (user rule): after this story the joint review of Stories 2.3–2.5 runs with Edge Case Hunter + Verification Gap only; triage per finding into the affected story's spec; fixes as one commit "fix: code review of Stories 2.3-2.5".
@@ -84,3 +91,15 @@ deferred: []
 
 **Manual checks (if no CLI):**
 - Local run: Jonas `/api/overview/home` returns the duplicate flag citing both contracts; Lena's summary `provId`s equal `/api/overview/liquidity`.
+
+## Auto Run Result
+
+Status: done
+
+**Summary:** Pure Core functions `DuplicateCoverage`, `MissingEssentialCover` and `InsurancePremium` behind `CoreGateway.insurance`; `GET /api/overview/home` with the three-figure summary (same `provId`s as the Liquidity tab), shortfall callout, contracts and flags; Home tab with summary tiles, "Notifications" and "Your rules" empty states, "Your insurance" with plain-language flags; per-tab scroll memory; chat width rule moved into `workspace.page.scss`.
+
+**Verification:** before the review: backend 237 tests, frontend 51, build green; live (compose image rebuilt by the implementer instead of a local run, see Implementation Notes): Lena 1,974.00 / lowest −90.00 on 1 Nov with callout / emergency fund 5,700.00 of 5,993.49, summary keys equal Liquidity's; Jonas duplicate liability citing two contracts plus missing occupational disability; Tim both missing-cover lines.
+
+**Joint review 2.3–2.5 (2026-10-22):** Edge Case Hunter + Verification Gap over the combined diff; 21 findings, 13 patched in one commit (rows for this story in the Review Triage Log), 1 deferred (2.4), 7 rejected. After the fixes: backend 243 tests, 0 failures, 0 skipped; frontend 54 tests, build green.
+
+**Residual risks:** UI not inspected in a browser; scroll restore relies on the tab group's animation-done event; hidden-tab charts not checked after a window resize.

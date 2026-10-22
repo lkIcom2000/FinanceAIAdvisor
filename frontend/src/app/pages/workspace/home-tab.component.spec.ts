@@ -171,6 +171,20 @@ describe('HomeTabComponent', () => {
     expect(insurance).not.toMatch(/recommend|tariff|cheaper|switch|Example/i);
   });
 
+  it('names a policyholder of two contracts only once', async () => {
+    const base = home();
+    const own = base.insurance.contracts[0];
+    const element = await render(
+      home({
+        insurance: {
+          contracts: [own, { ...own, id: 'second' }],
+          flags: [{ ...base.insurance.flags[0], contractIds: [own.id, 'second'] }],
+        },
+      }),
+    );
+    expect(text(element.querySelector('.flag .supporting'))).toBe('Policies held by Jonas');
+  });
+
   it('opens Why? on a flag with its own key', async () => {
     const element = await render(home());
     const open = vi.spyOn(TestBed.inject(MatDialog), 'open').mockReturnValue(undefined as never);

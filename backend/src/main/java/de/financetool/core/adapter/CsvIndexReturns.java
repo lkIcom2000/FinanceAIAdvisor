@@ -12,6 +12,7 @@ import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.stream.Stream;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,7 +52,8 @@ class CsvIndexReturns implements IndexReturns {
         }
         List<Path> files;
         try (Stream<Path> list = Files.list(directory)) {
-            files = list.filter(p -> p.getFileName().toString().endsWith(".csv")).sorted().toList();
+            files = list.filter(p -> p.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".csv"))
+                    .sorted().toList();
         } catch (IOException e) {
             throw new UncheckedIOException("Cannot list index series in " + directory, e);
         }

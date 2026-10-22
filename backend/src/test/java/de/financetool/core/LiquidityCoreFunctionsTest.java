@@ -251,6 +251,43 @@ class LiquidityCoreFunctionsTest {
                 .as("the seeded fixture is complete").isTrue();
     }
 
+    @Test
+    void dataConfidenceCountsTheGapFromTheWindowStartToTheFirstBooking() {
+        LocalDate asOf = LocalDate.of(2026, 10, 15);
+        List<LedgerEntry> oneRecent = List.of(
+                new LedgerEntry(asOf.minusDays(1), new BigDecimal("-1.00"), "GROCERIES", "Shop", null, false));
+        DataConfidence.Result result = DataConfidence.of(oneRecent, asOf, new BigDecimal("0.95"), 5);
+
+        assertThat(result.longestGapDays()).isEqualTo(88);
+        assertThat(result.high()).isFalse();
+    }
+
+    @Test
+    void aSpendingBandOutsideZeroToOneIsRefused() {
+        Run lena = run("p-lena");
+        for (String value : List.of("-0.01", "1", "1.5")) {
+            RuleParameterValue band = new RuleParameterValue(CashFlowForecast.BAND, new BigDecimal(value), "1",
+                    LocalDate.of(2020, 1, 1), null);
+            assertThatThrownBy(() -> CashFlowForecast.of(lena.start(), lena.variable(), List.of(), List.of(), band,
+                    lena.asOf())).as(value).isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining(CashFlowForecast.BAND);
+        }
+    }
+
+    @Test
+    void savingsPlanDebitsAreNoVariableSpending() {
+        LocalDate asOf = LocalDate.of(2026, 10, 15);
+        List<LedgerEntry> entries = new ArrayList<>();
+        for (int month = 7; month <= 9; month++) {
+            LocalDate day = LocalDate.of(2026, month, 10);
+            entries.add(new LedgerEntry(day, new BigDecimal("-300.00"), "GROCERIES", "Shop", null, false));
+            entries.add(new LedgerEntry(day, new BigDecimal("-100.00"), "SAVINGS_PLAN", "ETF", null, false));
+            entries.add(new LedgerEntry(day, new BigDecimal("-50.00"), "TRANSFER", "Savings", null, false));
+        }
+        assertThat(output(VariableSpending.monthly(entries, asOf), VariableSpending.OUTPUT))
+                .isEqualByComparingTo("300.00");
+    }
+
     // ------------------------------------------------------------------------------------------------- helpers
 
     static PersonaFixture.Account account(PersonaFixture fixture, String type) {

@@ -10,7 +10,14 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-2-context.md'
   - '{project-root}/_bmad-output/implementation-artifacts/spec-2-3-liquidity-tab-with-cash-flow-forecast-and-emergency-fund.md'
 warnings: []
-deferred: []
+deferred:
+  - summary: >-
+      The Spring-wired CsvIndexReturns constructor resolving APP_HOME/data/index is not verified by a test.
+    evidence: |-
+      CsvIndexReturnsTest uses the package-private Path constructor; no series ships, so the integration tests always take the parametric path. Add an AppHome-based test when the first series lands.
+    location: >-
+      backend/src/main/java/de/financetool/core/adapter/CsvIndexReturns.java
+    severity: low
 ---
 
 <intent-contract>
@@ -63,6 +70,16 @@ deferred: []
 
 ## Review Triage Log
 
+### 2026-10-22 — Joint review pass 2.3–2.5 (Edge Case Hunter + Verification Gap; rows for Story 2.4)
+- verdicts (joint pass, all stories): 21 findings — high 0, medium 5, low 13, false 3, maybe-false 0; Story 2.4 rows: 6
+- findings:
+  - `[false]` `[reject]` EC: monthly return below −100 % makes wealth negative — impossible with 4.3 % monthly volatility in the normal model; a bootstrap series of real index returns has no month below −100 %.
+  - `[low]` `[reject]` EC: non-integer or huge horizon parameter — the value comes from the versioned rule file (30); a wrong value fails loudly.
+  - `[low]` `[reject]` EC: series with ≤ 24 rows silently ignored — the assumption text names the model actually used.
+  - `[low]` `[patch]` EC: uppercase .CSV not read — extension matched case-insensitively.
+  - `[medium]` `[patch]` VG: projection seed from RequestContext unverified — gateway test with two seeds.
+  - `[low]` `[defer]` VG: Spring-wired index directory never verified — no series ships; recorded in `deferred`.
+
 ## Implementation Notes
 
 - No per-story review (user rule): joint review of Stories 2.3–2.5 after 2.5 (Edge Case Hunter + Verification Gap); done after verification with "review deferred to joint review 2.3-2.5".
@@ -95,3 +112,5 @@ Status: done — review deferred to joint review 2.3-2.5.
 **Verification:** backend `verify -Dfine.it.required=true` 226 tests, 0 failures, 0 skipped; frontend 44 tests, build green. Live (image rebuilt, `data/rules` changed): two calls for p-jonas byte-identical; holding 2,004.76, plan 100.00, after 30 years p10 43,189 / p50 86,595 / p90 184,571 EUR, paid in 38,004.76; p-marco `projection: null`; health UP after the model check.
 
 **Residual risks:** floating-point simulation is reproducible on one JVM; identical figures across JVM versions/platforms are not proven. No historical index series ships (user decision pending). UI not inspected in a browser.
+
+**Joint review 2.3–2.5 (2026-10-22):** Edge Case Hunter + Verification Gap over the combined diff; 21 findings, 13 patched in one commit (rows for this story in the Review Triage Log), 1 deferred (2.4), 7 rejected. After the fixes: backend 243 tests, 0 failures, 0 skipped; frontend 54 tests, build green.
