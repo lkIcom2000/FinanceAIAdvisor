@@ -1,6 +1,7 @@
 package de.financetool.audit;
 
 import de.financetool.shared.domain.PersonaId;
+import de.financetool.shared.domain.SourcedNumber;
 import java.util.Objects;
 
 /**
@@ -17,7 +18,7 @@ public record EvidenceItem(String provId, PersonaId personaId, EvidenceOrigin or
         Objects.requireNonNull(personaId, "personaId");
         Objects.requireNonNull(origin, "origin");
         Objects.requireNonNull(content, "content");
-        if (!provId.matches("[0-9a-f]{16}")) {
+        if (!provId.matches(SourcedNumber.PROV_ID_FORMAT)) {
             throw new IllegalArgumentException("provId must be 16 lower-case hex characters: " + provId);
         }
     }

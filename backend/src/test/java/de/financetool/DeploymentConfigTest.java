@@ -55,6 +55,21 @@ class DeploymentConfigTest {
         }));
     }
 
+    /** The development override (Epic 2 retro A4) only publishes db and ollama on loopback; it is no environment. */
+    @Test
+    @SuppressWarnings("unchecked")
+    void localOverrideOnlyPublishesDbAndOllamaOnLoopback() throws IOException {
+        Map<String, Object> override = new Yaml().load(Files.readString(DEPLOY.resolve("docker-compose.local.yml")));
+        assertThat(override).containsOnlyKeys("services");
+        Map<String, Map<String, Object>> overridden = (Map<String, Map<String, Object>>) override.get("services");
+        assertThat(overridden).containsOnlyKeys("db", "ollama");
+        overridden.forEach((service, settings) -> {
+            assertThat(settings).as(service).containsOnlyKeys("ports");
+            assertThat(list(settings, "ports")).as(service).isNotEmpty()
+                    .allSatisfy(port -> assertThat(port).startsWith("127.0.0.1:"));
+        });
+    }
+
     @Test
     void dockerfileIsMultiStageWithPinnedBaseImagesAndAppHome() throws IOException {
         List<String> from = Files.readAllLines(DEPLOY.resolve("Dockerfile")).stream()

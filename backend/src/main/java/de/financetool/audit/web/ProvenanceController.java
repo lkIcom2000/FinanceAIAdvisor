@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import de.financetool.audit.Provenance;
 import de.financetool.audit.application.ShowProvenanceUseCase;
 import de.financetool.shared.PersonaScope;
+import de.financetool.shared.domain.SourcedNumber;
 import de.financetool.shared.domain.Unit;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -30,7 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 class ProvenanceController {
 
-    private static final Pattern PROV_ID = Pattern.compile("[0-9a-f]{16}");
+    private static final Pattern PROV_ID = Pattern.compile(SourcedNumber.PROV_ID_FORMAT);
 
     /** Problems name the collection, never the requested key. */
     private static final URI INSTANCE = URI.create("/api/provenance");
@@ -65,7 +66,7 @@ class ProvenanceController {
     }
 
     record ProvenanceResponse(
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, pattern = "^[0-9a-f]{16}$") String provId,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, pattern = SourcedNumber.PROV_ID_SCHEMA_PATTERN) String provId,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) ProvenanceSource source,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String label,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "Decimal string",

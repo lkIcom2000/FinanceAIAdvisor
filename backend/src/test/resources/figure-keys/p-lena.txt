@@ -1,0 +1,19 @@
+accountBalance | Current account balance | 59d86ec968309a80
+accountBalance | Overnight deposit balance | eab8816b57e61c2a
+cashFlowForecast | Balance on 15 Jan 2027 with higher spending | 3b5f9d3bcf58b2cb
+cashFlowForecast | Balance on 15 Jan 2027 with lower spending | 21b066090f98b069
+cashFlowForecast | Expected balance on 15 Jan 2027 | 545c4d34fd01d7e2
+contractPremium | Premium for Car insurance | 7e2889f301228f88
+contractPremium | Premium for Private liability insurance | 1febebf162cc6169
+duplicateCoverage | Risks covered more than once | 6b60ba7957779361
+emergencyFundTarget | Average monthly expenses | d4731171bcaff137
+emergencyFundTarget | Comfortable emergency fund (6 months of expenses) | 434131b59bf5853b
+emergencyFundTarget | Emergency fund target (3 months of expenses) | 63a0d5c5ace005e0
+emergencyFundTarget | Emergency fund | 92fbe1ca73868d41
+emergencyFundTarget | Months of expenses in the target | 4e2a7f93817a1d27
+liquidAssets | Liquid assets | 6a3098f3b205f8e3
+missingEssentialCover | Contracts covering liability | 7c4cdeb1d410691e
+missingEssentialCover | Contracts covering occupational disability | f55ebc8a8200ba1d
+shortfallDetection | Forecast balance on 1 Nov 2026 | a69dc057228bbc32
+shortfallDetection | Lowest expected balance (1 Nov 2026) | 655a1bff0d42fce5
+variableSpending | Average monthly variable spending | 3a0827ba1f391dce

@@ -44,7 +44,7 @@ class OverviewController {
 
     @Schema(description = "A figure from Fine's calculation engine with the key of its provenance")
     record Figure(
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, pattern = "^[0-9a-f]{16}$") String provId,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, pattern = SourcedNumber.PROV_ID_SCHEMA_PATTERN) String provId,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String label,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "Decimal string",
                     pattern = DECIMAL, example = "1974.00") String value,
@@ -89,7 +89,7 @@ class OverviewController {
 
     @Schema(description = "The daily current account forecast over three months (EUR)")
     record Forecast(
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, pattern = "^[0-9a-f]{16}$",
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, pattern = SourcedNumber.PROV_ID_SCHEMA_PATTERN,
                     description = "Key of the forecast's provenance") String provId,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Figure expectedEnd,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ForecastPoint> points,
@@ -132,7 +132,7 @@ class OverviewController {
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) FlagKind kind,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "The cover in plain words",
                     example = "liability") String coverage,
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, pattern = "^[0-9a-f]{16}$",
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, pattern = SourcedNumber.PROV_ID_SCHEMA_PATTERN,
                     description = "Key of the check's provenance") String provId,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                     description = "Ids of every contract involved (empty for a missing cover)")
@@ -189,7 +189,7 @@ class OverviewController {
 
     @Schema(description = "Where the investments may lead: a range, not a promise")
     record Projection(
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, pattern = "^[0-9a-f]{16}$",
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, pattern = SourcedNumber.PROV_ID_SCHEMA_PATTERN,
                     description = "Key of the projection's provenance (its middle outcome)") String provId,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "1") int years,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Figure p10,

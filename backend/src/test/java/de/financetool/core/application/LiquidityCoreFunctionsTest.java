@@ -1,4 +1,4 @@
-package de.financetool.core;
+package de.financetool.core.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -18,6 +18,7 @@ import de.financetool.shared.domain.PersonaId;
 import de.financetool.shared.domain.SourcedNumber;
 import de.financetool.shared.fixtures.PersonaFixture;
 import de.financetool.shared.fixtures.PersonaFixtureCatalog;
+import de.financetool.testing.FixtureSnapshots;
 import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.time.LocalDate;
@@ -50,17 +51,11 @@ class LiquidityCoreFunctionsTest {
         PersonaFixture fixture = CATALOG.fixture(new PersonaId(personaId));
         PersonaFixture.Account current = account(fixture, "CURRENT");
         SourcedNumber start = keyed(AccountBalance.of(current.openingDate(), current.openingBalance(),
-                bookings(fixture, current.id()), asOf), AccountBalance.OUTPUT);
+                bookings(fixture, current.id(), asOf), asOf), AccountBalance.OUTPUT);
         List<LedgerEntry> entries = entries(fixture, current.id(), asOf);
         SourcedNumber variable = keyed(VariableSpending.monthly(entries, asOf), VariableSpending.OUTPUT);
-        List<CashFlowForecast.Premium> premiums = fixture.contracts().stream()
-                .filter(c -> c.premium() != null && current.id().equals(c.debitAccountId()))
-                .map(c -> new CashFlowForecast.Premium(c.coverage(), c.premium(), switch (c.paymentInterval()) {
-                    case "MONTHLY" -> 1;
-                    case "QUARTERLY" -> 3;
-                    default -> 12;
-                }, c.nextDueDate()))
-                .toList();
+        List<CashFlowForecast.Premium> premiums = BankMapping.premiums(FixtureSnapshots.of(fixture, asOf),
+                current.id());
         CashFlowForecast forecast = CashFlowForecast.of(start, variable,
                 CashFlowForecast.recurrences(entries, asOf), premiums, BAND, asOf);
         ShortfallDetection.Result shortfall = ShortfallDetection.detect(forecast,
@@ -184,7 +179,7 @@ class LiquidityCoreFunctionsTest {
         PersonaFixture.Account current = account(marco, "CURRENT");
         PersonaFixture.Account overnight = account(marco, "OVERNIGHT");
         SourcedNumber overnightBalance = keyed(AccountBalance.of(AccountBalance.Account.OVERNIGHT,
-                overnight.openingDate(), overnight.openingBalance(), bookings(marco, overnight.id()), asOf),
+                overnight.openingDate(), overnight.openingBalance(), bookings(marco, overnight.id(), asOf), asOf),
                 AccountBalance.OUTPUT);
 
         CoreComputation fund = EmergencyFundTarget.of(overnightBalance, entries(marco, current.id(), asOf), asOf,
@@ -294,18 +289,13 @@ class LiquidityCoreFunctionsTest {
         return fixture.accounts().stream().filter(a -> a.type().equals(type)).findFirst().orElseThrow();
     }
 
-    static List<AccountBalance.Booking> bookings(PersonaFixture fixture, UUID accountId) {
-        return fixture.transactions().stream().filter(t -> t.accountId().equals(accountId))
-                .map(t -> new AccountBalance.Booking(t.bookingDate(), t.amount())).toList();
+    static List<AccountBalance.Booking> bookings(PersonaFixture fixture, UUID accountId, LocalDate asOf) {
+        return BankMapping.bookings(FixtureSnapshots.of(fixture, asOf), accountId);
     }
 
     /** The bookings of {@code accountId} (all accounts if {@code null}) up to {@code asOf}. */
     static List<LedgerEntry> entries(PersonaFixture fixture, UUID accountId, LocalDate asOf) {
-        return fixture.transactions().stream()
-                .filter(t -> (accountId == null || t.accountId().equals(accountId)) && !t.bookingDate().isAfter(asOf))
-                .map(t -> new LedgerEntry(t.bookingDate(), t.amount(), t.category(), t.reference(),
-                        t.recurrenceId(), t.contractId() != null))
-                .toList();
+        return BankMapping.entries(FixtureSnapshots.of(fixture, asOf), accountId);
     }
 
     static SourcedNumber keyed(CoreComputation computation, String outputKey) {

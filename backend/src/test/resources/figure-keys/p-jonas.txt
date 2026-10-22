@@ -1,0 +1,27 @@
+accountBalance | Current account balance | 41d48d3ecb5c701f
+accountBalance | Overnight deposit balance | 145ad421ebd161a5
+cashFlowForecast | Balance on 15 Jan 2027 with higher spending | 81c693875106cd72
+cashFlowForecast | Balance on 15 Jan 2027 with lower spending | 5d13dd0681f95893
+cashFlowForecast | Expected balance on 15 Jan 2027 | d0f3cd0e08a88221
+contractPremium | Premium for Private liability insurance | cd600a5b85b8e3ce
+duplicateCoverage | Contracts covering liability | f939e552cbbc03a7
+duplicateCoverage | Risks covered more than once | 2d41382ed6248aa3
+emergencyFundTarget | Average monthly expenses | 2882216166b1c87a
+emergencyFundTarget | Comfortable emergency fund (6 months of expenses) | 36234f0089aed2d9
+emergencyFundTarget | Emergency fund target (3 months of expenses) | 81d3fc03184bbdbf
+emergencyFundTarget | Emergency fund | 1d6bab885f372525
+emergencyFundTarget | Months of expenses in the target | 11a6259f1c0a5765
+holdingValue | Value of World equity ETF | 60c94f0b43160b11
+investmentTotals | Monthly savings plan contributions | cf3c3bea2f03996a
+investmentTotals | Value of your investments today | fe8a95d11c3a4f85
+liquidAssets | Liquid assets | c8ac3c8bdda3a4c7
+missingEssentialCover | Contracts covering liability | 08a4b3647d50d5df
+missingEssentialCover | Contracts covering occupational disability | 0644557903508efb
+monteCarloProjection | High end after 30 years (1 in 10 chance it's higher) | 0b8f52bda65906b6
+monteCarloProjection | Low end after 30 years (1 in 10 chance it's lower) | d12664651b546962
+monteCarloProjection | Middle outcome after 30 years | bf2aa8d2f95e0f23
+monteCarloProjection | Middle outcome in today's money | 7685b3000d3048a9
+monteCarloProjection | Total paid in after 30 years | b8e3e76441278ab1
+savingsPlanAmount | Monthly amount of World equity ETF savings plan | bc163f395f42c22d
+shortfallDetection | Lowest expected balance (31 Oct 2026) | 3b0b2eb68f741847
+variableSpending | Average monthly variable spending | 94f7727b2b3145bc

@@ -5,10 +5,8 @@ import de.financetool.audit.EvidenceOrigin;
 import de.financetool.audit.EvidenceStore;
 import de.financetool.audit.Provenance;
 import de.financetool.bank.AccountType;
-import de.financetool.bank.AssetClass;
 import de.financetool.bank.BankReadPort;
 import de.financetool.bank.BankSnapshot;
-import de.financetool.bank.InsuredRole;
 import de.financetool.core.CoreGateway;
 import de.financetool.core.domain.AccountBalance;
 import de.financetool.core.domain.CashFlowForecast;
@@ -41,7 +39,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -92,10 +89,7 @@ class CoreGatewayService implements CoreGateway {
         CoreResult liquidAssets = record(context, origin, Liquidity.liquidAssets(currentFigure, overnightFigure),
                 List.of(), Map.of());
 
-        List<LedgerEntry> currentEntries = snapshot.transactions().stream()
-                .filter(t -> t.accountId().equals(current.id()))
-                .map(CoreGatewayService::entry)
-                .toList();
+        List<LedgerEntry> currentEntries = BankMapping.entries(snapshot, current.id());
         CoreResult variable = record(context, origin, VariableSpending.monthly(currentEntries, asOf), List.of(),
                 Map.of());
 
@@ -107,15 +101,10 @@ class CoreGatewayService implements CoreGateway {
                 EmergencyFundTarget.of(overnightFigure, currentEntries, asOf, monthsMin, monthsMax), List.of(),
                 Map.of(monthsMin.key(), monthsMin, monthsMax.key(), monthsMax));
 
-        List<CashFlowForecast.Premium> premiums = snapshot.contracts().stream()
-                .filter(c -> c.premium() != null && c.paymentInterval() != null && c.nextDueDate() != null
-                        && current.id().equals(c.debitAccountId()))
-                .map(c -> new CashFlowForecast.Premium(premiumDescription(c), c.premium(),
-                        c.paymentInterval().months(), c.nextDueDate()))
-                .toList();
+        List<CashFlowForecast.Premium> premiums = BankMapping.premiums(snapshot, current.id());
         CashFlowForecast forecast = CashFlowForecast.of(currentFigure, variable.number(VariableSpending.OUTPUT),
                 CashFlowForecast.recurrences(currentEntries, asOf), premiums, band, asOf);
-        List<LedgerEntry> allEntries = snapshot.transactions().stream().map(CoreGatewayService::entry).toList();
+        List<LedgerEntry> allEntries = BankMapping.entries(snapshot, null);
         CheckResult confidence = DataConfidence.of(allEntries, asOf,
                 context.thresholds().dataConfidenceMinCoverage(),
                 context.thresholds().dataConfidenceMaxGapDays()).toCheck();
@@ -139,7 +128,7 @@ class CoreGatewayService implements CoreGateway {
         BankSnapshot snapshot = bank.snapshot(context.personaId(), asOf);
 
         List<WealthFigures.Holding> holdings = snapshot.holdings().stream()
-                .map(h -> new WealthFigures.Holding(h.name(), assetClass(h.assetClass()), h.units(),
+                .map(h -> new WealthFigures.Holding(h.name(), BankMapping.assetClass(h.assetClass()), h.units(),
                         record(context, origin, Investments.holdingValue(h.id().toString(), h.name(), h.units(),
                                 h.unitPrice(), h.valuationDate()), List.of(), Map.of())))
                 .toList();
@@ -190,10 +179,7 @@ class CoreGatewayService implements CoreGateway {
     public InsuranceFigures insurance(RequestContext context, EvidenceOrigin origin) {
         LocalDate asOf = context.asOf();
         BankSnapshot snapshot = bank.snapshot(context.personaId(), asOf);
-        List<InsuranceContract> contracts = snapshot.contracts().stream()
-                .filter(c -> c.startDate() == null || !c.startDate().isAfter(asOf))
-                .map(CoreGatewayService::insuranceContract)
-                .toList();
+        List<InsuranceContract> contracts = BankMapping.contracts(snapshot);
         List<InsuranceFigures.Contract> rows = contracts.stream()
                 .map(c -> {
                     if (c.premium() == null) {
@@ -212,14 +198,6 @@ class CoreGatewayService implements CoreGateway {
                 record(context, origin, missing.computation(), List.of(), Map.of()), missing.flags());
     }
 
-    /** A contract without a complete premium (e.g. co-insured on a family policy) has no premium figure. */
-    private static InsuranceContract insuranceContract(BankSnapshot.Contract c) {
-        boolean paid = c.premium() != null && c.paymentInterval() != null && c.nextDueDate() != null;
-        return new InsuranceContract(c.id().toString(), InsuranceContract.Cover.valueOf(c.coverage().name()),
-                c.policyholder(), c.insuredRole() == InsuredRole.CO_INSURED, paid ? c.premium() : null,
-                paid ? c.paymentInterval().months() : null, paid ? c.nextDueDate() : null);
-    }
-
     private static BankSnapshot.Account currentAccount(BankSnapshot snapshot, RequestContext context) {
         return snapshot.accounts().stream()
                 .filter(a -> a.type() == AccountType.CURRENT)
@@ -229,37 +207,9 @@ class CoreGatewayService implements CoreGateway {
 
     private CoreResult balance(RequestContext context, EvidenceOrigin origin, BankSnapshot snapshot,
             BankSnapshot.Account account, AccountBalance.Account kind) {
-        List<AccountBalance.Booking> bookings = snapshot.transactions().stream()
-                .filter(t -> t.accountId().equals(account.id()))
-                .map(t -> new AccountBalance.Booking(t.bookingDate(), t.amount()))
-                .toList();
+        List<AccountBalance.Booking> bookings = BankMapping.bookings(snapshot, account.id());
         return record(context, origin, AccountBalance.of(kind, account.openingDate(), account.openingBalance(),
                 bookings, context.asOf()), List.of(), Map.of());
-    }
-
-    private static LedgerEntry entry(BankSnapshot.Transaction t) {
-        return new LedgerEntry(t.bookingDate(), t.amount(), t.category() == null ? null : t.category().name(),
-                t.reference() != null ? t.reference() : t.counterparty(), t.recurrenceId(), t.contractId() != null);
-    }
-
-    private static String assetClass(AssetClass assetClass) {
-        return switch (assetClass) {
-            case EQUITY_ETF -> "Equity ETF";
-            case BOND_ETF -> "Bond ETF";
-            case MONEY_MARKET_FUND -> "Money market fund";
-        };
-    }
-
-    private static String premiumDescription(BankSnapshot.Contract contract) {
-        String coverage = switch (contract.coverage()) {
-            case LIABILITY -> "Private liability insurance";
-            case CAR -> "Car insurance";
-            case HOUSEHOLD_CONTENTS -> "Household contents insurance";
-            case OCCUPATIONAL_DISABILITY -> "Occupational disability insurance";
-            case LEGAL_PROTECTION -> "Legal protection insurance";
-            case RIESTER_PENSION -> "Riester pension";
-        };
-        return coverage + ", " + contract.paymentInterval().name().toLowerCase(Locale.ROOT) + " premium";
     }
 
     /** The Rule Parameter version valid at {@code asOf}; the port refuses a key without one. */

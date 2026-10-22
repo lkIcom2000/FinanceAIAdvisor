@@ -1,0 +1,7 @@
+# Team overrides for this skill (committed). See .claude/skills/<skill>/customize.toml for the defaults.
+
+[workflow]
+
+persistent_facts = [
+  "Frozen figure keys (Epic 2 retro A6): the inputs, function name, output key and canonical form behind a released figure's provId are frozen, because chat messages, notifications and actions store provIds. A story that changes one says so in its spec (which figures re-key, which stored references exist, how they are handled, e.g. kept as-is since evidence is append-only) and updates the pinned keys of backend FigureKeyFreezeTest with -Dfine.figureKeys.update=true in the same commit. A new figure only adds pinned lines: update the files, no spec note needed.",
+]

@@ -1,0 +1,16 @@
+accountBalance | Current account balance | 9e6d2824c007d623
+accountBalance | Overnight deposit balance | f9800f610674cb8d
+cashFlowForecast | Balance on 15 Jan 2027 with higher spending | a688932dda756332
+cashFlowForecast | Balance on 15 Jan 2027 with lower spending | f8f319e6cbb50bf5
+cashFlowForecast | Expected balance on 15 Jan 2027 | b979f2d5b00a9822
+duplicateCoverage | Risks covered more than once | ff1fdd52f191826d
+emergencyFundTarget | Average monthly expenses | 207fca70abce1d8c
+emergencyFundTarget | Comfortable emergency fund (6 months of expenses) | 5265861feaca4ef4
+emergencyFundTarget | Emergency fund target (3 months of expenses) | b595ee0811045381
+emergencyFundTarget | Emergency fund | 80050eca9fd37950
+emergencyFundTarget | Months of expenses in the target | 74d6fdb08df0cd09
+liquidAssets | Liquid assets | abaccfb7be691f00
+missingEssentialCover | Contracts covering liability | de45fffc3bc5889f
+missingEssentialCover | Contracts covering occupational disability | bde7bb263f5e0359
+shortfallDetection | Lowest expected balance (31 Oct 2026) | 16dc9e8caa7f96fa
+variableSpending | Average monthly variable spending | 0a09b3dcf11f94c9

@@ -1,0 +1,11 @@
+# Development only, not an environment (AD-17 keeps one compose file for every environment): publishes db and
+# ollama on 127.0.0.1 so the backend can run outside compose (./mvnw spring-boot:run) against them.
+# Usage (from the repository root):
+#   docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.local.yml up -d db ollama
+services:
+  db:
+    ports:
+      - "127.0.0.1:5432:5432"
+  ollama:
+    ports:
+      - "127.0.0.1:11434:11434"

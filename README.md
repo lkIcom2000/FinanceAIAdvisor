@@ -44,6 +44,24 @@ Flyway migrates as the database owner (`FINE_DB_PASSWORD`); the app connects as 
 `./mvnw spring-boot:run`), set `SPRING_DATASOURCE_OWNER_PASSWORD` (owner `fine`) and `SPRING_DATASOURCE_PASSWORD`
 (`fine_app`); an empty `SPRING_DATASOURCE_PASSWORD` stops the migration.
 
+### Backend outside compose (local live checks)
+
+`deploy/docker-compose.local.yml` is a development-only override that publishes `db` and `ollama` on 127.0.0.1;
+the backend's defaults already point to `localhost:5432` and `localhost:11434`, and `APP_HOME` defaults to the
+repository root.
+
+```sh
+docker compose -f deploy/docker-compose.yml stop app   # frees port 8080
+docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.local.yml up -d db ollama
+set -a; . deploy/.env; set +a
+cd backend && SPRING_DATASOURCE_OWNER_PASSWORD=$FINE_DB_PASSWORD SPRING_DATASOURCE_PASSWORD=$FINE_APP_DB_PASSWORD \
+  ./mvnw spring-boot:run
+```
+
+To stop it, end the Maven process and check that port 8080 is free before starting the compose `app` again. On
+Windows, check with PowerShell's `Get-NetTCPConnection -LocalPort 8080 -State Listen` (empty when free): `netstat`
+output is localised (German Windows prints `ABHÖREN`, not `LISTENING`), so a `findstr LISTENING` check misses it.
+
 ### Demo accounts
 
 All accounts use the password `fine-demo` (synthetic personas only; never use real data).

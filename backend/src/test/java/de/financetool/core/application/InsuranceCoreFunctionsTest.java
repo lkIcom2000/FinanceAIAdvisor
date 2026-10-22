@@ -1,4 +1,4 @@
-package de.financetool.core;
+package de.financetool.core.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -7,13 +7,14 @@ import de.financetool.core.domain.CoverageFlag;
 import de.financetool.core.domain.DuplicateCoverage;
 import de.financetool.core.domain.Figure;
 import de.financetool.core.domain.FigureInput;
-import de.financetool.core.domain.InsuranceContract;
 import de.financetool.core.domain.InsuranceContract.Cover;
+import de.financetool.core.domain.InsuranceContract;
 import de.financetool.core.domain.InsurancePremium;
 import de.financetool.core.domain.MissingEssentialCover;
 import de.financetool.shared.domain.PersonaId;
 import de.financetool.shared.fixtures.PersonaFixture;
 import de.financetool.shared.fixtures.PersonaFixtureCatalog;
+import de.financetool.testing.FixtureSnapshots;
 import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.time.LocalDate;
@@ -29,16 +30,7 @@ class InsuranceCoreFunctionsTest {
     /** The persona's contracts as the gateway maps them. */
     static List<InsuranceContract> contracts(String personaId) {
         PersonaFixture fixture = CATALOG.fixture(new PersonaId(personaId));
-        return fixture.contracts().stream()
-                .map(c -> new InsuranceContract(c.id().toString(), Cover.valueOf(c.coverage()), c.policyholder(),
-                        "CO_INSURED".equals(c.insuredRole()), c.premium(),
-                        c.paymentInterval() == null ? null : switch (c.paymentInterval()) {
-                            case "MONTHLY" -> 1;
-                            case "QUARTERLY" -> 3;
-                            case "ANNUAL" -> 12;
-                            default -> throw new IllegalArgumentException(c.paymentInterval());
-                        }, c.nextDueDate()))
-                .toList();
+        return BankMapping.contracts(FixtureSnapshots.of(fixture, fixture.simulatedDate()));
     }
 
     static BigDecimal output(List<Figure> outputs, String key) {
