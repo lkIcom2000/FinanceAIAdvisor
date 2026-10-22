@@ -42,7 +42,7 @@
 #   configuration with a derivedFrom block (AD-25). Check E3 before 3.9, E1 before 4.2/4.3.
 
 generated: 10-21-2026 13:52
-last_updated: 10-22-2026 17:04
+last_updated: 10-22-2026 17:07
 project: FinanceTool
 project_key: NOKEY
 tracking_system: file-system
@@ -166,7 +166,7 @@ action_items:
     action: "A4: Reconcile architecture spine with as-built (AD-13 asOf, AD-11/AD-13
       researcher actions logged, AD-18 digest check, AD-22 LLM adapter exception)"
     owner: "Commc"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-21.md"
   - id: "epic-1-retro-item-5-a5-shared-test-fixture-for-agentconfigur"
     epic: 1
@@ -194,7 +194,7 @@ action_items:
       in shared, minimal RuleParamPort, design Rule Parameters band/horizon, PRD addendum
       p-shortfall -82.04 and Lena salary day); fold into Epic 1 A4"
     owner: "Commc"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-10-22.md"
   - id: "epic-2-retro-item-9-a2-before-epic-3-expose-coregateway-resu"
     epic: 2
@@ -208,7 +208,7 @@ action_items:
     action: "A3: Decide Monte Carlo data source - provide a data/index monthly return
       CSV (source, licence) or change Story 2.4 AC"
     owner: "Commc"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-10-22.md"
   - id: "epic-2-retro-item-11-a4-commit-a-local-compose-override-publi"
     epic: 2
