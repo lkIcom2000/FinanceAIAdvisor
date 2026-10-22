@@ -11,6 +11,7 @@ import {
 import { Router } from '@angular/router';
 import { MatTabGroup, MatTabsModule } from '@angular/material/tabs';
 import { AppHeaderComponent } from '../../shell/app-header.component';
+import { ChatColumnComponent } from './chat-column.component';
 import { HomeTabComponent } from './home-tab.component';
 import { LiquidityTabComponent } from './liquidity-tab.component';
 import { WealthTabComponent } from './wealth-tab.component';
@@ -33,6 +34,7 @@ export type OverviewTab = (typeof OVERVIEW_TABS)[number]['key'];
   selector: 'app-workspace-page',
   imports: [
     AppHeaderComponent,
+    ChatColumnComponent,
     HomeTabComponent,
     LiquidityTabComponent,
     WealthTabComponent,

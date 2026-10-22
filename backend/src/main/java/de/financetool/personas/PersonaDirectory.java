@@ -6,4 +6,7 @@ import de.financetool.shared.PersonaScope;
 public interface PersonaDirectory {
 
     PersonaSummary find(PersonaScope scope);
+
+    /** The fixture version the persona's state was loaded from, for Audit Records. */
+    String fixtureVersion(PersonaScope scope);
 }

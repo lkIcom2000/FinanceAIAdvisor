@@ -32,5 +32,6 @@
 .chat {
   border-left: 1px solid var(--mat-sys-outline-variant);
   background: var(--fine-ice);
-  overflow: auto;
+  min-height: 0;
+  overflow: hidden;
 }

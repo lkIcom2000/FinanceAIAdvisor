@@ -1,0 +1,177 @@
+:host {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.log {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+}
+
+.card {
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 8px;
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  font: var(--fine-body);
+}
+
+.body {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.user-message {
+  align-self: flex-end;
+  max-width: 85%;
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--fine-navy);
+  color: #ffffff;
+  font: var(--fine-body);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.outcome-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font: var(--fine-label);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.icon {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  fill: currentColor;
+}
+
+.outcome-label .icon {
+  color: var(--mat-sys-primary);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+// M3 assist chip: outlined pill with a leading chat icon.
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 4px 16px 4px 8px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 9999px;
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-primary);
+  font: var(--fine-label);
+  text-align: left;
+  cursor: pointer;
+
+  .icon {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+.waiting {
+  background: var(--fine-ice);
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font: var(--fine-body-sm);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 2px solid var(--mat-sys-outline);
+}
+
+.step.done .dot {
+  border-color: var(--fine-navy);
+  background: var(--fine-navy);
+}
+
+.step.active {
+  color: var(--mat-sys-on-surface);
+
+  .dot {
+    border-color: var(--mat-sys-primary);
+    box-shadow: 0 0 0 3px var(--mat-sys-primary-container);
+  }
+}
+
+.slow {
+  margin: 12px 0 0;
+  font: var(--fine-body-sm);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.try-again {
+  margin-top: 12px;
+}
+
+.send-failed {
+  margin: 0;
+  font: var(--fine-body-sm);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.new-message {
+  position: absolute;
+  left: 50%;
+  bottom: 140px;
+  transform: translateX(-50%);
+  padding: 6px 16px;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--mat-sys-primary);
+  color: var(--mat-sys-on-primary);
+  font: var(--fine-label);
+  cursor: pointer;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

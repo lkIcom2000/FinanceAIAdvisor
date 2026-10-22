@@ -27,7 +27,10 @@ class PersonaOwnedTablesTest extends PostgresIntegrationTest {
             "contracts", "bank",
             "transactions", "bank",
             "holdings", "bank",
-            "savings_plans", "bank");
+            "savings_plans", "bank",
+            "conversations", "advisory",
+            "messages", "advisory",
+            "dialog_states", "advisory");
 
     /** Append-only evidence: never reset (AD-13). */
     static final Set<String> NEVER_RESET = Set.of("audit_records", "evidence_items");

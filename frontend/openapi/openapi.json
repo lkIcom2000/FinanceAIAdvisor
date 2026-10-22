@@ -18,6 +18,9 @@
     "description" : "The Financial Overview",
     "name" : "overview"
   }, {
+    "description" : "The chat with Fine",
+    "name" : "chat"
+  }, {
     "description" : "The persona of the session",
     "name" : "persona"
   } ],
@@ -92,6 +95,113 @@
         },
         "summary" : "The logged-in account",
         "tags" : [ "auth" ]
+      }
+    },
+    "/api/chat" : {
+      "get" : {
+        "operationId" : "chat",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Chat"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "The conversation with every saved message",
+        "tags" : [ "chat" ]
+      }
+    },
+    "/api/chat/messages" : {
+      "post" : {
+        "operationId" : "postMessage",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PostMessageRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChatMessage"
+                }
+              }
+            },
+            "description" : "The saved question"
+          },
+          "400" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChatMessage"
+                }
+              }
+            },
+            "description" : "Blank or longer than 1,000 characters"
+          }
+        },
+        "summary" : "Save a question; answer it with the answer call",
+        "tags" : [ "chat" ]
+      }
+    },
+    "/api/chat/messages/{id}/answer" : {
+      "post" : {
+        "description" : "A question that already has an answer returns that answer again.",
+        "operationId" : "answerMessage",
+        "parameters" : [ {
+          "description" : "The question's id (a UUID)",
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChatMessage"
+                }
+              }
+            },
+            "description" : "Fine's answer"
+          },
+          "404" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChatMessage"
+                }
+              }
+            },
+            "description" : "No such question for this persona"
+          },
+          "503" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChatMessage"
+                }
+              }
+            },
+            "description" : "The answer could not be finished; the question stays saved"
+          }
+        },
+        "summary" : "Run the turn for a saved question and return Fine's complete answer",
+        "tags" : [ "chat" ]
       }
     },
     "/api/overview/home" : {
@@ -221,6 +331,51 @@
   },
   "components" : {
     "schemas" : {
+      "Chat" : {
+        "type" : "object",
+        "description" : "The conversation, oldest message first",
+        "properties" : {
+          "messages" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ChatMessage"
+            }
+          },
+          "personaName" : {
+            "type" : "string",
+            "description" : "The name the greeting uses"
+          }
+        },
+        "required" : [ "messages", "personaName" ]
+      },
+      "ChatMessage" : {
+        "type" : "object",
+        "description" : "One message of the conversation",
+        "properties" : {
+          "author" : {
+            "type" : "string",
+            "enum" : [ "USER", "AGENT", "ADVISOR" ]
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "outcome" : {
+            "type" : "string",
+            "description" : "How the turn ended; only on Fine's answers",
+            "enum" : [ "INFORM", "ASK_PROFILE", "RECOMMEND_CATEGORY", "COMPUTE", "REFUSE_OUT_OF_SCOPE", "DETECT_TRAP", "ESCALATE" ]
+          },
+          "replyTo" : {
+            "type" : "string",
+            "format" : "uuid",
+            "description" : "The question an answer replies to; only on Fine's answers"
+          },
+          "text" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "author", "id", "text" ]
+      },
       "DatedFigure" : {
         "type" : "object",
         "description" : "A balance on a day, e.g. the first forecast day below zero",
@@ -546,10 +701,21 @@
         },
         "required" : [ "displayName", "id" ]
       },
+      "PostMessageRequest" : {
+        "type" : "object",
+        "properties" : {
+          "text" : {
+            "type" : "string",
+            "maxLength" : 1000,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "text" ]
+      },
       "ProblemCode" : {
         "type" : "string",
         "description" : "Closed set of machine-readable error codes.",
-        "enum" : [ "VALIDATION_FAILED", "BAD_CREDENTIALS", "UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "REQUEST_REJECTED", "INTERNAL_ERROR" ]
+        "enum" : [ "VALIDATION_FAILED", "BAD_CREDENTIALS", "UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "REQUEST_REJECTED", "TURN_FAILED", "INTERNAL_ERROR" ]
       },
       "ProblemDetail" : {
         "type" : "object",

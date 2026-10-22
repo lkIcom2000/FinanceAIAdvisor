@@ -13,5 +13,6 @@ export const PROBLEM_CODE: ProblemCode[] = [
   'FORBIDDEN',
   'NOT_FOUND',
   'REQUEST_REJECTED',
+  'TURN_FAILED',
   'INTERNAL_ERROR'
 ];

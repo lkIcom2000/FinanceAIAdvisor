@@ -2,9 +2,11 @@ package de.financetool;
 
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 
+import de.financetool.testing.StubLlmConfiguration;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -26,8 +28,11 @@ import org.testcontainers.utility.DockerImageName;
  *
  * <p>As in production, Flyway migrates as the owner (the container user) and the application connects as the
  * non-owner role {@code fine_app} (AD-13).
+ *
+ * <p>The model is the programmable {@link StubLlmConfiguration.StubLlm}; real Ollama runs only in local live checks.
  */
 @SpringBootTest
+@Import(StubLlmConfiguration.class)
 @Testcontainers(disabledWithoutDocker = true)
 public abstract class PostgresIntegrationTest {
 
