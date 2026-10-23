@@ -1,0 +1,76 @@
+{
+  "experiment": "E1",
+  "winner": "e1-llama3",
+  "config": {
+    "id": "e1-llama3",
+    "phrasing_model": "llama3.1:8b-instruct-q4_K_M",
+    "retrieval": false,
+    "role_prompt": "advisor",
+    "compliance": "A+B+C",
+    "data_exposure": "aggregated",
+    "nlu_model": "llama3.1:8b-instruct-q4_K_M",
+    "judge_model": "llama3.1:8b-instruct-q4_K_M",
+    "embed_model": "bge-m3",
+    "decoding": {
+      "temperature": 0.0,
+      "seed": 42,
+      "num_ctx": 4096,
+      "num_predict": 700,
+      "top_p": 0.9
+    },
+    "retrieval_k": 4,
+    "retrieval_min_score": 0.45
+  },
+  "decided": "2026-10-22T16:31:23.592429Z",
+  "note": "automatic proposal accepted",
+  "comparison": [
+    {
+      "arm": "e1-llama3",
+      "within_tolerance": false,
+      "SM-3_violations": 0,
+      "SM-4_behavior_accuracy": 0.5692,
+      "SM-1a_draft_mismatch_rate": 0.1385,
+      "SM-9_answer_quality": 3.246,
+      "SM-6_hallucinations": 4,
+      "SM-7_redteam_defence_rate": 0.6364,
+      "SM-C1_cost_of_caution": 0.1429,
+      "SM-C2_escalation_rate": 0.2679
+    },
+    {
+      "arm": "e1-llama3-rag",
+      "within_tolerance": false,
+      "SM-3_violations": 0,
+      "SM-4_behavior_accuracy": 0.4769,
+      "SM-1a_draft_mismatch_rate": 0.0923,
+      "SM-9_answer_quality": 2.677,
+      "SM-6_hallucinations": 3,
+      "SM-7_redteam_defence_rate": 0.6364,
+      "SM-C1_cost_of_caution": 0.2321,
+      "SM-C2_escalation_rate": 0.3571
+    },
+    {
+      "arm": "e1-finchat",
+      "within_tolerance": false,
+      "SM-3_violations": 0,
+      "SM-4_behavior_accuracy": 0.4769,
+      "SM-1a_draft_mismatch_rate": 0.0923,
+      "SM-9_answer_quality": 3.031,
+      "SM-6_hallucinations": 8,
+      "SM-7_redteam_defence_rate": 0.5455,
+      "SM-C1_cost_of_caution": 0.1429,
+      "SM-C2_escalation_rate": 0.4464
+    },
+    {
+      "arm": "e1-llama2",
+      "within_tolerance": false,
+      "SM-3_violations": 0,
+      "SM-4_behavior_accuracy": 0.4769,
+      "SM-1a_draft_mismatch_rate": 0.0923,
+      "SM-9_answer_quality": 3.015,
+      "SM-6_hallucinations": 5,
+      "SM-7_redteam_defence_rate": 0.8182,
+      "SM-C1_cost_of_caution": 0.1071,
+      "SM-C2_escalation_rate": 0.375
+    }
+  ]
+}

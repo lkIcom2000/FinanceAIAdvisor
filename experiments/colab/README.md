@@ -46,6 +46,8 @@ A disconnect loses at most the item in progress. Re-running the run cell skips f
 
 E1 has 4 arms, so it takes about 2–3 hours. Colab's free tier may disconnect during that time; the runs resume where they stopped.
 
+One arm of E2, E3 and E4, and `hybrid-final`, has the same configuration as the previous winner. `runner.reuse_winner` copies that winner's results instead of running the arm again (the manifest records `reused_from`). It reuses only if code, data, test set, Knowledge Base, rule snapshot, model digests, Ollama version, GPU type and scorer are unchanged; otherwise it prints what differs and runs the arm. This leaves 11 GPU arms instead of 15.
+
 ## Code
 
 The logic lives in `experiments/finlab/`. All four notebooks share it:
@@ -60,6 +62,29 @@ The logic lives in `experiments/finlab/`. All four notebooks share it:
 - **`runner.py`** — Run folders, resume and audit export.
 
 Run `python -m finlab.selftest` from the `experiments/` folder to check the deterministic parts locally, without Ollama.
+
+## Pipeline revision after the E1 pilot run (2026-10-23)
+
+The first full E1 run is kept as a **pilot run** (`results/Pilot_E1/`). In every arm, 20 of 65 items were classified wrongly, 27–45 % of in-scope items were escalated, and three of four arms had identical SM-4 values, so the deterministic layers, not the models, decided the outcome. The causes and the changes:
+
+| Cause in the pilot run | Change | Where |
+|---|---|---|
+| Facts the user states about their own situation, and generic terms ("active mutual fund"), were checked as premises, giving false `DETECT_TRAP` | Only claims about external, named things are checked: not about the user, a proper name, and present in the message | `classify.premises_to_check` |
+| Real product names were not found (word order differs from the KID title); terms used in the corpus were unknown | Multi-word names match if all their words occur in one known name, or verbatim in the corpus. The registry includes the Knowledge Base in every arm, so classes do not depend on the arm | `classify.Registry`, `pipeline.Lab.registry` |
+| A described law ("the EU directive on X") or a guarantee attributed to an institution was not checked | Described laws are checked against known names; stated guarantees are checked against the known guarantees | `classify.premises_to_check` |
+| The NLU listed out-of-scope categories not in the question (emergency fund → "single stock") and missed crypto | An out-of-scope category needs matching wording in the message; unambiguous wording adds it | `nlu.ground` |
+| A general question about a described person was treated as personal; withdrawal parameters were missing | Subject is generic if the message names no person; withdrawal parameters are read from the message | `nlu.ground` |
+| A computable question phrased as "will I run into a shortfall?" was not routed to the calculation | Computable eligibility questions are `COMPUTE` | `classify.classify` |
+| The judge saw only question and answer, so computed numbers looked invented | The judge gets the same evidence (tool results, cited sources) and is told what is not a rule break | `pipeline._judge_input`, `prompts.JUDGE_SYSTEM` |
+| A missing citation escalated at once | One regeneration with a citation instruction, as for number mismatches | `pipeline.run_turn` |
+| "Guaranteed" in a product description (pension insurance, deposit guarantee) or in a negated sentence counted as a promise | Feature descriptions and negated sentences are not promises; promises to the user still are | `checks._describes_feature` |
+| A routed template was checked against the original class (SM-3 counted every block) | Templates are not checked | `pipeline.run_turn` |
+
+Replayed on the NLU outputs stored in the pilot run, classification accuracy rises from 45/65 to 58/65 with no item getting worse. The remaining 7 errors are NLU extractions of topic or profile fields (e.g. "50 EUR left monthly" read as expenses); they are not fixed, to avoid tuning to the test set.
+
+**Held-out items.** `heldout.csv` holds 5 items written after the pilot analysis but **before** the code changes. They run in every arm and are reported separately (`heldout_behavior_accuracy`, `heldout_classification_accuracy`); they are not part of the primary metrics. They show whether the revision generalises beyond the 65 items it was derived from. With 5 items this is an indication, not a proof.
+
+The NLU prompt is unchanged, so cached NLU extractions stay valid.
 
 ## Known limitations (record in the thesis)
 

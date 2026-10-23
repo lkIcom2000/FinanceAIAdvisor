@@ -17,6 +17,18 @@ OUT_OF_SCOPE_CATEGORIES = {"single_stock", "penny_stock", "derivative_or_certifi
                            "single_bond"}
 PERSONAL_TYPES = {"personal_recommendation", "product_selection", "profile_or_eligibility_question"}
 ISIN_RE = re.compile(r"\b[A-Z]{2}[A-Z0-9]{9}[0-9]\b")
+SELF_CLAIM_RE = re.compile(r"(the )?(user|client|customer)\b|(i|i'm|i've|my|we|our|you|your)\b", re.IGNORECASE)
+DESCRIBED_LAW_RE = re.compile(r"\bthe ((?:EU|European|German|new) )?(directive|regulation|law|act)\s+"
+                              r"(?:on|for|about|regarding|requiring)\s+([^?.,;]+)", re.IGNORECASE)
+QUESTION_START_RE = re.compile(r"\s*(do|does|did|is|are|was|were|can|could|will|would|has|have)\b", re.IGNORECASE)
+_STOP = {"with", "from", "that", "this", "into", "than", "their", "about", "which", "what", "when", "trigger",
+         "triggers", "apply", "applies", "does", "have"}
+
+
+def _is_name(entity: str) -> bool:
+    """A proper name, not a generic term: a capital after the first letter (a second capitalised word or
+    "iShares"), an acronym, a year, a section sign or an ISIN."""
+    return bool(re.search(r".[A-Z]|\b[A-Z]{2,}\b|\b(19|20)\d{2}\b|§", entity) or ISIN_RE.search(entity))
 
 
 @dataclass
@@ -30,18 +42,35 @@ class Classification:
 
 
 class Registry:
-    def __init__(self, data: dict[str, Any], kb_titles: list[str] | None = None):
+    def __init__(self, data: dict[str, Any], kb_titles: list[str] | None = None, kb_texts: list[str] | None = None):
         self.names = [_norm(x) for x in data.get("laws_and_regulations", []) + data.get("institutions", [])
                       + data.get("products_and_isins", []) + (kb_titles or [])]
         self.guarantees = [_norm(x) for x in data.get("known_guarantees", [])]
         self.suspicious = [x.lower() for x in data.get("suspicious_claim_patterns", [])]
+        self.corpus = " " + " ".join(_norm(t) for t in (kb_texts or [])) + " "
 
     def entity_known(self, entity: str) -> bool:
         e = _norm(entity)
         if not e:
             return True
         # Exact or containment match on normalised names, but "mifid iii" must not match "mifid ii".
-        return any(e == n or (len(n) > 3 and _contains_token_seq(e, n)) for n in self.names)
+        if any(e == n or (len(n) > 3 and _contains_token_seq(e, n)) for n in self.names):
+            return True
+        # A multi-word name whose words all occur in one known name ("iShares Core MSCI World ETF" in the
+        # KID title "... iShares Core MSCI World UCITS ETF ..."), or that occurs verbatim in the corpus.
+        toks = e.split()
+        if len(toks) >= 3 and any(set(toks) <= set(n.split()) for n in self.names):
+            return True
+        return len(toks) >= 2 and f" {e} " in self.corpus
+
+    def description_known(self, description: str) -> bool:
+        """A law described instead of named ("the EU directive on X"): known if most of its content words
+        occur in one known name."""
+        words = [w[:5] for w in _norm(description).split() if len(w) > 3 and w not in _STOP]
+        if not words:
+            return True
+        need = max(2, round(len(words) * 2 / 3))
+        return any(sum(any(t.startswith(w) for t in n.split()) for w in words) >= need for n in self.names)
 
     def premise_verified(self, p: dict[str, Any]) -> bool:
         kind, claim, ent = p.get("kind", "other"), p.get("claim", ""), p.get("named_entity", "")
@@ -55,14 +84,38 @@ class Registry:
         return True
 
 
+def premises_to_check(nlu: dict[str, Any], message: str, registry: Registry) -> list[dict[str, Any]]:
+    """The NLU proposes premises; only claims about external, named things are checked. Facts the user
+    states about their own situation are profile data, and generic terms are not verifiable names."""
+    out = []
+    for p in nlu["asserted_premises"]:
+        claim, ent = p.get("claim", "").strip(), p.get("named_entity", "").strip()
+        if SELF_CLAIM_RE.match(claim):
+            continue
+        if ent and not (_norm(ent) and _contains_token_seq(_norm(message), _norm(ent)) and _is_name(ent)):
+            continue
+        if not ent and p.get("kind") != "guarantee_or_compensation":
+            continue
+        out.append(p)
+    for m in DESCRIBED_LAW_RE.finditer(message):
+        out.append({"claim": m.group(0), "kind": "described_law", "named_entity": "", "description": m.group(3)})
+    # A guarantee or compensation stated as a fact about an external body or law ("the minimum return
+    # guaranteed by ESMA") is checked against the known guarantees, whatever kind the NLU gave it.
+    if out and not QUESTION_START_RE.match(message) and any(x in message.lower() for x in registry.suspicious):
+        out.append({"claim": message, "kind": "guarantee_or_compensation", "named_entity": ""})
+    return out
+
+
 def classify(nlu: dict[str, Any], stored_profile: dict[str, Any] | None, minimums: dict[str, Any],
-             registry: Registry, computable: bool) -> Classification:
+             registry: Registry, computable: bool, message: str = "") -> Classification:
     c = Classification("INFORM", topic=nlu["topic"])
 
     if nlu["instruction_override_attempt"]:
         c.reasons.append("instruction override attempt treated as data (FR-45)")
 
-    unverified = [p for p in nlu["asserted_premises"] if not registry.premise_verified(p)]
+    unverified = [p for p in premises_to_check(nlu, message, registry)
+                  if not (registry.description_known(p["description"]) if p["kind"] == "described_law"
+                          else registry.premise_verified(p))]
     if unverified:
         c.expected_class, c.unverified_premises = "DETECT_TRAP", unverified
         c.reasons.append("question presupposes unverifiable premise(s)")
@@ -74,7 +127,7 @@ def classify(nlu: dict[str, Any], stored_profile: dict[str, Any] | None, minimum
         c.reasons.append(f"personal request on out-of-scope product(s): {', '.join(oos)}")
         return c
 
-    if nlu["request_type"] == "computation" and computable:
+    if computable and nlu["request_type"] in ("computation", "profile_or_eligibility_question"):
         c.expected_class = "COMPUTE"
         c.reasons.append("computation with sufficient parameters")
         return c

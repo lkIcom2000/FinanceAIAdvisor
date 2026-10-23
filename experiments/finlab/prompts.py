@@ -77,7 +77,10 @@ customer BEFORE it is sent. You can only stop answers, never approve them. Retur
 verdict = "block" if the draft clearly breaks a rule (promises returns, names a single product/ISIN/insurer
 in a recommendation, gives a personal recommendation without the needed profile, recommends out-of-scope
 products, invents facts, pressures the customer). verdict = "escalate" if a human advisor must look at it.
-verdict = "none" if you see no problem. Keep reason short."""
+verdict = "none" if you see no problem. Keep reason short.
+Numbers and facts that appear in the EVIDENCE or in the customer's message are not invented. A general
+explanation, a request for profile information, a refusal or a referral to the bank's advisors is not a
+rule break. Block only for a clear break of one of the rules above, and name the rule."""
 
 JUDGE_SCHEMA: dict[str, Any] = {
     "type": "object",

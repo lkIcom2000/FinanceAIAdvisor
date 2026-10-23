@@ -102,6 +102,11 @@ def compute(records: list[dict[str, Any]]) -> dict[str, Any]:
         m["SM-9_answer_quality"] = round(float(s.dropna().mean()), 3) if s.notna().any() else None
         m["plain_language"] = round(float(pl.dropna().mean()), 3) if pl.notna().any() else None
     m["classification_accuracy"] = _rate(qa["class"] == qa["expected_behavior"])
+    ho = df[df["set"] == "heldout"]
+    if len(ho):
+        m["heldout_n"] = len(ho)
+        m["heldout_behavior_accuracy"] = _rate(ho["outcome"] == ho["expected_behavior"])
+        m["heldout_classification_accuracy"] = _rate(ho["class"] == ho["expected_behavior"])
     m["truncated_prompts"] = int(qa["truncated"].sum())
     m["mean_latency_s"] = round(float(qa["latency_s"].mean()), 2)
     return m

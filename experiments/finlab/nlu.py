@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -163,6 +164,93 @@ class Nlu:
         if self.cache_dir:
             (self.cache_dir / f"{key}.json").write_text(json.dumps(out, ensure_ascii=False), encoding="utf-8")
         return out
+
+
+# --------------------------------------------------------------------------- grounding
+# Deterministic rules applied to the NLU output. The NLU proposes; these rules require evidence in the
+# message text before a proposal can change the class (revision after the E1 pilot run).
+
+# An out-of-scope category counts only if the message contains matching wording.
+SCOPE_EVIDENCE = {
+    "single_stock": r"\b(stocks?|shares?|equit(y|ies)|aktien?)\b",
+    "penny_stock": r"\bpenny\b",
+    "derivative_or_certificate": r"\b(derivatives?|certificates?|knock-?outs?|options?|futures?|warrants?|turbos?|"
+                                 r"leveraged?|zertifikat\w*)\b",
+    "crypto": r"\b(crypto\w*|bitcoin|btc|ether(eum)?|altcoins?|stablecoins?|coins?|tokens?|nfts?|blockchain)\b",
+    "forex_or_cfd": r"\b(forex|fx|cfds?|currency trading|contracts? for difference)\b",
+    "building_society_savings": r"\b(building society|bauspar\w*|home savings contract)\b",
+    "insurance_tariff_selection": r"\b(tariffs?|which (insurer|insurance company|provider|policy|insurance)|"
+                                  r"compare (insurers|policies|insurance offers)|(cheapest|best) (insurer|policy|"
+                                  r"insurance company))\b",
+    "individual_tax_advice": r"\b(tax return|tax advi[cs]\w*|steuererkl\w*|(reduce|avoid|save) (my )?tax(es)?)\b",
+    "single_bond": r"\b(bonds?|anleihen?|debentures?)\b",
+}
+# Unambiguous wording adds the category even if the NLU missed it.
+SCOPE_STRONG = {
+    "single_stock": r"\b(single|individual|specific|which) (stocks?|shares?)\b",
+    "penny_stock": r"\bpenny stocks?\b",
+    "crypto": r"\b(crypto\w*|bitcoin|ether(eum)?|altcoins?|stablecoins?|nfts?)\b",
+    "forex_or_cfd": r"\b(forex|cfds?)\b",
+    "building_society_savings": r"\b(building society|bauspar\w*)\b",
+}
+ADVICE_RE = re.compile(r"\b(should|can|could|may|shall) (i|we)\b|\bi should\b|\bfor me\b|"
+                       r"\bmy (wealth|savings|money|portfolio|income|capital)\b", re.IGNORECASE)
+PERSON_RE = re.compile(r"\b(i|i'm|i've|i'd|me|my|mine|we|our|ours)\b", re.IGNORECASE)
+CLIENT_RE = re.compile(r"\b(client|customer|profile|he|she|his|her)\b", re.IGNORECASE)
+_MONEY = r"(\d{1,3}(?:[.,]\d{3})+|\d+)(?:[.,]\d+)?\s?(?:EUR|€|euros?)"
+
+
+def _amount(s: str) -> float:
+    return float(re.sub(r"[.,](?=\d{3}\b)", "", s).replace(",", "."))
+
+
+def ground(n: dict[str, Any], message: str) -> tuple[dict[str, Any], list[str]]:
+    """Return a copy of the NLU output with the deterministic grounding rules applied, plus notes."""
+    n = json.loads(json.dumps(n))
+    notes: list[str] = []
+    low = message.lower()
+
+    cats = list(n["product_categories"])
+    for c in list(cats):
+        if c in SCOPE_EVIDENCE and not re.search(SCOPE_EVIDENCE[c], low):
+            cats.remove(c)
+            notes.append(f"dropped category '{c}': no matching wording in the message")
+    for c, rx in SCOPE_STRONG.items():
+        if c not in cats and re.search(rx, low):
+            cats.append(c)
+            notes.append(f"added category '{c}' from the message wording")
+    n["product_categories"] = cats
+
+    if (n["request_type"] == "general_explanation" and ADVICE_RE.search(message)
+            and any(c in SCOPE_EVIDENCE for c in cats)):
+        n["request_type"] = "personal_recommendation"
+        notes.append("request asks for advice for the user on an out-of-scope product")
+
+    if n["subject"] != "generic" and not PERSON_RE.search(message) and not CLIENT_RE.search(message):
+        n["subject"] = "generic"
+        notes.append("subject set to generic: the message refers to no person")
+
+    p = n["computation_params"]
+    if "withdraw" in low and "monthly_withdrawal" not in p:
+        m = re.search(_MONEY + r"\s*(?:per month|a month|monthly|each month)", message, re.IGNORECASE)
+        if m:
+            p["monthly_withdrawal"] = _amount(m.group(1))
+            notes.append("monthly_withdrawal taken from the message")
+    if "monthly_withdrawal" in p and "portfolio" not in p:
+        m = re.search(r"\b(portfolio|capital|savings|wealth|assets|lump sum)\b[^.?]{0,20}?" + _MONEY, message,
+                      re.IGNORECASE)
+        if m:
+            p["portfolio"] = _amount(m.group(2))
+        elif "initial" in p:
+            p["portfolio"] = p["initial"]
+        if "portfolio" in p:
+            notes.append("portfolio taken from the message")
+    if "monthly_withdrawal" in p and "annual_rate" not in p:
+        m = re.search(r"(\d+(?:[.,]\d+)?)\s?%\s*(?:\w+\s+){0,3}(return|interest|yield|growth)", message, re.IGNORECASE)
+        if m:
+            p["annual_rate"] = float(m.group(1).replace(",", ".")) / 100
+            notes.append("annual_rate taken from the message")
+    return n, notes
 
 
 def normalize(d: dict[str, Any]) -> dict[str, Any]:

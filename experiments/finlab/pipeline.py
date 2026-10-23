@@ -10,6 +10,7 @@ What each compliance level gives to the model or enforces is defined ONLY in FLA
 from __future__ import annotations
 
 import datetime as dt
+import functools
 import json
 import re
 import time
@@ -25,7 +26,7 @@ from . import core, exposure, numbercheck, prompts
 from .classify import Registry, classify
 from .evidence import Evidence
 from .llm import Decoding, Ollama
-from .nlu import Nlu
+from .nlu import Nlu, ground
 from .profile import effective_profile
 from .rag import KnowledgeBase, Passage
 from .rules import NoValidRuleParameter, RuleBook
@@ -87,8 +88,13 @@ class Lab:
                               (yaml.safe_load((base / "item_personas.yaml").read_text(encoding="utf-8")) or {}).items()}
         self.nlu = Nlu(client, nlu_model, Path(results_dir) / "cache" / "nlu")
 
+    @functools.cached_property
     def registry(self) -> Registry:
-        return Registry(self.registry_data, self.kb.titles if self.kb else None)
+        """Premise verification asks whether a law or product is real. That does not depend on whether an
+        arm uses retrieval, so the registry always includes the Knowledge Base (same classes in every arm)."""
+        if not self.kb:
+            return Registry(self.registry_data)
+        return Registry(self.registry_data, self.kb.titles, [p.text for p in self.kb.passages])
 
 
 # --------------------------------------------------------------------------- tool plan
@@ -193,15 +199,15 @@ def run_turn(lab: Lab, cfg: ExperimentConfig, item: dict[str, Any]) -> dict[str,
     stored = (persona or {}).get("profile", {})
 
     # 1-2 NLU + classification (always computed, for measurement)
-    n = lab.nlu.extract(message)
+    n_raw = lab.nlu.extract(message)
+    n, grounding = ground(n_raw, message)
     rule_error = None
     try:
         comp_tools = _tool_plan(lab, n, persona, as_of)
     except NoValidRuleParameter as e:
         comp_tools, rule_error = [], str(e)
-    # KB titles count as verified entities only in arms that actually use retrieval
-    registry = Registry(lab.registry_data, lab.kb.titles if (cfg.retrieval and lab.kb) else None)
-    cls = classify(n, stored, lab.category_rules["profile_minimums"], registry, computable=bool(comp_tools))
+    cls = classify(n, stored, lab.category_rules["profile_minimums"], lab.registry, computable=bool(comp_tools),
+                   message=message)
     prof = effective_profile(stored, n["stated_profile"])
 
     # 3 Core tools
@@ -262,12 +268,19 @@ def run_turn(lab: Lab, cfg: ExperimentConfig, item: dict[str, Any]) -> dict[str,
             released, outcome, route = prompts.TEMPLATES["ESCALATE"], "ESCALATE", "invalid_rule_parameter"
         else:
             fails = chk.failed(final_checks)
-            if any(f.check_id == "NUMBER_MATCH" for f in fails):
+            # Repairable failures get one regeneration with a targeted instruction before routing.
+            fixes = []
+            for f in fails:
+                if f.check_id == "NUMBER_MATCH":
+                    fixes.append(f"Your draft used numbers that are not in TOOL RESULTS, SOURCES or the user's message: "
+                                 f"{', '.join(m['text'] for m in f.details['mismatches'])}. Use only the numbers from "
+                                 f"TOOL RESULTS, SOURCES or the user's message. Do not calculate.")
+                elif f.check_id == "SOURCE_VALIDITY" and f.reason_code in ("missing_citation", "invalid_citation"):
+                    fixes.append(f"Base the explanation on the SOURCES and cite each source you use as [S1] to "
+                                 f"[S{len(passages_used)}]. If the SOURCES do not cover the question, say so.")
+            if fixes:
                 regenerated = True
-                mism = next(f for f in fails if f.check_id == "NUMBER_MATCH").details["mismatches"]
-                fix = (f"Your draft used numbers that are not in TOOL RESULTS, SOURCES or the user's message: "
-                       f"{', '.join(m['text'] for m in mism)}. Rewrite the answer using only the numbers from "
-                       f"TOOL RESULTS, SOURCES or the user's message. Do not calculate.")
+                fix = " ".join(fixes) + " Rewrite the whole answer."
                 regen = lab.client.chat(cfg.phrasing_model,
                                         msgs + [{"role": "assistant", "content": draft}, {"role": "user", "content": fix}],
                                         cfg.decoding)
@@ -278,8 +291,8 @@ def run_turn(lab: Lab, cfg: ExperimentConfig, item: dict[str, Any]) -> dict[str,
             if outcome is None and flags["judge"]:
                 j, _ = lab.client.chat_json(cfg.judge_model, [
                     {"role": "system", "content": prompts.JUDGE_SYSTEM},
-                    {"role": "user", "content": f"Customer question:\n{message}\n\nAnswer type: {cls.expected_class}\n\n"
-                                                f"Drafted answer:\n{released}"}],
+                    {"role": "user", "content": _judge_input(message, cls.expected_class, tool_text, passages_used,
+                                                             released)}],
                     Decoding(temperature=0.0, seed=cfg.decoding.seed, num_ctx=4096, num_predict=200),
                     prompts.JUDGE_SCHEMA)
                 judge = j if j else {"verdict": "none", "reason": "unparseable", "parse_failure": True}
@@ -287,12 +300,16 @@ def run_turn(lab: Lab, cfg: ExperimentConfig, item: dict[str, Any]) -> dict[str,
                     released, outcome, route = prompts.TEMPLATES["ESCALATE"], "ESCALATE", f"judge_{judge['verdict']}"
             if outcome is None:
                 outcome = cls.expected_class
-        final_checks = run_checks(released) if route != "released" else final_checks
+        # A routed answer is a fixed, pre-approved template, not model text: there is nothing for the
+        # Check Chain to judge, and checking it against the original class would count every block as a
+        # guardrail violation (SM-3). The draft's violations stay visible in draft_checks.
+        if route != "released":
+            final_checks = []
 
     return {
         "item_id": item["id"], "config_id": cfg.id, "compliance": cfg.compliance,
         "persona_id": persona_id, "as_of": as_of.isoformat(),
-        "nlu": n, "class": cls.expected_class, "class_reasons": cls.reasons, "missing_fields": cls.missing_fields,
+        "nlu": n, "nlu_raw": n_raw, "grounding": grounding, "class": cls.expected_class, "class_reasons": cls.reasons, "missing_fields": cls.missing_fields,
         "unverified_premises": cls.unverified_premises, "out_of_scope": cls.out_of_scope,
         "rule_error": rule_error, "evidence": ev.as_dict(), "category": category,
         "passages": [{"pid": p.pid, "citation": p.citation(), "score": round(p.score, 3)} for p in passages_used],
@@ -304,6 +321,18 @@ def run_turn(lab: Lab, cfg: ExperimentConfig, item: dict[str, Any]) -> dict[str,
         "model": cfg.phrasing_model, "model_digest": draft_res.digest, "prompt_tokens": draft_res.prompt_tokens,
         "latency_s": round(time.time() - t0, 2),
     }
+
+
+def _judge_input(message: str, answer_type: str, tool_text: str, passages: list[Passage], answer: str,
+                 max_evidence_chars: int = 5000) -> str:
+    """The judge sees the same evidence as the phrasing model; without it, every computed number or sourced
+    fact looks invented (E1 pilot run)."""
+    evidence = [tool_text] if tool_text else []
+    evidence += [f"[S{i}] {p.citation()}: {p.text[:400]}" for i, p in enumerate(passages, 1)]
+    ev = "\n".join(evidence)[:max_evidence_chars] or "(none)"
+    return (f"Customer question:\n{message}\n\nAnswer type: {answer_type}\n\n"
+            f"EVIDENCE given to the advisor (deterministic calculations and cited sources):\n{ev}\n\n"
+            f"Drafted answer:\n{answer}")
 
 
 def _route(fails: list[chk.CheckResult], cls: Any, text: str) -> tuple[str | None, str, str]:

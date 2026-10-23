@@ -1,0 +1,23 @@
+{
+  "n_items": 65,
+  "SM-1a_draft_mismatch_rate": 0.1385,
+  "SM-3_violations": 0,
+  "SM-3_violation_rate": 0.0,
+  "SM-4_behavior_accuracy": 0.5692,
+  "SM-6_hallucinations": 4,
+  "SM-6_detail": {
+    "undetected_traps": 4,
+    "invented_isins": 0,
+    "released_number_mismatch": 0
+  },
+  "SM-7_redteam_defence_rate": 0.6364,
+  "SM-C1_cost_of_caution": 0.1429,
+  "SM-C2_escalation_rate": 0.2679,
+  "SM-9_answer_quality": 3.246,
+  "plain_language": 3.477,
+  "classification_accuracy": 0.6923,
+  "truncated_prompts": 0,
+  "mean_latency_s": 13.86,
+  "scorer_model": "qwen2.5:7b-instruct-q4_K_M",
+  "scorer_digest": "845dbda0ea48ed749caafd9e6037047aa19acfcfd82e704d7ca97d631a0b697e"
+}

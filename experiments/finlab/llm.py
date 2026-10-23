@@ -65,7 +65,14 @@ class Ollama:
         if schema is not None:
             body["format"] = schema
         t0 = time.time()
-        resp = requests.post(f"{self.url}/api/chat", json=body, timeout=self.timeout)
+        # A 500 from Ollama is usually a crashed model runner (e.g. while swapping models on the GPU);
+        # the server restarts it, so the same seeded request is retried twice before giving up.
+        for attempt in range(3):
+            resp = requests.post(f"{self.url}/api/chat", json=body, timeout=self.timeout)
+            if resp.status_code < 500 or attempt == 2:
+                break
+            print(f"[ollama] {resp.status_code} for {model}: {resp.text[:200]!r}; retrying")
+            time.sleep(10)
         resp.raise_for_status()
         data = resp.json()
         return LlmResult(
