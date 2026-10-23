@@ -91,6 +91,13 @@
     width: 18px;
     height: 18px;
   }
+
+  // Like the composer: no new question while a turn is pending.
+  &:disabled {
+    color: var(--mat-sys-on-surface);
+    opacity: 0.38;
+    cursor: default;
+  }
 }
 
 .waiting {

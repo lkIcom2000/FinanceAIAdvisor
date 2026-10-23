@@ -81,6 +81,16 @@ deferred: []
 - Given an empty conversation, when the chat opens, then "Hi Lena, I'm Fine. I can explain money topics, look at your situation and calculate what-ifs. Every number I show you comes with a 'Why?'." shows with three suggestion chips that send their text; after logout and login the history is still there.
 - Given the user is scrolled up, when a message arrives, then the scroll position stays and a "New message" pill appears.
 
+## Spec Change Log
+
+## Review Triage Log
+
+### 2026-10-23 — Review pass (block A: Stories 3.1 + 3.3)
+- verdicts: the joint pass is logged in full in `spec-3-3-deterministic-classification-of-every-message.md` (32 findings); rows on 3.1 code:
+  - `[low]` `[reject]` ECH: two concurrent answer calls give the second a 503 — the UI sends one answer call per question; the unique `reply_to` keeps the data correct
+  - `[low]` `[reject]` ECH: a new message while a failed card is pending drops its Try again — the question stays saved and unanswered
+  - `[low]` `[patch]` BH: chips stay active during a turn — disabled while a turn is pending
+
 ## Design Notes
 
 - `turnId` = the agent message's id, generated before the audit write, so the record and the message share it.
@@ -109,6 +119,6 @@ deferred: []
 
 - **Summary:** `advisory` chat backbone: V6 tables (`conversations`, `messages`, `dialog_states`), `TurnOrchestrator` running dialog state plus the 11 stages in fixed order (LLM draft and audit + release real, the rest named pass-throughs), two-step chat API (save question, then answer in one transaction with the `RESPONSE` record), `AdvisoryResetter`, `PersonaDirectory.fixtureVersion`, `ProblemCode.TURN_FAILED`; chat column and composer in the workspace.
 - **Files:** `advisory/{domain,application,adapter,web}/*` (new module code); `V6__advisory.sql`; `personas/PersonaDirectory.java` + service; `shared/ProblemCode.java`; tests `TurnOrchestratorTest`, `ChatEndToEndTest` (matrix rows), `ChatResearchEndToEndTest` (Epic 1 A7 export, reset), `StubLlmConfiguration` (shared `@Primary` stub), `PersonaOwnedTablesTest`; frontend `chat-column.component.*`, `chat-composer.component.*`, workspace wiring, regenerated API client and OpenAPI snapshot.
-- **Review:** deferred to block A (3.1 + 3.3, four layers). No findings yet; follow-up recommendation `false` (no review pass ran).
+- **Review:** block A (3.1 + 3.3, four layers, 2026-10-23), logged in full in the 3.3 spec. Rows on 3.1 code: 1 low patched (chips disabled during a turn), 2 low rejected. Fixes in the block A fix commit. Follow-up recommendation `false`.
 - **Verification:** `./mvnw -B verify -Dfine.it.required=true` BUILD SUCCESS, 265 tests, 0 failures, 0 skipped (chat tests 7 + 2 ran). Frontend `npm run api:check` up to date, `ng test` 68 passed, `npm run build` complete. Matrix audit: all six rows covered by `ChatEndToEndTest`, all ran. Live check (local `spring-boot:run`, research profile, compose `db`/`ollama` via `docker-compose.local.yml`, CPU, `llama3.1:8b-instruct-q4_K_M`): Lena asked "What is an ETF savings plan?", one complete `INFORM` answer after 75 s; the export shows its `RESPONSE` record with the turn id, model tag and the ten pass-through stages. The README's local-run note (Epic 2 A4) worked as written.
 - **Residual risks:** the LLM call holds the answer transaction open (~75 s on CPU) by design (atomic release); until Story 3.2–3.4 the released text is the unchecked draft (pass-through checks), acceptable only because nothing is released outside development.

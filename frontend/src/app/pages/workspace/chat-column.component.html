@@ -18,7 +18,12 @@
       </p>
       <div class="chips">
         @for (s of suggestions; track s) {
-          <button type="button" class="chip" (click)="send(s)">
+          <button
+                type="button"
+                class="chip"
+                [disabled]="isBusy() || load() !== 'ready'"
+                (click)="send(s)"
+              >
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
               <path [attr.d]="icons['chat']" />
             </svg>
@@ -47,7 +52,12 @@
         @if (m.suggestions.length) {
           <div class="chips">
             @for (s of m.suggestions; track s) {
-              <button type="button" class="chip" (click)="send(s)">
+              <button
+                type="button"
+                class="chip"
+                [disabled]="isBusy() || load() !== 'ready'"
+                (click)="send(s)"
+              >
                 <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
                   <path [attr.d]="icons['chat']" />
                 </svg>

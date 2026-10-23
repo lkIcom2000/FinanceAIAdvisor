@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.yaml.snakeyaml.LoaderOptions;
@@ -20,7 +21,7 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 /** The classifier's inputs that are no turn data: the entity registry and the profile-completeness port. */
 @Configuration(proxyBeanMethods = false)
-class ClassificationConfiguration {
+public class ClassificationConfiguration {
 
     /** The registry file, under {@code data/rules/} so that the config fingerprint covers it. */
     static final String KNOWN_ENTITIES = "rules/known_entities.yaml";
@@ -37,8 +38,11 @@ class ClassificationConfiguration {
         return ProfileCompleteness.INCOMPLETE;
     }
 
-    /** The registry's lists; a missing or malformed file fails startup. */
-    static Map<String, List<String>> load(Path file) {
+    /**
+     * The registry's lists; null and blank items are skipped. A missing file, a root that is no map or a value that
+     * is no list fails startup.
+     */
+    public static Map<String, List<String>> load(Path file) {
         Object root;
         try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
             root = new Yaml(new SafeConstructor(new LoaderOptions())).load(reader);
@@ -53,7 +57,8 @@ class ClassificationConfiguration {
             if (value == null) {
                 out.put(String.valueOf(key), List.of());
             } else if (value instanceof List<?> list) {
-                out.put(String.valueOf(key), list.stream().map(String::valueOf).toList());
+                out.put(String.valueOf(key), list.stream().filter(Objects::nonNull).map(String::valueOf)
+                        .filter(item -> !item.isBlank()).toList());
             } else {
                 throw new IllegalStateException(file + ": " + key + " must be a list");
             }

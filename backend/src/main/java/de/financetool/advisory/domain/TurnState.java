@@ -14,6 +14,7 @@ import java.util.TreeMap;
  * @param dialogState the persona's dialog state as consulted first ({@code NONE} without one)
  * @param nlu the grounded NLU extraction, set by the NLU stage
  * @param classification set by the classify stage
+ * @param passages the Knowledge Base passages the retrieval stage found, before any budget drop (empty until Epic 4)
  * @param prompt the phrasing prompt, set by the exposure filter stage
  * @param draft set by the LLM draft stage
  * @param outcome set by block routing
@@ -26,6 +27,7 @@ public record TurnState(
         String dialogState,
         Nlu nlu,
         Classification classification,
+        List<PromptPayload.Passage> passages,
         Prompt prompt,
         Draft draft,
         ResponseOutcome outcome,
@@ -84,14 +86,15 @@ public record TurnState(
 
     public TurnState {
         Objects.requireNonNull(userText, "userText");
+        passages = List.copyOf(passages);
         suggestions = List.copyOf(suggestions);
         stagesRun = List.copyOf(stagesRun);
         passThroughStages = List.copyOf(passThroughStages);
     }
 
     public static TurnState start(String userText) {
-        return new TurnState(userText, null, null, null, null, null, null, null, List.of(), false, List.of(),
-                List.of());
+        return new TurnState(userText, null, null, null, List.of(), null, null, null, null, List.of(), false,
+                List.of(), List.of());
     }
 
     /** The class, once the classify stage ran. */
@@ -101,39 +104,44 @@ public record TurnState(
 
     /** This state after {@code stage} ran and did nothing. */
     public TurnState passedThrough(TurnStage stage) {
-        return new TurnState(userText, dialogState, nlu, classification, prompt, draft, outcome, finalText,
-                suggestions, noValidSource, plus(stagesRun, stage), plus(passThroughStages, stage));
+        return new TurnState(userText, dialogState, nlu, classification, passages, prompt, draft, outcome,
+                finalText, suggestions, noValidSource, plus(stagesRun, stage), plus(passThroughStages, stage));
     }
 
     /** This state after {@code stage} ran with the given result. */
     public TurnState ran(TurnStage stage) {
-        return new TurnState(userText, dialogState, nlu, classification, prompt, draft, outcome, finalText,
-                suggestions, noValidSource, plus(stagesRun, stage), passThroughStages);
+        return new TurnState(userText, dialogState, nlu, classification, passages, prompt, draft, outcome,
+                finalText, suggestions, noValidSource, plus(stagesRun, stage), passThroughStages);
     }
 
     public TurnState withDialogState(String state) {
-        return new TurnState(userText, state, nlu, classification, prompt, draft, outcome, finalText, suggestions,
-                noValidSource, stagesRun, passThroughStages);
+        return new TurnState(userText, state, nlu, classification, passages, prompt, draft, outcome,
+                finalText, suggestions, noValidSource, stagesRun, passThroughStages);
     }
 
     public TurnState withNlu(Nlu value) {
-        return new TurnState(userText, dialogState, value, classification, prompt, draft, outcome, finalText,
-                suggestions, noValidSource, stagesRun, passThroughStages);
+        return new TurnState(userText, dialogState, value, classification, passages, prompt, draft, outcome,
+                finalText, suggestions, noValidSource, stagesRun, passThroughStages);
     }
 
     public TurnState withClassification(Classification value) {
-        return new TurnState(userText, dialogState, nlu, value, prompt, draft, outcome, finalText, suggestions,
-                noValidSource, stagesRun, passThroughStages);
+        return new TurnState(userText, dialogState, nlu, value, passages, prompt, draft, outcome,
+                finalText, suggestions, noValidSource, stagesRun, passThroughStages);
+    }
+
+    public TurnState withPassages(List<PromptPayload.Passage> value) {
+        return new TurnState(userText, dialogState, nlu, classification, value, prompt, draft, outcome,
+                finalText, suggestions, noValidSource, stagesRun, passThroughStages);
     }
 
     public TurnState withPrompt(Prompt value) {
-        return new TurnState(userText, dialogState, nlu, classification, value, draft, outcome, finalText,
-                suggestions, noValidSource, stagesRun, passThroughStages);
+        return new TurnState(userText, dialogState, nlu, classification, passages, value, draft, outcome,
+                finalText, suggestions, noValidSource, stagesRun, passThroughStages);
     }
 
     public TurnState withDraft(Draft value) {
-        return new TurnState(userText, dialogState, nlu, classification, prompt, value, outcome, finalText,
-                suggestions, noValidSource, stagesRun, passThroughStages);
+        return new TurnState(userText, dialogState, nlu, classification, passages, prompt, value, outcome,
+                finalText, suggestions, noValidSource, stagesRun, passThroughStages);
     }
 
     public TurnState withOutcome(ResponseOutcome value, String text) {
@@ -145,7 +153,7 @@ public record TurnState(
      * @param fromNoValidSource whether the text is the no-valid-source template
      */
     public TurnState withOutcome(ResponseOutcome value, String text, List<String> chips, boolean fromNoValidSource) {
-        return new TurnState(userText, dialogState, nlu, classification, prompt, draft, value, text, chips,
+        return new TurnState(userText, dialogState, nlu, classification, passages, prompt, draft, value, text, chips,
                 fromNoValidSource, stagesRun, passThroughStages);
     }
 

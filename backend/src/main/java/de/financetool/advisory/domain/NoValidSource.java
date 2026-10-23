@@ -1,5 +1,6 @@
 package de.financetool.advisory.domain;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -33,8 +34,23 @@ public final class NoValidSource {
     private NoValidSource() {
     }
 
-    /** The related in-scope question for an NLU topic. */
-    public static String suggestion(String topic) {
-        return SUGGESTIONS.getOrDefault(topic, DEFAULT_SUGGESTION);
+    /** In-scope questions to fall back on, in order, when the related one is the question just asked. */
+    static final List<String> FALLBACKS = List.of(DEFAULT_SUGGESTION, "How does an emergency fund work?",
+            "Why does diversification matter?");
+
+    /**
+     * The related in-scope question for an NLU topic, never the question just asked (trimmed, ignoring case): then
+     * the first other in-scope question.
+     */
+    public static String suggestion(String topic, String question) {
+        String related = SUGGESTIONS.getOrDefault(topic, DEFAULT_SUGGESTION);
+        if (!same(related, question)) {
+            return related;
+        }
+        return FALLBACKS.stream().filter(s -> !same(s, question)).findFirst().orElseThrow();
+    }
+
+    private static boolean same(String suggestion, String question) {
+        return question != null && suggestion.strip().equalsIgnoreCase(question.strip());
     }
 }

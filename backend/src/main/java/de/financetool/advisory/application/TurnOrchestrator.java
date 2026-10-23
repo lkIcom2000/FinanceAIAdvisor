@@ -74,7 +74,7 @@ public class TurnOrchestrator {
     public ChatMessage run(RequestContext context, PersonaScope scope, ChatMessage question, String fixtureVersion) {
         TurnState turn = TurnState.start(question.text());
         turn = dialogState(scope, turn);
-        turn = nlu(context, turn);
+        turn = nlu(context, scope, turn);
         turn = classify(turn);
         turn = toolPlan(turn);
         turn = kbRetrieve(turn);
@@ -97,8 +97,9 @@ public class TurnOrchestrator {
      * The NLU role extracts the message's data (AD-4): cached by model, prompt and message, then grounded by the
      * deterministic rules. A failed model call fails the turn.
      */
-    TurnState nlu(RequestContext context, TurnState turn) {
-        return turn.withNlu(nluExtractor.extract(context.agentConfig(), turn.userText())).ran(TurnStage.NLU);
+    TurnState nlu(RequestContext context, PersonaScope scope, TurnState turn) {
+        return turn.withNlu(nluExtractor.extract(context.agentConfig(), scope, turn.userText()))
+                .ran(TurnStage.NLU);
     }
 
     /**
@@ -118,7 +119,7 @@ public class TurnOrchestrator {
 
     /** Pass-through until the Knowledge Base exists (Epic 4). */
     TurnState kbRetrieve(TurnState turn) {
-        return turn.passedThrough(TurnStage.KB_RETRIEVE);
+        return turn.withPassages(List.of()).passedThrough(TurnStage.KB_RETRIEVE);
     }
 
     /**
@@ -131,11 +132,12 @@ public class TurnOrchestrator {
         List<PromptPayload.HistoryTurn> history =
                 chats.releasedTurnsBefore(scope, question.id(), ExposureFilter.HISTORY_TURNS);
         PromptPayload payload = ExposureFilter.apply(level(agent.dataExposure()), turn.userText(),
-                turn.nlu().extraction().depersonalizedQuestion(), history, Map.of(), "", List.of());
+                turn.nlu().extraction().depersonalizedQuestion(), history, Map.of(), "", turn.passages());
         PromptFiles.Prompt rolePrompt = prompts.rolePrompt(agent.rolePrompt());
         PromptFiles.Prompt rules = prompts.complianceRules();
         PromptFiles.Prompt instruction = prompts.classInstruction(turn.messageClass());
-        String classInstruction = ClassInstruction.fill(instruction.text(), turn.classification(), null, "");
+        String classInstruction = ClassInstruction.fill(instruction.text(), turn.classification(), null, "",
+                level(agent.dataExposure()));
         PhrasingPrompt phrasing = PhrasingPrompt.build(rolePrompt.text(), rules.text(), classInstruction, payload,
                 agent.decoding().numCtx(), agent.decoding().numPredict());
         Map<String, String> hashes = Map.of(rolePrompt.fileName(), rolePrompt.hash(), rules.fileName(), rules.hash(),
@@ -152,16 +154,16 @@ public class TurnOrchestrator {
         };
     }
 
-    /** The phrasing role drafts the answer: prompt files as system message, everything else in the user part. */
+    /**
+     * The phrasing role drafts the answer: prompt files as system message, everything else in the user part. A blank
+     * draft fails the turn only if block routing would release it.
+     */
     TurnState llmDraft(RequestContext context, TurnState turn) {
         PhrasingPrompt phrasing = turn.prompt().phrasing();
         LlmResult result = llm.generate(LlmRole.PHRASING,
                 List.of(LlmMessage.system(phrasing.system()), LlmMessage.user(phrasing.user())),
                 context.agentConfig().decoding(), null);
-        if (result.text() == null || result.text().isBlank()) {
-            throw new IllegalStateException("The phrasing model returned an empty draft");
-        }
-        return turn.withDraft(new TurnState.Draft(result.text(), result.modelTag(), result.digest(),
+        return turn.withDraft(new TurnState.Draft(result.text() == null ? "" : result.text(), result.modelTag(), result.digest(),
                 result.truncated())).ran(TurnStage.LLM_DRAFT);
     }
 
@@ -183,13 +185,17 @@ public class TurnOrchestrator {
     /**
      * Pass-through routing (the outcome is the class, the released text the draft), except that an {@code INFORM}
      * turn without a Knowledge Base passage releases the no-valid-source template with one related in-scope chip
-     * (FR-13); its draft stays recorded as first draft.
+     * (FR-13); its draft stays recorded as first draft. "Without a passage" means the retrieval found none, not that
+     * the prompt budget dropped them. A blank draft that would be released fails the turn.
      */
     TurnState blockRouting(TurnState turn) {
-        if (turn.messageClass() == MessageClass.INFORM && turn.prompt().payload().passages().isEmpty()) {
+        if (turn.messageClass() == MessageClass.INFORM && turn.passages().isEmpty()) {
             return turn.withOutcome(ResponseOutcome.INFORM, NoValidSource.TEXT,
-                    List.of(NoValidSource.suggestion(turn.nlu().extraction().topic())), true)
+                    List.of(NoValidSource.suggestion(turn.nlu().extraction().topic(), turn.userText())), true)
                     .ran(TurnStage.BLOCK_ROUTING);
+        }
+        if (turn.draft().text().isBlank()) {
+            throw new IllegalStateException("The phrasing model returned an empty draft");
         }
         return turn.withOutcome(ResponseOutcome.of(turn.messageClass()), turn.draft().text().strip())
                 .passedThrough(TurnStage.BLOCK_ROUTING);

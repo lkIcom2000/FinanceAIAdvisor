@@ -20,17 +20,18 @@ import org.springframework.jdbc.core.JdbcTemplate;
 class PersonaOwnedTablesTest extends PostgresIntegrationTest {
 
     /** Table → owning module (AD-12). */
-    static final Map<String, String> OWNERS = Map.of(
-            "users", "personas",
-            "persona_state", "personas",
-            "accounts", "bank",
-            "contracts", "bank",
-            "transactions", "bank",
-            "holdings", "bank",
-            "savings_plans", "bank",
-            "conversations", "advisory",
-            "messages", "advisory",
-            "dialog_states", "advisory");
+    static final Map<String, String> OWNERS = Map.ofEntries(
+            Map.entry("users", "personas"),
+            Map.entry("persona_state", "personas"),
+            Map.entry("accounts", "bank"),
+            Map.entry("contracts", "bank"),
+            Map.entry("transactions", "bank"),
+            Map.entry("holdings", "bank"),
+            Map.entry("savings_plans", "bank"),
+            Map.entry("conversations", "advisory"),
+            Map.entry("messages", "advisory"),
+            Map.entry("dialog_states", "advisory"),
+            Map.entry("nlu_cache", "advisory"));
 
     /** Append-only evidence: never reset (AD-13). */
     static final Set<String> NEVER_RESET = Set.of("audit_records", "evidence_items");

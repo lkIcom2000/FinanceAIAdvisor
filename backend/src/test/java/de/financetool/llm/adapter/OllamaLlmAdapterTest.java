@@ -11,6 +11,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 import de.financetool.llm.Embeddings;
 import de.financetool.llm.LlmMessage;
+import de.financetool.llm.LlmModel;
 import de.financetool.llm.LlmResult;
 import de.financetool.llm.LlmRole;
 import de.financetool.shared.config.AgentConfiguration;
@@ -82,6 +83,37 @@ class OllamaLlmAdapterTest {
         assertThat(result.truncated()).isFalse();
         assertThat(result.decoding()).isEqualTo(DECODING);
         assertThat(result.latency()).isNotNull();
+        server.verify();
+    }
+
+    @Test
+    void theModelOfARoleIsItsTagAndItsLockDigestWithoutACall() {
+        OllamaLlmAdapter adapter = adapter(agent("phrase-a"), Optional.of(LOCK));
+        assertThat(adapter.model(LlmRole.NLU)).isEqualTo(new LlmModel("nlu-model", "sha256:n"));
+        assertThat(adapter.model(LlmRole.PHRASING)).isEqualTo(new LlmModel("phrase-a", "sha256:a"));
+        assertThat(adapter(agent("phrase-unlocked"), Optional.of(LOCK)).model(LlmRole.PHRASING))
+                .isEqualTo(new LlmModel("phrase-unlocked", ""));
+        server.verify();
+    }
+
+    @Test
+    void anNluCallSendsItsSchemaAsFormat() {
+        OllamaLlmAdapter adapter = adapter(agent("phrase-a"), Optional.of(LOCK));
+        Map<String, Object> schema = Map.of("type", "object",
+                "properties", Map.of("topic", Map.of("type", "string", "enum", List.of("savings_plan", "other"))),
+                "required", List.of("topic"));
+        server.expect(requestTo(URL + "/api/chat"))
+                .andExpect(jsonPath("$.model").value("nlu-model"))
+                .andExpect(jsonPath("$.options.temperature").value(0.0))
+                .andExpect(jsonPath("$.options.num_predict").value(900))
+                .andExpect(jsonPath("$.format.properties.topic.enum[0]").value("savings_plan"))
+                .andExpect(jsonPath("$.format.required[0]").value("topic"))
+                .andRespond(withSuccess(chat("{\"topic\":\"other\"}", 5, "stop"), MediaType.APPLICATION_JSON));
+
+        LlmResult result = adapter.generate(LlmRole.NLU, List.of(LlmMessage.user("x")),
+                new AgentConfiguration.Decoding(0.0, 0.9, 42L, 4096, 900), schema);
+        assertThat(result.text()).isEqualTo("{\"topic\":\"other\"}");
+        assertThat(result.digest()).isEqualTo("sha256:n");
         server.verify();
     }
 

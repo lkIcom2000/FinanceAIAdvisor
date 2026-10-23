@@ -183,6 +183,29 @@ describe('ChatColumnComponent', () => {
     expect(element.querySelector('.waiting')).not.toBeNull();
   });
 
+  it('disables the suggestion chips while a turn is pending, like the composer', () => {
+    render([question, { ...answer, suggestions: ['What is an ETF savings plan?'] }]);
+    const chip = () => element.querySelector('.response .chip') as HTMLButtonElement;
+    expect(chip().disabled).toBe(false);
+
+    typeAndSend('How does an emergency fund work?');
+    expect(field().disabled).toBe(true);
+    expect(chip().disabled).toBe(true);
+    chip().click();
+    fixture.detectChanges();
+    http.expectOne('/api/chat/messages').flush(
+      { id: 'q2', author: 'USER', text: 'How does an emergency fund work?', suggestions: [] },
+      { status: 201, statusText: 'Created' },
+    );
+    fixture.detectChanges();
+    expect(chip().disabled).toBe(true);
+
+    http.expectOne('/api/chat/messages/q2/answer').flush({ ...answer, id: 'a2', replyTo: 'q2' });
+    fixture.detectChanges();
+    expect(chip().disabled).toBe(false);
+    expect(field().disabled).toBe(false);
+  });
+
   it('shows no chips on a card without suggestions', () => {
     render([question, answer]);
     expect(element.querySelector('.response .chips')).toBeNull();

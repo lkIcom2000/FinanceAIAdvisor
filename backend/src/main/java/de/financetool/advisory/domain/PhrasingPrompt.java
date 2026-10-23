@@ -8,8 +8,10 @@ import java.util.regex.Pattern;
 
 /**
  * The phrasing role's prompt (AD-5), mirroring {@code _system_prompt}, {@code _user_prompt} and {@code _fit_budget}
- * of {@code experiments/finlab/pipeline.py}: the system part holds only the versioned prompt files, everything from
- * the user, the history, the Core and the Knowledge Base goes into the user part as data.
+ * of {@code experiments/finlab/pipeline.py}: the system part holds the versioned prompt files, everything from the
+ * user, the history, the Core and the Knowledge Base goes into the user part as data. The one exception is the class
+ * instruction's premise claims (from the NLU or the message): {@link ClassInstruction} passes them through the
+ * exposure filter at the turn's level and strips slot markers and braces before filling them in.
  *
  * @param system the system part: role prompt, compliance rules, then the class instruction
  * @param user the user part: tool results, sources, profile, earlier conversation, then the message slot

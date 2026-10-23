@@ -1,12 +1,16 @@
 package de.financetool.advisory.adapter;
 
+import de.financetool.shared.PersonaScope;
+import de.financetool.shared.domain.PersonaId;
 import java.util.Optional;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 /**
- * The NLU cache {@code nlu_cache} (AD-5): the normalised extraction per sha256 key over model tag, model digest,
- * NLU prompt hash and message. Not persona state: it is never reset.
+ * The NLU cache {@code nlu_cache} (AD-5): the normalised extraction per sha256 key over persona, model tag, model
+ * digest, decoding, schema, NLU prompt hash and message. An extraction can hold stated profile facts, so the cache is
+ * persona state: every read and write takes a {@link PersonaScope}, and persona reset deletes the persona's rows
+ * (AD-23).
  */
 @Repository
 public class NluCacheRepository {
@@ -21,18 +25,23 @@ public class NluCacheRepository {
         this.jdbc = jdbc;
     }
 
-    public Optional<Entry> find(String key) {
-        return jdbc.sql("SELECT extraction, parse_ok FROM nlu_cache WHERE cache_key = ?")
-                .param(key)
+    public Optional<Entry> find(PersonaScope scope, String key) {
+        return jdbc.sql("SELECT extraction, parse_ok FROM nlu_cache WHERE cache_key = ? AND persona_id = ?")
+                .params(key, scope.id())
                 .query((rs, row) -> new Entry(rs.getString("extraction"), rs.getBoolean("parse_ok")))
                 .optional();
     }
 
     /** Stores the entry unless the key is cached already (a concurrent turn with the same message). */
-    public void put(String key, Entry entry) {
-        jdbc.sql("INSERT INTO nlu_cache (cache_key, extraction, parse_ok) VALUES (?, ?, ?) "
+    public void put(PersonaScope scope, String key, Entry entry) {
+        jdbc.sql("INSERT INTO nlu_cache (cache_key, persona_id, extraction, parse_ok) VALUES (?, ?, ?, ?) "
                         + "ON CONFLICT (cache_key) DO NOTHING")
-                .params(key, entry.extraction(), entry.parseOk())
+                .params(key, scope.id(), entry.extraction(), entry.parseOk())
                 .update();
+    }
+
+    /** Persona reset: deletes the persona's cached extractions; returns the deleted rows. */
+    public int deletePersonaRows(PersonaId personaId) {
+        return jdbc.sql("DELETE FROM nlu_cache WHERE persona_id = ?").param(personaId.value()).update();
     }
 }

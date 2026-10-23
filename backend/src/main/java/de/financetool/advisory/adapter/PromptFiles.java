@@ -10,11 +10,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Stream;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The versioned prompt files {@code config/prompts/*.txt} and {@code *.json} (AD-14), read once at startup. Text and
@@ -31,6 +35,10 @@ public class PromptFiles {
     public record Prompt(String fileName, String text, String hash) {
     }
 
+    /** One NLU few-shot example: a message and the extraction the model should answer (a JSON value). */
+    public record FewShot(String message, Object extraction) {
+    }
+
     /** The compliance rules every compliance level gives to the phrasing role. */
     public static final String COMPLIANCE_RULES = "compliance-rules.txt";
     /** The NLU role's system prompt ({@code SYSTEM} of {@code experiments/finlab/nlu.py}). */
@@ -38,7 +46,10 @@ public class PromptFiles {
     /** The NLU role's few-shot examples: a JSON list of [message, extraction] pairs ({@code FEW_SHOT}). */
     public static final String NLU_FEW_SHOT = "nlu-few-shot.json";
 
+    private static final JsonMapper JSON = JsonMapper.builder().build();
+
     private final Map<String, Prompt> prompts = new TreeMap<>();
+    private final List<FewShot> fewShots;
 
     PromptFiles(AppHome appHome) {
         Path directory = appHome.config().resolve("prompts");
@@ -51,6 +62,35 @@ public class PromptFiles {
         } catch (IOException e) {
             throw new UncheckedIOException("Cannot read the prompt files in " + directory, e);
         }
+        // Fail fast: every file a turn needs exists, and the few-shot file parses.
+        named(NLU_SYSTEM);
+        for (MessageClass messageClass : MessageClass.values()) {
+            classInstruction(messageClass);
+        }
+        this.fewShots = parseFewShots(named(NLU_FEW_SHOT).text());
+    }
+
+    /** The few-shot file as [message, extraction] pairs; anything else names the file and fails. */
+    public static List<FewShot> parseFewShots(String text) {
+        String file = "config/prompts/" + NLU_FEW_SHOT;
+        Object root;
+        try {
+            root = JSON.readValue(text, Object.class);
+        } catch (JacksonException e) {
+            throw new IllegalStateException(file + " is not valid JSON", e);
+        }
+        if (!(root instanceof List<?> pairs)) {
+            throw new IllegalStateException(file + " must be a JSON list of [message, extraction] pairs");
+        }
+        List<FewShot> out = new ArrayList<>();
+        for (Object pair : pairs) {
+            if (!(pair instanceof List<?> p) || p.size() != 2 || !(p.get(0) instanceof String message)
+                    || !(p.get(1) instanceof Map<?, ?>)) {
+                throw new IllegalStateException(file + ": every example must be a [message, extraction] pair");
+            }
+            out.add(new FewShot(message, p.get(1)));
+        }
+        return List.copyOf(out);
     }
 
     private static boolean isPromptFile(Path file) {
@@ -74,6 +114,11 @@ public class PromptFiles {
 
     public Prompt nluFewShot() {
         return named(NLU_FEW_SHOT);
+    }
+
+    /** The few-shot examples, parsed once at startup. */
+    public List<FewShot> nluFewShots() {
+        return fewShots;
     }
 
     /** The class instruction {@code class-<CLASS>.txt}. */
