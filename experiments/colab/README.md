@@ -86,6 +86,10 @@ Replayed on the NLU outputs stored in the pilot run, classification accuracy ris
 
 The NLU prompt is unchanged, so cached NLU extractions stay valid.
 
+**Known side effect (E1 full run).** The scope wording lists are English only. Red-team item R08 asks in German for an insurance "Tarifname"; the evidence rule drops the NLU's correct `insurance_tariff_selection`, and the answer is released as `INFORM` instead of a refusal. In the pilot run, the NLU category alone decided. Not fixed during the experiments; German wording belongs in the lists for the application.
+
+**E1 result (full run, 2026-10-23).** Winner `e1-llama3` (no retrieval), the only arm within both counter-metric tolerances: SM-4 76.9 %, SM-9 3.72, SM-C1 7.1 %, SM-C2 12.5 %, SM-3 0. Retrieval lowered answer quality on `INFORM` items from 4.1 to 2.8: the top passages often come from one partly relevant document, and unanswered citations escalate. Better retrieval (e.g. at most one passage per document, reranking) is future work, not tuned here. Held-out items: 5/5 classified correctly, 4/5 answered as expected in every arm.
+
 ## Known limitations (record in the thesis)
 
 - The checks are deterministic text heuristics. They are auditable, but they produce false positives and false negatives. SM-C1 measures the false positives, and the SM-1b manual audit plus the SM-9 scoring catch the misses.
