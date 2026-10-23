@@ -59,9 +59,11 @@ class AgentConfigurationBindingTest {
             assertThat(agent.id()).isEqualTo("reference");
             assertThat(agent.compliance()).isEqualTo(ComplianceLevel.A_B_C);
             assertThat(agent.dataExposure()).isEqualTo(DataExposureLevel.AGGREGATED);
-            assertThat(agent.retrieval()).isTrue();
+            // E1 result: retrieval off (derivedFrom names the experiment, AD-25)
+            assertThat(agent.retrieval()).isFalse();
             assertThat(agent.llm().phrasing()).isEqualTo("llama3.1:8b-instruct-q4_K_M");
-            assertThat(agent.derivedFrom().date()).isEqualTo(LocalDate.of(2026, 10, 20));
+            assertThat(agent.derivedFrom().experiment()).isEqualTo("E1");
+            assertThat(agent.derivedFrom().date()).isEqualTo(LocalDate.of(2026, 10, 23));
 
             AutonomyThresholds thresholds = context.getBean(AutonomyThresholds.class);
             assertThat(thresholds.investmentShareOfLiquidAssets()).isEqualByComparingTo(new BigDecimal("0.05"));

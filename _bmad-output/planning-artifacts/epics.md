@@ -730,7 +730,7 @@ So that the type of answer does not depend on the model's mood.
 **When** the response card renders
 **Then** it shows the outcome label row with icon and plain label (Explanation, Calculated for you, Recommendation, A few questions first, Not part of this service, Let's check the question, Passed to a human advisor), and the screen reader announces the label first
 
-**Given** an `INFORM` question while retrieval is off or finds no valid source
+**Given** an `INFORM` question while retrieval is on and finds no valid source (with retrieval off, the E1 result of 2026-10-23, a checked general explanation is released; FR-13)
 **When** the turn is released
 **Then** the fixed "no valid source" template is released with outcome `INFORM`; it says that no valid source is available, offers a related in-scope question as a chip, and contains no uncited model-knowledge text
 

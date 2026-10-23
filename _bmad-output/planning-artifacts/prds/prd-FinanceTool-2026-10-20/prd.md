@@ -181,7 +181,7 @@ Every number in a response that is specific to the persona or the calculation co
 - Dates, list positions and quoted article or paragraph numbers are excluded from the check. English (1,000.50) and German (1.000,50) number formats are both parsed.
 
 #### FR-13: Source-backed explanations
-General explanations (`INFORM`) cite Knowledge Base sources with their validity dates. If no valid source exists, the system says so instead of answering from model knowledge.
+General explanations (`INFORM`) cite Knowledge Base sources with their validity dates when retrieval is on. If no valid source exists, the system says so instead of answering from model knowledge. When the Agent Configuration has retrieval off (E1 result, 2026-10-23), `INFORM` answers are general explanations without citations and are released only after the Check Chain passes.
 
 #### FR-14: Transparent refusal
 For out-of-scope requests (single stocks, derivatives, crypto, forex/CFD, building-society savings, insurance tariff selection, individual tax advice, legal assessment of letters or contracts such as objections), the system states that the topic is outside the service, gives the reason, and offers the nearest in-scope alternative (`REFUSE_OUT_OF_SCOPE`).
@@ -632,5 +632,6 @@ All draft assumptions were confirmed by the author on 2026-10-20:
 - §8.5 SM-7: red-team set extended beyond CSV item 65.
 - 2026-10-20 (Correct Course): the evaluation is split into an Experiment Track (Colab, independent of the application) and an Artifact Evaluation (requirement verification plus user acceptance test). The platform is Java Spring Boot and Angular, deployed locally and on Azure. See `../../sprint-change-proposal-2026-10-20.md`.
 - 2026-10-21 (Correct Course): the Letter & Contract Assistant is added (UJ-7, §4.14, FR-53 to FR-61, SM-10, §8.7). Letters are in English. The user acceptance test includes a planted-error task with prior notice and debriefing. See `../../sprint-change-proposal-2026-10-21.md`.
+- 2026-10-23 (E1 result, decision Commc): FR-13 applies its source rule when retrieval is on; with retrieval off (E1 winner) `INFORM` answers are checked general explanations.
 - 2026-10-21 (Correct Course, scope reduction): FR-19 and FR-34 removed; FR-5, FR-18, FR-30, FR-37, FR-42, FR-43 and FR-59 reduced; Azure deferred; the user test runs in person. See `../../sprint-change-proposal-2026-10-21-scope.md`.
 - 2026-10-21: an ECB key-rate change is a Rule Parameter change and triggers an informative Notification (FR-30, Scenario S19). It never triggers a buy or sell Recommendation.

@@ -4,16 +4,16 @@
 agent:
   id: reference
   derivedFrom:
-    experiment: none
-    resultFile: none
-    date: 2026-10-20
-    note: PRD starting value (§8.1 initial Reference Configuration; decoding and seeds from experiments/finlab defaults)
+    experiment: E1
+    resultFile: experiments/results/E1/winner.json
+    date: 2026-10-23
+    note: E1 winner e1-llama3 without retrieval, the only arm within both counter-metric tolerances (retrieval lowered INFORM answer quality from 4.1 to 2.8); models, role prompt, compliance level, exposure level and decoding unchanged from the PRD starting value
   llm:
     phrasing: llama3.1:8b-instruct-q4_K_M
     nlu: llama3.1:8b-instruct-q4_K_M
     judge: llama3.1:8b-instruct-q4_K_M
     embedding: bge-m3
-  retrieval: true
+  retrieval: false
   # File in config/prompts/ named role-<rolePrompt>.txt
   rolePrompt: advisor
   compliance: A+B+C
