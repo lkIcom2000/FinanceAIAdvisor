@@ -12,16 +12,17 @@ import { MatButtonModule } from '@angular/material/button';
 import { firstValueFrom } from 'rxjs';
 import { ProvenanceService } from '../api/services/provenance.service';
 import { ProvenanceResponse } from '../api/models/provenance-response';
+import { ChatCheck } from '../api/models/chat-check';
 import { formatDate } from './dates';
 import { FigurePipe } from './figure.pipe';
 
-export interface WhyDialogData {
-  provId: string;
-}
+/** The figure to explain, or the checks of an answer ("Why?" opened on its Checks section). */
+export type WhyDialogData = { provId: string } | { checks: ChatCheck[] };
 
 /**
  * "Why?" dialog (FR-8): where a figure comes from, what went in, assumptions and checks, all from the provenance
- * endpoint. An input's "Why?" replaces the content in place; "Back" restores the previous figure.
+ * endpoint. An input's "Why?" replaces the content in place; "Back" restores the previous figure. Opened with an
+ * answer's checks, it shows only the Checks section, in the same layout.
  */
 @Component({
   selector: 'app-why-dialog',
@@ -42,8 +43,18 @@ export class WhyDialogComponent {
   protected readonly loading = signal(false);
   protected readonly failed = signal(false);
 
+  /** The checks of an answer, when the dialog was opened from a response card's footer. */
+  protected readonly answerChecks: ChatCheck[] | null;
+
   constructor() {
-    void this.open(inject<WhyDialogData>(MAT_DIALOG_DATA).provId);
+    const data = inject<WhyDialogData>(MAT_DIALOG_DATA);
+    if ('checks' in data) {
+      this.answerChecks = data.checks;
+      this.focusHeading();
+    } else {
+      this.answerChecks = null;
+      void this.open(data.provId);
+    }
   }
 
   /** Loads a figure and shows it on top of the stack; clicks while a figure is loading are ignored. */

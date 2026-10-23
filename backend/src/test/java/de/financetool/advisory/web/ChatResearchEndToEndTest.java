@@ -10,7 +10,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import de.financetool.PostgresIntegrationTest;
-import de.financetool.advisory.domain.NoValidSource;
 import de.financetool.testing.StubLlmConfiguration.StubLlm;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -58,8 +57,12 @@ class ChatResearchEndToEndTest extends PostgresIntegrationTest {
             assertThat(record).containsEntry("kind", "RESPONSE").containsEntry("turnId", turnId)
                     .containsEntry("personaId", "p-lena");
             assertThat((String) JsonPath.read(line, "$.payload.body.outcome")).isEqualTo("INFORM");
-            assertThat((String) JsonPath.read(line, "$.payload.body.finalText")).isEqualTo(NoValidSource.TEXT);
+            assertThat((String) JsonPath.read(line, "$.payload.body.finalText")).isEqualTo(StubLlm.DEFAULT_TEXT);
             assertThat((String) JsonPath.read(line, "$.payload.body.firstDraft")).isEqualTo(StubLlm.DEFAULT_TEXT);
+            // the export shows the shadow and the final results of the Check Chain
+            assertThat((List<?>) JsonPath.read(line, "$.payload.body.shadowChecks")).hasSize(11);
+            assertThat((List<?>) JsonPath.read(line, "$.payload.body.finalChecks")).hasSize(11);
+            assertThat((String) JsonPath.read(line, "$.payload.body.route")).isEqualTo("released");
         });
     }
 

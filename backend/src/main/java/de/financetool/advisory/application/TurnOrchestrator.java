@@ -2,18 +2,22 @@ package de.financetool.advisory.application;
 
 import de.financetool.advisory.adapter.ChatRepository;
 import de.financetool.advisory.adapter.PromptFiles;
+import de.financetool.advisory.domain.BlockRouting;
+import de.financetool.advisory.domain.ChainResult;
 import de.financetool.advisory.domain.ChatMessage;
+import de.financetool.advisory.domain.CheckChain;
 import de.financetool.advisory.domain.ClassInstruction;
 import de.financetool.advisory.domain.Classification;
 import de.financetool.advisory.domain.Classifier;
+import de.financetool.advisory.domain.ComponentFlags;
 import de.financetool.advisory.domain.EntityRegistry;
 import de.financetool.advisory.domain.ExposureFilter;
-import de.financetool.advisory.domain.MessageClass;
 import de.financetool.advisory.domain.NoValidSource;
 import de.financetool.advisory.domain.PhrasingPrompt;
 import de.financetool.advisory.domain.Premise;
 import de.financetool.advisory.domain.ProfileCompleteness;
 import de.financetool.advisory.domain.PromptPayload;
+import de.financetool.advisory.domain.RegenerationFix;
 import de.financetool.advisory.domain.ResponseOutcome;
 import de.financetool.advisory.domain.TurnStage;
 import de.financetool.advisory.domain.TurnState;
@@ -29,9 +33,11 @@ import de.financetool.llm.LlmRole;
 import de.financetool.shared.PersonaScope;
 import de.financetool.shared.RequestContext;
 import de.financetool.shared.config.AgentConfiguration;
+import de.financetool.shared.config.ComplianceLevel;
 import de.financetool.shared.config.DataExposureLevel;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -46,6 +52,9 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class TurnOrchestrator {
+
+    /** No turn reads a Rule Parameter until Story 3.7's tool plan; then an invalid one routes to ESCALATE. */
+    static final boolean RULE_PARAMETER_ERROR = false;
 
     private final ChatRepository chats;
     private final PromptFiles prompts;
@@ -80,8 +89,8 @@ public class TurnOrchestrator {
         turn = kbRetrieve(turn);
         turn = exposureFilter(context, scope, question, turn);
         turn = llmDraft(context, turn);
-        turn = shadowChecks(turn);
-        turn = ruleEngine(turn);
+        turn = shadowChecks(context, turn);
+        turn = ruleEngine(context, turn);
         turn = judge(turn);
         turn = blockRouting(turn);
         return auditAndRelease(context, scope, question, fixtureVersion, turn);
@@ -167,38 +176,106 @@ public class TurnOrchestrator {
                 result.truncated())).ran(TurnStage.LLM_DRAFT);
     }
 
-    /** Pass-through until the Check Chain exists (Story 3.4). */
-    TurnState shadowChecks(TurnState turn) {
-        return turn.passedThrough(TurnStage.SHADOW_CHECKS);
-    }
-
-    /** Pass-through until the Rule Engine exists (Story 3.4). */
-    TurnState ruleEngine(TurnState turn) {
-        return turn.passedThrough(TurnStage.RULE_ENGINE);
-    }
-
-    /** Pass-through while the Judge is skipped (Story 3.9). */
-    TurnState judge(TurnState turn) {
-        return turn.passedThrough(TurnStage.JUDGE);
+    /**
+     * Stage 7: the Check Chain runs on the first draft at every compliance level; these are the shadow results. Until
+     * something changes them, they are also the final results.
+     */
+    TurnState shadowChecks(RequestContext context, TurnState turn) {
+        ComponentFlags flags = ComponentFlags.of(level(context.agentConfig().compliance()));
+        ChainResult shadow = CheckChain.run(turn.draft().text(), facts(turn, context.agentConfig().retrieval()));
+        return turn.withChecks(TurnState.Checks.shadow(flags, shadow)).ran(TurnStage.SHADOW_CHECKS);
     }
 
     /**
-     * Pass-through routing (the outcome is the class, the released text the draft), except that an {@code INFORM}
-     * turn without a Knowledge Base passage releases the no-valid-source template with one related in-scope chip
-     * (FR-13); its draft stays recorded as first draft. "Without a passage" means the retrieval found none, not that
-     * the prompt budget dropped them. A blank draft that would be released fails the turn.
+     * Stage 8: in Shadow Mode (level {@code A}) the Rule Engine only records. Enforcing, a repairable failure (a failed
+     * Number Check, a missing or invalid citation) gets exactly one regeneration with the targeted fix: the previous
+     * messages, the draft as the assistant's answer and the fix as the user's, with the same decoding; the chain then
+     * runs again on the regenerated text.
+     */
+    TurnState ruleEngine(RequestContext context, TurnState turn) {
+        TurnState.Checks checks = turn.checks();
+        if (checks.flags().shadowMode() || RULE_PARAMETER_ERROR) {
+            return turn.ran(TurnStage.RULE_ENGINE);
+        }
+        Optional<String> fix = RegenerationFix.of(checks.shadow().failed(), passagesInPrompt(turn));
+        if (fix.isEmpty()) {
+            return turn.ran(TurnStage.RULE_ENGINE);
+        }
+        PhrasingPrompt phrasing = turn.prompt().phrasing();
+        LlmResult result = llm.generate(LlmRole.PHRASING,
+                List.of(LlmMessage.system(phrasing.system()), LlmMessage.user(phrasing.user()),
+                        LlmMessage.assistant(turn.draft().text()), LlmMessage.user(fix.get())),
+                context.agentConfig().decoding(), null);
+        String text = result.text() == null ? "" : result.text();
+        TurnState.Regeneration regeneration = new TurnState.Regeneration(fix.get(), text, result.truncated());
+        return turn.withChecks(checks.withRegeneration(regeneration, CheckChain.run(text, facts(turn, context.agentConfig().retrieval()))))
+                .ran(TurnStage.RULE_ENGINE);
+    }
+
+    /**
+     * Stage 9: the Block-only Judge is not implemented (Story 3.9 is skipped). Under {@code A+B+C} the record says
+     * so ({@code judgeNotImplemented}); there is never a verdict.
+     */
+    TurnState judge(TurnState turn) {
+        return turn.withChecks(turn.checks().withJudgeNotImplemented(turn.checks().flags().judge()))
+                .passedThrough(TurnStage.JUDGE);
+    }
+
+    /**
+     * Stage 10: with routing on, {@link BlockRouting} decides on the final results: a routed turn releases its
+     * template (the no-valid-source one with a related in-scope chip) and keeps no final results; otherwise the
+     * (regenerated) draft is released with the class as outcome. With routing off (level {@code A}) the outcome is
+     * the class and the draft is released. A blank text that would be released fails the turn.
      */
     TurnState blockRouting(TurnState turn) {
-        if (turn.messageClass() == MessageClass.INFORM && turn.passages().isEmpty()) {
-            return turn.withOutcome(ResponseOutcome.INFORM, NoValidSource.TEXT,
-                    List.of(NoValidSource.suggestion(turn.nlu().extraction().topic(), turn.userText())), true)
+        TurnState.Checks checks = turn.checks();
+        if (!checks.flags().routing()) {
+            return turn.withOutcome(ResponseOutcome.of(turn.messageClass()), releasable(turn.draft().text()))
+                    .passedThrough(TurnStage.BLOCK_ROUTING);
+        }
+        BlockRouting.Route route = BlockRouting.route(checks.finalResults().failed(), turn.classification(),
+                RULE_PARAMETER_ERROR);
+        TurnState routed = turn.withChecks(checks.withRoute(route));
+        if (route.released()) {
+            String text = checks.regenerated() ? checks.regeneration().text() : turn.draft().text();
+            return routed.withOutcome(ResponseOutcome.of(turn.messageClass()), releasable(text))
                     .ran(TurnStage.BLOCK_ROUTING);
         }
-        if (turn.draft().text().isBlank()) {
-            throw new IllegalStateException("The phrasing model returned an empty draft");
+        List<String> chips = route.noValidSource()
+                ? List.of(NoValidSource.suggestion(turn.nlu().extraction().topic(), turn.userText()))
+                : List.of();
+        return routed.withOutcome(route.outcome(), route.text(), chips, route.noValidSource())
+                .ran(TurnStage.BLOCK_ROUTING);
+    }
+
+    private static String releasable(String text) {
+        if (text.isBlank()) {
+            throw new IllegalStateException("The phrasing model returned an empty answer");
         }
-        return turn.withOutcome(ResponseOutcome.of(turn.messageClass()), turn.draft().text().strip())
-                .passedThrough(TurnStage.BLOCK_ROUTING);
+        return text.strip();
+    }
+
+    /**
+     * What the Check Chain needs besides the text; no Core category selection exists yet (Epic 6).
+     * {@code SOURCE_VALIDITY} applies only with retrieval on, as in the experiment.
+     */
+    private static CheckChain.Facts facts(TurnState turn, boolean retrievalOn) {
+        return CheckChain.Facts.of(turn.classification(), turn.userText(), null, retrievalOn,
+                turn.passages().size(), passagesInPrompt(turn));
+    }
+
+    /** The passages the phrasing prompt holds after the budget: the valid citation range. */
+    private static int passagesInPrompt(TurnState turn) {
+        return turn.prompt().payload().passages().size() - turn.prompt().phrasing().droppedPassages();
+    }
+
+    /** The domain's compliance level for the configured one; exhaustive, so a new level does not compile unmapped. */
+    static ComponentFlags.Level level(ComplianceLevel configured) {
+        return switch (configured) {
+            case A -> ComponentFlags.Level.A;
+            case A_B -> ComponentFlags.Level.A_B;
+            case A_B_C -> ComponentFlags.Level.A_B_C;
+        };
     }
 
     /** Writes the agent message, its evidence and the Audit Record; the turn id is the agent message's id. */
@@ -206,8 +283,10 @@ public class TurnOrchestrator {
             String fixtureVersion, TurnState turn) {
         TurnState released = turn.ran(TurnStage.AUDIT_RELEASE);
         UUID turnId = UUID.randomUUID();
+        List<ChatMessage.Check> shownChecks = released.checks().finalResults().applicable().stream()
+                .map(ChatMessage.Check::of).toList();
         ChatMessage answer = new ChatMessage(turnId, ChatMessage.Author.AGENT, released.finalText(),
-                released.outcome(), question.id(), released.suggestions());
+                released.outcome(), question.id(), released.suggestions(), shownChecks);
         chats.insert(scope, chats.conversation(scope), answer);
         List<EvidenceItem> items = List.of();
         evidence.putIfAbsent(items);
@@ -216,6 +295,9 @@ public class TurnOrchestrator {
         PhrasingPrompt phrasing = prompt.phrasing();
         TurnState.Nlu nlu = released.nlu();
         Classification classification = released.classification();
+        TurnState.Checks checks = released.checks();
+        BlockRouting.Route route = checks.route();
+        TurnState.Regeneration regeneration = checks.regeneration();
         audit.write(context, new AuditEntry(AuditKind.RESPONSE, turnId, null, fixtureVersion,
                 new ResponseAuditBody(released.messageClass(), released.outcome(), classification.reasons(),
                         classification.missingFields(),
@@ -223,11 +305,15 @@ public class TurnOrchestrator {
                         classification.outOfScope(), nlu.extraction().toMap(), nlu.groundingNotes(), nlu.modelTag(),
                         nlu.modelDigest(), nlu.promptHashes(), nlu.cacheHit(), nlu.parseOk(),
                         nlu.extraction().instructionOverrideAttempt(), released.noValidSource(),
-                        items.stream().map(EvidenceItem::provId).toList(), List.of(), draft.modelTag(),
-                        draft.modelDigest(), prompt.promptHashes(), draft.truncated() || phrasing.truncated(),
+                        items.stream().map(EvidenceItem::provId).toList(), checks.shadow().results(),
+                        checks.finalResults().results(), route == null ? BlockRouting.RELEASED : route.route(),
+                        route == null ? List.of() : route.fired(), checks.flags().shadowMode(), checks.flags(),
+                        checks.judgeNotImplemented(), draft.modelTag(), draft.modelDigest(), prompt.promptHashes(),
+                        draft.truncated() || phrasing.truncated() || (regeneration != null && regeneration.truncated()),
                         phrasing.droppedHistoryTurns(), phrasing.droppedPassages(),
                         context.agentConfig().dataExposure(), prompt.payload().messageWithheld(), draft.text(),
-                        released.finalText(), false, context.agentConfig().compliance().value(),
+                        released.finalText(), regeneration != null, regeneration == null ? null : regeneration.fix(),
+                        regeneration == null ? null : regeneration.text(), context.agentConfig().compliance().value(),
                         released.passThroughStages())));
         return answer;
     }

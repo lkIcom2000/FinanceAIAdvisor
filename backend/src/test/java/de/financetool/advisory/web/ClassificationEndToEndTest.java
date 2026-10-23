@@ -11,6 +11,7 @@ import com.jayway.jsonpath.JsonPath;
 import de.financetool.PostgresIntegrationTest;
 import de.financetool.advisory.domain.NoValidSource;
 import de.financetool.llm.LlmRole;
+import de.financetool.testing.ComplianceLevelSwitch;
 import de.financetool.testing.PilotNlu;
 import de.financetool.testing.StubLlmConfiguration.StubLlm;
 import java.nio.charset.StandardCharsets;
@@ -27,7 +28,9 @@ import org.springframework.test.web.servlet.ResultActions;
 
 /**
  * Story 3.3 end to end, one test per row of the I/O matrix: the stubbed NLU answers the crafted extraction, the
- * rules pick the class, the Audit Record holds the classification and the NLU call.
+ * rules pick the class, the Audit Record holds the classification and the NLU call. The no-valid-source rows run with
+ * retrieval switched on (the reference configuration has it off since E1): only then does {@code SOURCE_VALIDITY}
+ * apply (Story 3.4).
  */
 class ClassificationEndToEndTest extends PostgresIntegrationTest {
 
@@ -36,6 +39,9 @@ class ClassificationEndToEndTest extends PostgresIntegrationTest {
     static final String TRAP = "Does the Savings Bonus Act 2026 apply to me?";
     static final String KNOWN_LAW = "How does MiFID II protect me?";
     static final String PERSONAL = "Should I put 200 EUR a month into an ETF?";
+
+    static final String REFUSAL = "Knock-out certificates are not part of this service. Instead, I can look at a "
+            + "diversified ETF savings plan with you.";
 
     static final String KNOCK_OUT_NLU = """
             {"request_type": "product_selection", "subject": "self", "topic": "investment_decision",
@@ -48,6 +54,9 @@ class ClassificationEndToEndTest extends PostgresIntegrationTest {
 
     @Autowired
     JdbcTemplate jdbc;
+
+    @Autowired
+    ComplianceLevelSwitch.Switch config;
 
     @BeforeEach
     void programTheNlu() {
@@ -83,6 +92,7 @@ class ClassificationEndToEndTest extends PostgresIntegrationTest {
     @AfterEach
     void resetTheModel() {
         llm.reset();
+        config.reset();
     }
 
     ResultActions answer(MockHttpSession session, String text) throws Exception {
@@ -111,6 +121,7 @@ class ClassificationEndToEndTest extends PostgresIntegrationTest {
 
     @Test
     void anExplanationReleasesTheNoValidSourceTemplateWithOneChipAndRecordsTheDraft() throws Exception {
+        config.retrieval(true);
         Turn t = turn(EXPLANATION);
 
         assertThat(t.answer()).containsEntry("outcome", "INFORM").containsEntry("text", NoValidSource.TEXT)
@@ -130,11 +141,11 @@ class ClassificationEndToEndTest extends PostgresIntegrationTest {
 
     @Test
     void aKnockOutCertificateIsOutOfScope() throws Exception {
-        llm.answer("Knock-out certificates are not part of this service.");
+        llm.answer(REFUSAL);
         Turn t = turn(KNOCK_OUT);
 
         assertThat(t.answer()).containsEntry("outcome", "REFUSE_OUT_OF_SCOPE")
-                .containsEntry("text", "Knock-out certificates are not part of this service.")
+                .containsEntry("text", REFUSAL)
                 .containsEntry("suggestions", List.of());
         assertThat(t.body()).containsEntry("class", "REFUSE_OUT_OF_SCOPE")
                 .containsEntry("outOfScope", List.of("derivative_or_certificate"))
@@ -198,6 +209,7 @@ class ClassificationEndToEndTest extends PostgresIntegrationTest {
     void anUnparseableNluAnswerGivesTheDefaultsAndTheirClass() throws Exception {
         String message = "Tell me something about money, please.";
         llm.nluAnswer(message, "Sure! Here is what I found: request_type = general");
+        config.retrieval(true);
         Turn t = turn(message);
 
         assertThat(t.body()).containsEntry("nluParseOk", false).containsEntry("class", "INFORM")
@@ -219,6 +231,7 @@ class ClassificationEndToEndTest extends PostgresIntegrationTest {
 
     @Test
     void aMappedTopicGetsItsChipAndTheDefaultChipsQuestionGetsAnotherOne() throws Exception {
+        config.retrieval(true);
         String reserve = "Where should a reserve for emergencies be kept?";
         llm.nluAnswer(reserve, "{\"request_type\": \"general_explanation\", \"subject\": \"generic\", "
                 + "\"topic\": \"liquidity_management\"}");

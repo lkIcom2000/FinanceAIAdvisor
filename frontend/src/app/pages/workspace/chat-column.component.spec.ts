@@ -1,5 +1,6 @@
 import { HttpTestingController } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { ChatMessage } from '../../api/models/chat-message';
 import { httpTestingProviders } from '../../testing/session-testing';
 import {
@@ -33,6 +34,7 @@ const question: ChatMessage = {
   author: 'USER',
   text: 'What is an ETF?',
   suggestions: [],
+  checks: [],
 };
 const answer: ChatMessage = {
   id: 'a1',
@@ -41,6 +43,7 @@ const answer: ChatMessage = {
   outcome: 'INFORM',
   replyTo: 'q1',
   suggestions: [],
+  checks: [],
 };
 
 describe('ChatColumnComponent', () => {
@@ -52,12 +55,16 @@ describe('ChatColumnComponent', () => {
     vi.useFakeTimers();
     await TestBed.configureTestingModule({
       imports: [ChatColumnComponent],
-      providers: [...httpTestingProviders()],
+      providers: [
+        ...httpTestingProviders(),
+        { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
+      ],
     }).compileComponents();
     http = TestBed.inject(HttpTestingController);
   });
 
   afterEach(() => {
+    document.querySelectorAll('.cdk-overlay-container').forEach((e) => (e.innerHTML = ''));
     http.verify();
     vi.useRealTimers();
   });
@@ -125,7 +132,7 @@ describe('ChatColumnComponent', () => {
     const outcomes = Object.keys(OUTCOME_LABELS) as Outcome[];
     expect(outcomes).toHaveLength(7);
     const messages: ChatMessage[] = outcomes.flatMap((outcome, i) => [
-      { id: `q${i}`, author: 'USER', text: `question ${i}`, suggestions: [] },
+      { id: `q${i}`, author: 'USER', text: `question ${i}`, suggestions: [], checks: [] },
       {
         id: `a${i}`,
         author: 'AGENT',
@@ -133,6 +140,7 @@ describe('ChatColumnComponent', () => {
         outcome,
         replyTo: `q${i}`,
         suggestions: [],
+        checks: [],
       },
     ]);
     render(messages);
@@ -193,10 +201,18 @@ describe('ChatColumnComponent', () => {
     expect(chip().disabled).toBe(true);
     chip().click();
     fixture.detectChanges();
-    http.expectOne('/api/chat/messages').flush(
-      { id: 'q2', author: 'USER', text: 'How does an emergency fund work?', suggestions: [] },
-      { status: 201, statusText: 'Created' },
-    );
+    http
+      .expectOne('/api/chat/messages')
+      .flush(
+        {
+          id: 'q2',
+          author: 'USER',
+          text: 'How does an emergency fund work?',
+          suggestions: [],
+          checks: [],
+        },
+        { status: 201, statusText: 'Created' },
+      );
     fixture.detectChanges();
     expect(chip().disabled).toBe(true);
 
@@ -204,6 +220,55 @@ describe('ChatColumnComponent', () => {
     fixture.detectChanges();
     expect(chip().disabled).toBe(false);
     expect(field().disabled).toBe(false);
+  });
+
+  it('shows the check footer with the passed checks and opens "Why?" on the Checks section', () => {
+    render([
+      question,
+      {
+        ...answer,
+        checks: [
+          {
+            id: 'SCOPE',
+            passed: true,
+            description: 'The answer stays within what this service covers',
+          },
+          {
+            id: 'NO_PRODUCT_NAMING',
+            passed: true,
+            description: 'No single product, provider or ISIN is pushed',
+          },
+          {
+            id: 'SOURCE_VALIDITY',
+            passed: false,
+            description: 'The explanation is based on valid, cited sources',
+          },
+        ],
+      },
+    ]);
+    const footer = element.querySelector('.response .check-footer') as HTMLButtonElement;
+    expect(text(footer)).toBe('Checked · 2 checks passed');
+
+    footer.click();
+    fixture.detectChanges();
+    const dialog = document.querySelector('app-why-dialog') as HTMLElement;
+    expect(text(dialog.querySelector('h2'))).toBe('How this answer was checked');
+    expect(Array.from(dialog.querySelectorAll('h3')).map(text)).toEqual(['Checks']);
+    const items = Array.from(dialog.querySelectorAll('.checks li'));
+    expect(items.map((li) => text(li.querySelector('.mark')))).toEqual(['✔', '✔', '✘']);
+    expect(text(items[2])).toContain(
+      'Not passed: The explanation is based on valid, cited sources',
+    );
+    expect(items.map((li) => text(li.querySelector('small')))).toEqual([
+      'SCOPE',
+      'NO_PRODUCT_NAMING',
+      'SOURCE_VALIDITY',
+    ]);
+  });
+
+  it('shows no check footer on an answer without final checks', () => {
+    render([question, { ...answer, text: NO_VALID_SOURCE }]);
+    expect(element.querySelector('.check-footer')).toBeNull();
   });
 
   it('shows no chips on a card without suggestions', () => {

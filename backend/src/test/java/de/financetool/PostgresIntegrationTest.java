@@ -2,6 +2,7 @@ package de.financetool;
 
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 
+import de.financetool.testing.ComplianceLevelSwitch;
 import de.financetool.testing.StubLlmConfiguration;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,7 +33,7 @@ import org.testcontainers.utility.DockerImageName;
  * <p>The model is the programmable {@link StubLlmConfiguration.StubLlm}; real Ollama runs only in local live checks.
  */
 @SpringBootTest
-@Import(StubLlmConfiguration.class)
+@Import({StubLlmConfiguration.class, ComplianceLevelSwitch.class})
 @Testcontainers(disabledWithoutDocker = true)
 public abstract class PostgresIntegrationTest {
 

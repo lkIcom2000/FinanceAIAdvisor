@@ -12,6 +12,9 @@ import static org.mockito.Mockito.when;
 import de.financetool.advisory.adapter.ChatRepository;
 import de.financetool.advisory.adapter.PromptFiles;
 import de.financetool.advisory.domain.ChatMessage;
+import de.financetool.advisory.domain.CheckId;
+import de.financetool.advisory.domain.CheckResult;
+import de.financetool.advisory.domain.ComponentFlags;
 import de.financetool.advisory.domain.Classification;
 import de.financetool.advisory.domain.EntityRegistry;
 import de.financetool.advisory.domain.ExposureFilter;
@@ -23,6 +26,7 @@ import de.financetool.advisory.domain.Premise;
 import de.financetool.advisory.domain.ProfileCompleteness;
 import de.financetool.advisory.domain.PromptPayload;
 import de.financetool.advisory.domain.ResponseOutcome;
+import de.financetool.advisory.domain.ResponseTemplates;
 import de.financetool.advisory.domain.TurnStage;
 import de.financetool.advisory.domain.TurnState;
 import de.financetool.audit.AuditEntry;
@@ -36,6 +40,7 @@ import de.financetool.llm.LlmRole;
 import de.financetool.shared.PersonaScope;
 import de.financetool.shared.RequestContext;
 import de.financetool.shared.config.AgentConfiguration;
+import de.financetool.shared.config.ComplianceLevel;
 import de.financetool.shared.config.DataExposureLevel;
 import de.financetool.testing.TestContexts;
 import java.lang.reflect.Method;
@@ -57,7 +62,7 @@ import org.mockito.InOrder;
 class TurnOrchestratorTest {
 
     static final List<TurnStage> PASS_THROUGHS = List.of(TurnStage.DIALOG_STATE, TurnStage.TOOL_PLAN,
-            TurnStage.KB_RETRIEVE, TurnStage.SHADOW_CHECKS, TurnStage.RULE_ENGINE, TurnStage.JUDGE);
+            TurnStage.KB_RETRIEVE, TurnStage.JUDGE);
     static final Map<String, String> NLU_HASHES = Map.of("nlu-few-shot.json", "f5", "nlu-system.txt", "s5");
 
     final ChatRepository chats = mock(ChatRepository.class);
@@ -166,17 +171,22 @@ class TurnOrchestratorTest {
 
     @Test
     void aClassOtherThanInformReleasesTheStrippedDraftAsItsOutcome() {
-        ChatMessage answer = run("  Knock-outs are outside the service.  ", context, false,
-                nlu("product_selection", "other", List.of("derivative_or_certificate"), List.of()));
+        ChatMessage answer = run("  Knock-outs are outside the service. Instead, I can look at your savings plan.  ",
+                context, false, nlu("product_selection", "other", List.of("derivative_or_certificate"), List.of()));
 
         assertThat(answer.outcome()).isEqualTo(ResponseOutcome.REFUSE_OUT_OF_SCOPE);
-        assertThat(answer.text()).isEqualTo("Knock-outs are outside the service.");
+        assertThat(answer.text())
+                .isEqualTo("Knock-outs are outside the service. Instead, I can look at your savings plan.");
         assertThat(answer.suggestions()).isEmpty();
         ResponseAuditBody body = auditBody();
         assertThat(body.messageClass()).isEqualTo(MessageClass.REFUSE_OUT_OF_SCOPE);
         assertThat(body.noValidSource()).isFalse();
         assertThat(body.outOfScope()).containsExactly("derivative_or_certificate");
-        assertThat(body.passThroughStages()).contains(TurnStage.BLOCK_ROUTING);
+        assertThat(body.passThroughStages()).doesNotContain(TurnStage.BLOCK_ROUTING);
+        assertThat(body.route()).isEqualTo("released");
+        assertThat(answer.checks()).extracting(ChatMessage.Check::id).containsExactly(CheckId.SCOPE,
+                CheckId.NO_PRODUCT_NAMING, CheckId.NO_GUARANTEE_OR_TIMING);
+        assertThat(answer.checks()).allMatch(ChatMessage.Check::passed);
         assertThat(sentMessages().get(0).content())
                 .isEqualTo("ROLE\n\nRULES\n\nCLASS REFUSE_OUT_OF_SCOPE derivative or certificate");
         assertThat(body.promptHashes()).containsEntry("class-REFUSE_OUT_OF_SCOPE.txt", "h-REFUSE_OUT_OF_SCOPE");
@@ -228,7 +238,18 @@ class TurnOrchestratorTest {
         assertThat(body.instructionOverrideAttempt()).isFalse();
         assertThat(body.noValidSource()).isTrue();
         assertThat(body.evidence()).isEmpty();
-        assertThat(body.checks()).isEmpty();
+        assertThat(body.shadowChecks()).extracting(CheckResult::checkId).containsExactly(CheckId.values());
+        assertThat(body.shadowChecks().stream().filter(CheckResult::failed).map(CheckResult::reasonCode))
+                .containsExactly("no_valid_source");
+        assertThat(body.finalChecks()).as("a template keeps no final checks").isEmpty();
+        assertThat(body.route()).isEqualTo("no_valid_source");
+        assertThat(body.firedChecks()).containsExactly(CheckId.SOURCE_VALIDITY);
+        assertThat(body.shadowMode()).isFalse();
+        assertThat(body.componentFlags())
+                .isEqualTo(new ComponentFlags(ComponentFlags.RuleEngineMode.ENFORCING, true, true));
+        assertThat(body.judgeNotImplemented()).isTrue();
+        assertThat(body.regenerationFix()).isNull();
+        assertThat(body.regeneratedText()).isNull();
         assertThat(body.modelTag()).isEqualTo("m1");
         assertThat(body.modelDigest()).isEqualTo("sha256:d1");
         assertThat(body.promptHashes()).isEqualTo(Map.of("compliance-rules.txt", "def456", "role-advisor.txt",
@@ -333,8 +354,8 @@ class TurnOrchestratorTest {
 
     @Test
     void anEmptyDraftThatWouldBeReleasedFailsTheTurnBeforeAnythingIsWritten() {
-        org.assertj.core.api.Assertions.assertThatThrownBy(() -> run("  ", context, false,
-                nlu("product_selection", "other", List.of("derivative_or_certificate"), List.of())))
+        // retrieval off: an INFORM draft that passes the checks is released, so a blank one fails the turn
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> run("  ", with(ComplianceLevel.A_B_C, false), false))
                 .isInstanceOf(IllegalStateException.class);
         org.mockito.Mockito.verify(chats, org.mockito.Mockito.never()).insert(any(), any(), any());
         org.mockito.Mockito.verifyNoInteractions(audit);
@@ -348,28 +369,158 @@ class TurnOrchestratorTest {
         assertThat(auditBody().firstDraft()).isEqualTo("  ");
     }
 
-    @Test
-    void theNoValidSourceRuleLooksAtTheRetrievalResultNotAtWhatTheBudgetKept() {
-        PromptPayload.Passage passage = new PromptPayload.Passage("KID p. 1", "text");
+    /** A classified INFORM turn after the draft, with {@code retrieved} passages of which {@code kept} fit. */
+    TurnState informDraft(String draft, int retrieved, int kept) {
+        List<PromptPayload.Passage> passages = java.util.stream.IntStream.range(0, retrieved)
+                .mapToObj(i -> new PromptPayload.Passage("KID p. " + i, "text " + i)).toList();
         Classification inform = new Classification(MessageClass.INFORM, List.of(), List.of(), List.of(), List.of(),
                 "other");
-        PromptPayload afterBudget = ExposureFilter.apply(ExposureFilter.Level.AGGREGATED, "q", null, List.of(),
-                Map.of(), "", List.of());
-        TurnState turn = TurnState.start("q")
+        PromptPayload payload = ExposureFilter.apply(ExposureFilter.Level.AGGREGATED, "q", null, List.of(),
+                Map.of(), "", passages.subList(0, kept));
+        return TurnState.start("q")
                 .withNlu(new TurnState.Nlu(NluExtraction.defaults(), List.of(), "m", "d", new java.util.TreeMap<>(),
                         false, true))
                 .withClassification(inform)
-                .withPassages(List.of(passage))
-                .withPrompt(new TurnState.Prompt(afterBudget, PhrasingPrompt.build("R", "C", afterBudget, 4096, 700),
+                .withPassages(passages)
+                .withPrompt(new TurnState.Prompt(payload, PhrasingPrompt.build("R", "C", payload, 4096, 700),
                         new java.util.TreeMap<>()))
-                .withDraft(new TurnState.Draft("Sourced answer [S1].", "m1", "d1", false));
+                .withDraft(new TurnState.Draft(draft, "m1", "d1", false));
+    }
 
-        TurnState routed = orchestrator.blockRouting(turn);
-        assertThat(routed.finalText()).isEqualTo("Sourced answer [S1].");
-        assertThat(routed.noValidSource()).isFalse();
+    TurnState stages7to10(RequestContext turnContext, TurnState turn) {
+        return orchestrator.blockRouting(orchestrator.judge(orchestrator.ruleEngine(turnContext,
+                orchestrator.shadowChecks(turnContext, turn))));
+    }
 
-        TurnState none = orchestrator.blockRouting(turn.withPassages(List.of()));
+    static RequestContext with(ComplianceLevel level, boolean retrieval) {
+        AgentConfiguration a = TestContexts.AGENT;
+        AgentConfiguration changed = new AgentConfiguration(a.id(), a.derivedFrom(), a.llm(), retrieval,
+                a.rolePrompt(), level, a.dataExposure(), a.decoding(), a.seeds());
+        return new RequestContext(changed, TestContexts.FINGERPRINT, TestContexts.THRESHOLDS,
+                RequestContext.NO_KB_SNAPSHOT, TestContexts.SEEDS, TestContexts.AS_OF, TestContexts.LENA, null);
+    }
+
+    LlmResult result(String text) {
+        return new LlmResult(text, "m1", "sha256:d1", TestContexts.DECODING, 10, false, Duration.ZERO);
+    }
+
+    @Test
+    void aValidlyCitedDraftIsReleasedAndNoPassageReleasesTheTemplate() {
+        TurnState released = stages7to10(context, informDraft("Sourced answer [S1].", 1, 1));
+        assertThat(released.finalText()).isEqualTo("Sourced answer [S1].");
+        assertThat(released.noValidSource()).isFalse();
+        assertThat(released.checks().finalResults().get(CheckId.SOURCE_VALIDITY).passed()).isTrue();
+
+        TurnState none = stages7to10(context, informDraft("Sourced answer [S1].", 0, 0));
         assertThat(none.finalText()).isEqualTo(NoValidSource.TEXT);
+        assertThat(none.suggestions()).containsExactly(NoValidSource.DEFAULT_SUGGESTION);
+        assertThat(none.checks().route().route()).isEqualTo("no_valid_source");
+        org.mockito.Mockito.verifyNoInteractions(llm);
+    }
+
+    @Test
+    void withRetrievalOffSourceValidityDoesNotApplyAndTheDraftIsReleased() {
+        TurnState released = stages7to10(with(ComplianceLevel.A_B_C, false), informDraft("An ETF is a fund.", 0, 0));
+        assertThat(released.finalText()).isEqualTo("An ETF is a fund.");
+        assertThat(released.outcome()).isEqualTo(ResponseOutcome.INFORM);
+        assertThat(released.checks().shadow().get(CheckId.SOURCE_VALIDITY).applicable()).isFalse();
+        assertThat(released.checks().route().route()).isEqualTo("released");
+    }
+
+    @Test
+    void anInvalidCitationGetsExactlyOneRegenerationWithTheFixAndPassesOnTheRegeneratedText() {
+        when(llm.generate(eq(LlmRole.PHRASING), anyList(), eq(TestContexts.DECODING), isNull()))
+                .thenReturn(result("Fixed answer [S1]."));
+        TurnState turn = informDraft("Answer [S3].", 1, 1);
+        TurnState released = stages7to10(context, turn);
+
+        List<LlmMessage> sent = sentMessages();
+        assertThat(sent).hasSize(4);
+        assertThat(sent.get(0)).isEqualTo(LlmMessage.system(turn.prompt().phrasing().system()));
+        assertThat(sent.get(1)).isEqualTo(LlmMessage.user(turn.prompt().phrasing().user()));
+        assertThat(sent.get(2)).isEqualTo(LlmMessage.assistant("Answer [S3]."));
+        assertThat(sent.get(3)).isEqualTo(LlmMessage.user("Base the explanation on the SOURCES and cite each source "
+                + "you use as [S1] to [S1]. If the SOURCES do not cover the question, say so. Rewrite the whole "
+                + "answer."));
+        assertThat(released.checks().regenerated()).isTrue();
+        assertThat(released.checks().shadow().get(CheckId.SOURCE_VALIDITY).reasonCode())
+                .isEqualTo("invalid_citation");
+        assertThat(released.checks().finalResults().get(CheckId.SOURCE_VALIDITY).passed()).isTrue();
+        assertThat(released.finalText()).isEqualTo("Fixed answer [S1].");
+        assertThat(released.outcome()).isEqualTo(ResponseOutcome.INFORM);
+    }
+
+    @Test
+    void aSecondCitationFailureAfterTheRegenerationIsRoutedWithoutAThirdCall() {
+        when(llm.generate(eq(LlmRole.PHRASING), anyList(), eq(TestContexts.DECODING), isNull()))
+                .thenReturn(result("Still no citation."));
+        TurnState released = stages7to10(context, informDraft("No citation either.", 2, 2));
+
+        org.mockito.Mockito.verify(llm, org.mockito.Mockito.times(1)).generate(any(), anyList(), any(), any());
+        assertThat(released.outcome()).isEqualTo(ResponseOutcome.ESCALATE);
+        assertThat(released.checks().route().route()).isEqualTo("block_source_validity");
+        assertThat(released.checks().route().fired()).containsExactly(CheckId.SOURCE_VALIDITY);
+        assertThat(released.checks().finalResults().results()).isEmpty();
+        assertThat(released.finalText()).isEqualTo(ResponseTemplates.ESCALATE);
+    }
+
+    @Test
+    void inShadowModeNothingIsRegeneratedAndTheDraftIsReleased() {
+        TurnState released = stages7to10(with(ComplianceLevel.A, true), informDraft("Answer [S3].", 1, 1));
+        org.mockito.Mockito.verifyNoInteractions(llm);
+        assertThat(released.finalText()).isEqualTo("Answer [S3].");
+        assertThat(released.checks().flags().shadowMode()).isTrue();
+        assertThat(released.checks().route()).isNull();
+        assertThat(released.checks().finalResults()).isEqualTo(released.checks().shadow());
+        assertThat(released.passThroughStages()).contains(TurnStage.BLOCK_ROUTING);
+    }
+
+    @Test
+    void atLevelAAnOutOfScopeRecommendationIsReleasedInShadowModeWithItsShadowResults() {
+        ChatMessage answer = run(question, "I recommend you buy the knock-out certificate on the DAX.",
+                with(ComplianceLevel.A, true), false,
+                nlu("product_selection", "other", List.of("derivative_or_certificate"), List.of()));
+
+        assertThat(answer.outcome()).isEqualTo(ResponseOutcome.REFUSE_OUT_OF_SCOPE);
+        assertThat(answer.text()).isEqualTo("I recommend you buy the knock-out certificate on the DAX.");
+        ResponseAuditBody body = auditBody();
+        assertThat(body.shadowMode()).isTrue();
+        assertThat(body.componentFlags())
+                .isEqualTo(new ComponentFlags(ComponentFlags.RuleEngineMode.SHADOW, false, false));
+        assertThat(body.judgeNotImplemented()).isFalse();
+        assertThat(body.route()).isEqualTo("released");
+        assertThat(body.firedChecks()).isEmpty();
+        assertThat(body.shadowChecks().stream().filter(c -> c.checkId() == CheckId.SCOPE).findFirst().orElseThrow()
+                .reasonCode()).isEqualTo("refusal_or_alternative_missing");
+        assertThat(body.finalChecks()).isEqualTo(body.shadowChecks());
+        assertThat(body.complianceLevel()).isEqualTo("A");
+        assertThat(answer.checks()).filteredOn(c -> c.id() == CheckId.SCOPE).singleElement()
+                .satisfies(c -> assertThat(c.passed()).isFalse());
+    }
+
+    @Test
+    void atLevelABTheJudgeIsOffAndARefusalWithoutAlternativeReleasesTheTemplate() {
+        ChatMessage answer = run(question, "Knock-outs are not part of this service.",
+                with(ComplianceLevel.A_B, true), false,
+                nlu("product_selection", "other", List.of("derivative_or_certificate"), List.of()));
+
+        assertThat(answer.outcome()).isEqualTo(ResponseOutcome.REFUSE_OUT_OF_SCOPE);
+        assertThat(answer.text()).startsWith("This is outside what I can advise on: derivative or certificate are");
+        assertThat(answer.checks()).isEmpty();
+        ResponseAuditBody body = auditBody();
+        assertThat(body.route()).isEqualTo("block_scope");
+        assertThat(body.firedChecks()).containsExactly(CheckId.SCOPE);
+        assertThat(body.judgeNotImplemented()).isFalse();
+        assertThat(body.finalChecks()).isEmpty();
+        assertThat(body.firstDraft()).isEqualTo("Knock-outs are not part of this service.");
+    }
+
+    @Test
+    void everyConfiguredComplianceLevelMapsToTheSameDomainLevel() {
+        for (ComplianceLevel configured : ComplianceLevel.values()) {
+            assertThat(TurnOrchestrator.level(configured).name()).isEqualTo(configured.name());
+        }
+        assertThat(ComponentFlags.Level.values()).hasSameSizeAs(ComplianceLevel.values());
     }
 
     @Test

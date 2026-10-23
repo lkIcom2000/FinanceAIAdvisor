@@ -14,6 +14,8 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The advisory tables {@code conversations}, {@code messages} and {@code dialog_states}. Every read and write takes a
@@ -22,7 +24,11 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class ChatRepository {
 
-    private static final String MESSAGE_COLUMNS = "id, author, text, outcome, reply_to, suggestions";
+    private static final String MESSAGE_COLUMNS = "id, author, text, outcome, reply_to, suggestions, checks::text AS checks";
+
+    private static final JsonMapper JSON = JsonMapper.builder().build();
+    private static final TypeReference<List<ChatMessage.Check>> CHECKS = new TypeReference<>() {
+    };
 
     private final JdbcClient jdbc;
 
@@ -43,11 +49,12 @@ public class ChatRepository {
 
     public void insert(PersonaScope scope, UUID conversationId, ChatMessage message) {
         jdbc.sql("""
-                INSERT INTO messages (id, conversation_id, persona_id, author, text, outcome, reply_to, suggestions)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""")
+                INSERT INTO messages (id, conversation_id, persona_id, author, text, outcome, reply_to, suggestions,
+                    checks)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb)""")
                 .params(message.id(), conversationId, scope.id(), message.author().name(), message.text(),
                         message.outcome() == null ? null : message.outcome().name(), message.replyTo(),
-                        message.suggestions().toArray(String[]::new))
+                        message.suggestions().toArray(String[]::new), JSON.writeValueAsString(message.checks()))
                 .update();
     }
 
@@ -116,7 +123,8 @@ public class ChatRepository {
         String outcome = rs.getString("outcome");
         return new ChatMessage(rs.getObject("id", UUID.class), ChatMessage.Author.valueOf(rs.getString("author")),
                 rs.getString("text"), outcome == null ? null : ResponseOutcome.valueOf(outcome),
-                rs.getObject("reply_to", UUID.class), suggestions(rs.getArray("suggestions")));
+                rs.getObject("reply_to", UUID.class), suggestions(rs.getArray("suggestions")),
+                JSON.readValue(rs.getString("checks"), CHECKS));
     }
 
     private static List<String> suggestions(Array array) throws SQLException {

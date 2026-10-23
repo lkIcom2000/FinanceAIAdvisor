@@ -1,11 +1,21 @@
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
+import { ChatCheck } from '../api/models/chat-check';
 import { WhyDialogComponent, WhyDialogData } from './why-dialog.component';
 
 /** Opens the "Why?" dialog for a figure; focus returns to the element that had it when the dialog closes. */
 export function openWhyDialog(dialog: MatDialog, provId: string): void {
+  openDialog(dialog, { provId });
+}
+
+/** Opens the "Why?" dialog on the Checks section of an answer. */
+export function openChecksDialog(dialog: MatDialog, checks: ChatCheck[]): void {
+  openDialog(dialog, { checks });
+}
+
+function openDialog(dialog: MatDialog, data: WhyDialogData): void {
   dialog.open<WhyDialogComponent, WhyDialogData>(WhyDialogComponent, {
-    data: { provId },
+    data,
     width: '560px',
     maxWidth: '90vw',
     restoreFocus: true,

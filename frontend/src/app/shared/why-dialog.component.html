@@ -1,6 +1,8 @@
 @let figure = current();
 <h2 mat-dialog-title #heading tabindex="-1">
-  @if (figure) {
+  @if (answerChecks) {
+    How this answer was checked
+  } @else if (figure) {
     {{ figure.label }}: <span class="figure">{{ figure.value | figure: figure.unit }}</span>
   } @else {
     Where this number comes from
@@ -8,6 +10,25 @@
 </h2>
 
 <mat-dialog-content>
+  @if (answerChecks; as checks) {
+    <section class="section">
+      <h3>Checks</h3>
+      @if (checks.length === 0) {
+        <p class="sub">No checks apply to this answer.</p>
+      } @else {
+        <ul class="checks">
+          @for (check of checks; track check.id) {
+            <li>
+              <span class="mark" aria-hidden="true">{{ check.passed ? '✔' : '✘' }}</span>
+              <span class="visually-hidden">{{ check.passed ? 'Passed:' : 'Not passed:' }}</span>
+              {{ check.description }}
+              <small>{{ check.id }}</small>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  }
   @if (loading()) {
     <p class="status" role="status">Loading…</p>
   }

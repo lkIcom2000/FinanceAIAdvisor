@@ -17,6 +17,8 @@ import java.util.TreeMap;
  * @param passages the Knowledge Base passages the retrieval stage found, before any budget drop (empty until Epic 4)
  * @param prompt the phrasing prompt, set by the exposure filter stage
  * @param draft set by the LLM draft stage
+ * @param checks the Check Chain's results and what the Rule Engine and block routing did with them, set by the
+ *     shadow checks stage and completed by the Rule Engine, Judge and block routing stages
  * @param outcome set by block routing
  * @param finalText the released text, set by block routing
  * @param suggestions the released suggestion chips (0–3), set by block routing
@@ -30,6 +32,7 @@ public record TurnState(
         List<PromptPayload.Passage> passages,
         Prompt prompt,
         Draft draft,
+        Checks checks,
         ResponseOutcome outcome,
         String finalText,
         List<String> suggestions,
@@ -84,6 +87,59 @@ public record TurnState(
         }
     }
 
+    /**
+     * The checks of a turn.
+     *
+     * @param flags what the compliance level switches on
+     * @param shadow the Check Chain on the first draft (every level)
+     * @param finalResults the Check Chain on the released text: the shadow results, those of the regenerated text, or
+     *     none when block routing released a template
+     * @param regeneration the one regeneration of the Rule Engine; {@code null} without one
+     * @param route block routing's decision; {@code null} before block routing or when routing is off (level A)
+     * @param judgeNotImplemented whether the level asked for the Judge, which is not implemented (Story 3.9)
+     */
+    public record Checks(ComponentFlags flags, ChainResult shadow, ChainResult finalResults, Regeneration regeneration,
+            BlockRouting.Route route, boolean judgeNotImplemented) {
+
+        public Checks {
+            Objects.requireNonNull(flags, "flags");
+            Objects.requireNonNull(shadow, "shadow");
+            Objects.requireNonNull(finalResults, "finalResults");
+        }
+
+        /** After the shadow checks: the final results are the shadow results until something changes them. */
+        public static Checks shadow(ComponentFlags flags, ChainResult shadow) {
+            return new Checks(flags, shadow, shadow, null, null, false);
+        }
+
+        public Checks withRegeneration(Regeneration value, ChainResult results) {
+            return new Checks(flags, shadow, results, value, route, judgeNotImplemented);
+        }
+
+        public Checks withJudgeNotImplemented(boolean value) {
+            return new Checks(flags, shadow, finalResults, regeneration, route, value);
+        }
+
+        /** Block routing's decision; a routed template keeps no final results. */
+        public Checks withRoute(BlockRouting.Route value) {
+            return new Checks(flags, shadow, value.released() ? finalResults : ChainResult.NONE, regeneration, value,
+                    judgeNotImplemented);
+        }
+
+        public boolean regenerated() {
+            return regeneration != null;
+        }
+    }
+
+    /** The Rule Engine's one regeneration: the fix sent and the model's new text. */
+    public record Regeneration(String fix, String text, boolean truncated) {
+
+        public Regeneration {
+            Objects.requireNonNull(fix, "fix");
+            Objects.requireNonNull(text, "text");
+        }
+    }
+
     public TurnState {
         Objects.requireNonNull(userText, "userText");
         passages = List.copyOf(passages);
@@ -93,7 +149,7 @@ public record TurnState(
     }
 
     public static TurnState start(String userText) {
-        return new TurnState(userText, null, null, null, List.of(), null, null, null, null, List.of(), false,
+        return new TurnState(userText, null, null, null, List.of(), null, null, null, null, null, List.of(), false,
                 List.of(), List.of());
     }
 
@@ -104,43 +160,48 @@ public record TurnState(
 
     /** This state after {@code stage} ran and did nothing. */
     public TurnState passedThrough(TurnStage stage) {
-        return new TurnState(userText, dialogState, nlu, classification, passages, prompt, draft, outcome,
+        return new TurnState(userText, dialogState, nlu, classification, passages, prompt, draft, checks, outcome,
                 finalText, suggestions, noValidSource, plus(stagesRun, stage), plus(passThroughStages, stage));
     }
 
     /** This state after {@code stage} ran with the given result. */
     public TurnState ran(TurnStage stage) {
-        return new TurnState(userText, dialogState, nlu, classification, passages, prompt, draft, outcome,
+        return new TurnState(userText, dialogState, nlu, classification, passages, prompt, draft, checks, outcome,
                 finalText, suggestions, noValidSource, plus(stagesRun, stage), passThroughStages);
     }
 
     public TurnState withDialogState(String state) {
-        return new TurnState(userText, state, nlu, classification, passages, prompt, draft, outcome,
+        return new TurnState(userText, state, nlu, classification, passages, prompt, draft, checks, outcome,
                 finalText, suggestions, noValidSource, stagesRun, passThroughStages);
     }
 
     public TurnState withNlu(Nlu value) {
-        return new TurnState(userText, dialogState, value, classification, passages, prompt, draft, outcome,
+        return new TurnState(userText, dialogState, value, classification, passages, prompt, draft, checks, outcome,
                 finalText, suggestions, noValidSource, stagesRun, passThroughStages);
     }
 
     public TurnState withClassification(Classification value) {
-        return new TurnState(userText, dialogState, nlu, value, passages, prompt, draft, outcome,
+        return new TurnState(userText, dialogState, nlu, value, passages, prompt, draft, checks, outcome,
                 finalText, suggestions, noValidSource, stagesRun, passThroughStages);
     }
 
     public TurnState withPassages(List<PromptPayload.Passage> value) {
-        return new TurnState(userText, dialogState, nlu, classification, value, prompt, draft, outcome,
+        return new TurnState(userText, dialogState, nlu, classification, value, prompt, draft, checks, outcome,
                 finalText, suggestions, noValidSource, stagesRun, passThroughStages);
     }
 
     public TurnState withPrompt(Prompt value) {
-        return new TurnState(userText, dialogState, nlu, classification, passages, value, draft, outcome,
+        return new TurnState(userText, dialogState, nlu, classification, passages, value, draft, checks, outcome,
                 finalText, suggestions, noValidSource, stagesRun, passThroughStages);
     }
 
     public TurnState withDraft(Draft value) {
-        return new TurnState(userText, dialogState, nlu, classification, passages, prompt, value, outcome,
+        return new TurnState(userText, dialogState, nlu, classification, passages, prompt, value, checks, outcome,
+                finalText, suggestions, noValidSource, stagesRun, passThroughStages);
+    }
+
+    public TurnState withChecks(Checks value) {
+        return new TurnState(userText, dialogState, nlu, classification, passages, prompt, draft, value, outcome,
                 finalText, suggestions, noValidSource, stagesRun, passThroughStages);
     }
 
@@ -153,7 +214,7 @@ public record TurnState(
      * @param fromNoValidSource whether the text is the no-valid-source template
      */
     public TurnState withOutcome(ResponseOutcome value, String text, List<String> chips, boolean fromNoValidSource) {
-        return new TurnState(userText, dialogState, nlu, classification, passages, prompt, draft, value, text, chips,
+        return new TurnState(userText, dialogState, nlu, classification, passages, prompt, draft, checks, value, text, chips,
                 fromNoValidSource, stagesRun, passThroughStages);
     }
 

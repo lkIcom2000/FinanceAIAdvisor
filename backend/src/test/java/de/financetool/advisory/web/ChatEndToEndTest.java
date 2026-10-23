@@ -10,7 +10,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import de.financetool.PostgresIntegrationTest;
-import de.financetool.advisory.domain.NoValidSource;
 import de.financetool.llm.LlmMessage;
 import de.financetool.llm.LlmRole;
 import de.financetool.shared.config.ConfigFingerprint;
@@ -112,9 +111,11 @@ class ChatEndToEndTest extends PostgresIntegrationTest {
         String answer = content(answer(lena, questionId).andExpect(status().isOk())
                 .andExpect(jsonPath("$.author").value("AGENT"))
                 .andExpect(jsonPath("$.outcome").value("INFORM"))
-                .andExpect(jsonPath("$.text").value(NoValidSource.TEXT))
-                .andExpect(jsonPath("$.suggestions[0]").value(NoValidSource.DEFAULT_SUGGESTION))
-                .andExpect(jsonPath("$.suggestions.length()").value(1))
+                .andExpect(jsonPath("$.text").value(StubLlm.DEFAULT_TEXT))
+                .andExpect(jsonPath("$.suggestions.length()").value(0))
+                .andExpect(jsonPath("$.checks[0].id").value("SCOPE"))
+                .andExpect(jsonPath("$.checks[0].passed").value(true))
+                .andExpect(jsonPath("$.checks.length()").value(3))
                 .andExpect(jsonPath("$.replyTo").value(questionId)));
         String turnId = JsonPath.read(answer, "$.id");
 
@@ -126,17 +127,17 @@ class ChatEndToEndTest extends PostgresIntegrationTest {
                 "SELECT fixture_version FROM persona_state WHERE persona_id = 'p-lena'", String.class));
         Map<String, Object> body = JsonPath.read((String) record.get("payload"), "$.body");
         assertThat(body).containsEntry("class", "INFORM").containsEntry("outcome", "INFORM")
-                .containsEntry("evidence", List.of()).containsEntry("checks", List.of())
+                .containsEntry("evidence", List.of()).containsEntry("route", "released")
                 .containsEntry("modelTag", StubLlm.MODEL_TAG).containsEntry("modelDigest", StubLlm.DIGEST)
                 .containsEntry("promptHashes", promptHashes())
                 .containsEntry("truncated", false).containsEntry("droppedHistoryTurns", 0)
                 .containsEntry("droppedPassages", 0).containsEntry("dataExposure", "AGGREGATED")
                 .containsEntry("messageWithheld", false).containsEntry("firstDraft", StubLlm.DEFAULT_TEXT)
-                .containsEntry("finalText", NoValidSource.TEXT).containsEntry("noValidSource", true)
+                .containsEntry("finalText", StubLlm.DEFAULT_TEXT).containsEntry("noValidSource", false)
                 .containsEntry("regenerated", false)
                 .containsEntry("complianceLevel", "A+B+C")
-                .containsEntry("passThroughStages", List.of("DIALOG_STATE", "TOOL_PLAN", "KB_RETRIEVE",
-                        "SHADOW_CHECKS", "RULE_ENGINE", "JUDGE"))
+                .containsEntry("passThroughStages", List.of("DIALOG_STATE", "TOOL_PLAN", "KB_RETRIEVE", "JUDGE"))
+                .containsEntry("shadowMode", false).containsEntry("judgeNotImplemented", true)
                 .containsEntry("classReasons", List.of("general explanation"))
                 .containsEntry("nluModelTag", StubLlm.MODEL_TAG).containsEntry("nluModelDigest", StubLlm.DIGEST)
                 .containsEntry("nluPromptHashes", Map.of(
@@ -195,7 +196,7 @@ class ChatEndToEndTest extends PostgresIntegrationTest {
     void theThirdQuestionSeesBothEarlierTurnsFilteredAndTheRecordHoldsBothPromptHashes() throws Exception {
         MockHttpSession lena = login(mvc, "p-lena");
         llm.nluAnswer("I'm 34 and have 12,400 EUR saved.", PERSONAL_NLU);
-        turn(lena, "I'm 34 and have 12,400 EUR saved.", "Thanks, noted your savings.");
+        turn(lena, "I'm 34 and have 12,400 EUR saved.", "Thanks, noted your savings. What are your goals?");
         turn(lena, "What is an ETF?", "An ETF is a fund traded on an exchange.");
 
         String questionId = ask(lena, "Should I start a savings plan?");
@@ -205,8 +206,8 @@ class ChatEndToEndTest extends PostgresIntegrationTest {
         String user = lastUserPart();
         assertThat(user).contains("EARLIER CONVERSATION (oldest first):")
                 .contains("Customer: I'm 30s and have 10,000\u201315,000 EUR saved.\n"
-                        + "Assistant: Thanks, noted your savings.\n"
-                        + "Customer: What is an ETF?\nAssistant: " + NoValidSource.TEXT + "\n\n"
+                        + "Assistant: Thanks, noted your savings. What are your goals?\n"
+                        + "Customer: What is an ETF?\nAssistant: An ETF is a fund traded on an exchange.\n\n"
                         + "<user_message>\nShould I start a savings plan?\n</user_message>")
                 .doesNotContain("12,400").doesNotContain("Lena").doesNotContain("p-lena");
         assertThat(llm.calls(LlmRole.PHRASING).getLast().messages().get(0).content())
@@ -234,11 +235,10 @@ class ChatEndToEndTest extends PostgresIntegrationTest {
         turn(lena, "lena current question", "lena current answer");
 
         String user = lastUserPart();
-        String released = NoValidSource.TEXT;
         assertThat(user).isEqualTo("EARLIER CONVERSATION (oldest first):\n"
-                + "Customer: lena question one\nAssistant: " + released + "\n"
-                + "Customer: lena question two\nAssistant: " + released + "\n"
-                + "Customer: lena question three\nAssistant: " + released + "\n\n"
+                + "Customer: lena question one\nAssistant: lena answer one\n"
+                + "Customer: lena question two\nAssistant: lena answer two\n"
+                + "Customer: lena question three\nAssistant: lena answer three\n\n"
                 + "<user_message>\nlena current question\n</user_message>");
         assertThat(user).doesNotContain("JONAS-SECRET");
     }
@@ -254,11 +254,10 @@ class ChatEndToEndTest extends PostgresIntegrationTest {
         turn(jonas, "current question", "current answer");
 
         String user = lastUserPart();
-        String released = NoValidSource.TEXT;
         assertThat(user).contains("EARLIER CONVERSATION (oldest first):\n"
-                + "Customer: question 3\nAssistant: " + released + "\n"
-                + "Customer: question 4\nAssistant: " + released + "\n"
-                + "Customer: question 5\nAssistant: " + released + "\n\n"
+                + "Customer: question 3\nAssistant: answer 3\n"
+                + "Customer: question 4\nAssistant: answer 4\n"
+                + "Customer: question 5\nAssistant: answer 5\n\n"
                 + "<user_message>\ncurrent question\n</user_message>")
                 .doesNotContain("question 2").doesNotContain("unanswered");
     }

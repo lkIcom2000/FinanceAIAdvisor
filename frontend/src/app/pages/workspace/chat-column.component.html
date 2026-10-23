@@ -19,11 +19,11 @@
       <div class="chips">
         @for (s of suggestions; track s) {
           <button
-                type="button"
-                class="chip"
-                [disabled]="isBusy() || load() !== 'ready'"
-                (click)="send(s)"
-              >
+            type="button"
+            class="chip"
+            [disabled]="isBusy() || load() !== 'ready'"
+            (click)="send(s)"
+          >
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
               <path [attr.d]="icons['chat']" />
             </svg>
@@ -65,6 +65,11 @@
               </button>
             }
           </div>
+        }
+        @if (m.checks.length) {
+          <button type="button" class="check-footer" (click)="openChecks(m)">
+            Checked · {{ passedChecks(m) }} checks passed
+          </button>
         }
       </article>
     }

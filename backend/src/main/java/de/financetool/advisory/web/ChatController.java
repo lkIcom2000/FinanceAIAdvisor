@@ -4,6 +4,7 @@ import de.financetool.advisory.application.AnswerMessageUseCase;
 import de.financetool.advisory.application.PostMessageUseCase;
 import de.financetool.advisory.application.ShowChatUseCase;
 import de.financetool.advisory.domain.ChatMessage;
+import de.financetool.advisory.domain.CheckId;
 import de.financetool.advisory.domain.ResponseOutcome;
 import de.financetool.shared.PersonaScope;
 import de.financetool.shared.ProblemCode;
@@ -62,11 +63,29 @@ class ChatController {
                     requiredMode = Schema.RequiredMode.REQUIRED,
                     description = "Suggestion chips of Fine's answer: question texts that send themselves; "
                             + "empty on other messages"))
-            List<String> suggestions) {
+            List<String> suggestions,
+            @ArraySchema(arraySchema = @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "The checks Fine's answer passed or failed, shown under \"Checks\"; empty on "
+                            + "other messages and on fixed answers"))
+            List<CheckView> checks) {
 
         static MessageView of(ChatMessage message) {
             return new MessageView(message.id(), Author.valueOf(message.author().name()), message.text(),
-                    message.outcome(), message.replyTo(), message.suggestions());
+                    message.outcome(), message.replyTo(), message.suggestions(),
+                    message.checks().stream().map(CheckView::of).toList());
+        }
+    }
+
+    @Schema(name = "ChatCheck", description = "One check on Fine's answer")
+    record CheckView(
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "Shown only as a small caption")
+            CheckId id,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean passed,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "What the check makes sure of, in "
+                    + "plain words") String description) {
+
+        static CheckView of(ChatMessage.Check check) {
+            return new CheckView(check.id(), check.passed(), check.description());
         }
     }
 

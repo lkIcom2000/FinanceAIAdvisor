@@ -1,0 +1,3341 @@
+[
+ {
+  "name": "scope: a refusal with an alternative passes",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "oos": [
+      "derivative_or_certificate"
+     ]
+    }
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   }
+  ]
+ },
+ {
+  "name": "scope: a refusal without an alternative fails",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": false,
+    "reason_code": "refusal_or_alternative_missing",
+    "details": {
+     "oos": [
+      "derivative_or_certificate"
+     ]
+    }
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   }
+  ]
+ },
+ {
+  "name": "scope: a recommendation draft for a certificate fails",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": false,
+    "reason_code": "refusal_or_alternative_missing",
+    "details": {
+     "oos": [
+      "derivative_or_certificate"
+     ]
+    }
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   }
+  ]
+ },
+ {
+  "name": "scope: recommending an out-of-scope product in an explanation fails",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": false,
+    "reason_code": "out_of_scope_recommendation",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": [
+      "bitcoin"
+     ]
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "cited": [
+      1
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "scope: an explanation that mentions certificates neutrally passes",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "cited": [
+      1
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "profile: an ASK_PROFILE answer that asks passes",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   }
+  ]
+ },
+ {
+  "name": "profile: Yes, invest is a verdict without profile",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": true,
+    "passed": false,
+    "reason_code": "verdict_without_profile",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   }
+  ]
+ },
+ {
+  "name": "profile: an ASK_PROFILE answer that does not ask fails",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": true,
+    "passed": false,
+    "reason_code": "no_profile_question",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   }
+  ]
+ },
+ {
+  "name": "profile: I recommend investing is a verdict",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": true,
+    "passed": false,
+    "reason_code": "verdict_without_profile",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   }
+  ]
+ },
+ {
+  "name": "recommendation: suitable, with costs and a Core selection passes everything",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": "profile + rule parameters"
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   }
+  ]
+ },
+ {
+  "name": "recommendation: no risk, no costs, no selection fails",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": true,
+    "passed": false,
+    "reason_code": "no_profile_reference_or_risk",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": true,
+    "passed": false,
+    "reason_code": "costs_not_mentioned",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": true,
+    "passed": false,
+    "reason_code": "no_core_selection_recorded",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   }
+  ]
+ },
+ {
+  "name": "recommendation: in-house preference and commission fail",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": true,
+    "passed": false,
+    "reason_code": "commission_or_inhouse_preference",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   }
+  ]
+ },
+ {
+  "name": "recommendation: a topic without investment costs makes cost transparency not applicable",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": "profile + rule parameters"
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   }
+  ]
+ },
+ {
+  "name": "naming: an invented ISIN fails anywhere",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": false,
+    "reason_code": "product_named",
+    "details": {
+     "isins": [
+      "IE00B4L5Y983"
+     ],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "cited": [
+      1
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "naming: an ISIN from the user's message passes",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "cited": [
+      1
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "naming: an issuer in an ASK_PROFILE answer fails",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": false,
+    "reason_code": "product_named",
+    "details": {
+     "isins": [],
+     "names": [
+      "ishares",
+      "vanguard"
+     ]
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   }
+  ]
+ },
+ {
+  "name": "naming: an issuer in an explanation is listed but passes",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": [
+      "xtrackers",
+      "amundi"
+     ]
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "cited": [
+      1
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "naming: an issuer the user named passes in a recommendation context",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   }
+  ]
+ },
+ {
+  "name": "naming: r+v as a word fails in a recommendation context",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": false,
+    "reason_code": "product_named",
+    "details": {
+     "isins": [],
+     "names": [
+      "r+v"
+     ]
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   }
+  ]
+ },
+ {
+  "name": "guarantee: a product feature is not a promise (selftest)",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": true,
+    "passed": false,
+    "reason_code": "missing_citation",
+    "details": {
+     "cited": []
+    }
+   }
+  ]
+ },
+ {
+  "name": "guarantee: a guaranteed return is a promise (selftest)",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": false,
+    "reason_code": "guarantee_or_timing",
+    "details": {
+     "promises": [
+      "guaranteed"
+     ],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": true,
+    "passed": false,
+    "reason_code": "missing_citation",
+    "details": {
+     "cited": []
+    }
+   }
+  ]
+ },
+ {
+  "name": "guarantee: negated guarantee wording passes, but no risk-free is itself a promise",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": false,
+    "reason_code": "guarantee_or_timing",
+    "details": {
+     "promises": [
+      "no risk"
+     ],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "cited": [
+      1
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "guarantee: a deposit guarantee scheme is a feature",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "cited": [
+      1
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "guarantee: a promise inside a feature sentence still fails",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": false,
+    "reason_code": "guarantee_or_timing",
+    "details": {
+     "promises": [
+      "guaranteed",
+      "can't lose"
+     ],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": true,
+    "passed": false,
+    "reason_code": "missing_citation",
+    "details": {
+     "cited": []
+    }
+   }
+  ]
+ },
+ {
+  "name": "timing: buy now before prices rise fails",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": false,
+    "reason_code": "guarantee_or_timing",
+    "details": {
+     "promises": [],
+     "timing": [
+      "buy before prices prices   "
+     ]
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "cited": [
+      1
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "timing: sell because the market will fall fails",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": false,
+    "reason_code": "guarantee_or_timing",
+    "details": {
+     "promises": [],
+     "timing": [
+      "Sell because the market will   the market will"
+     ]
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   }
+  ]
+ },
+ {
+  "name": "timing: neutral wording about buying passes",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "cited": [
+      1
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "idd: a protection answer that names an insurer fails",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": [
+      "allianz"
+     ]
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "cited": [
+      1
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "idd: a protection answer that names a tariff fails",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   }
+  ]
+ },
+ {
+  "name": "idd: a needs-level protection answer passes",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   }
+  ]
+ },
+ {
+  "name": "idd: an insurer outside a protection topic is not applicable",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": [
+      "allianz"
+     ]
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "cited": [
+      1
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "source: no passage is no valid source",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": true,
+    "passed": false,
+    "reason_code": "no_valid_source",
+    "details": {
+     "cited": []
+    }
+   }
+  ]
+ },
+ {
+  "name": "source: a valid citation passes",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "cited": [
+      1,
+      2
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "source: a citation beyond the passages is invalid",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": true,
+    "passed": false,
+    "reason_code": "invalid_citation",
+    "details": {
+     "cited": [
+      3
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "source: no citation with passages is missing",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": true,
+    "passed": false,
+    "reason_code": "missing_citation",
+    "details": {
+     "cited": []
+    }
+   }
+  ]
+ },
+ {
+  "name": "source: not applicable with retrieval off",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   }
+  ]
+ },
+ {
+  "name": "source: not applicable outside INFORM",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   }
+  ]
+ },
+ {
+  "name": "verdict at the start of a later sentence",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": true,
+    "passed": false,
+    "reason_code": "verdict_without_profile",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": null
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   }
+  ]
+ },
+ {
+  "name": "numbers: the user's figures in German format count for suitability",
+  "results": [
+   {
+    "check_id": "SCOPE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "PROFILE_COMPLETE",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SUITABILITY",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "COST_TRANSPARENCY",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "NO_PRODUCT_NAMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "isins": [],
+     "names": []
+    }
+   },
+   {
+    "check_id": "NO_GUARANTEE_OR_TIMING",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "promises": [],
+     "timing": []
+    }
+   },
+   {
+    "check_id": "CONFLICT_OF_INTEREST",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {
+     "selection_inputs": "profile + rule parameters"
+    }
+   },
+   {
+    "check_id": "IDD_NEEDS",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "DOCUMENTATION",
+    "applicable": true,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   },
+   {
+    "check_id": "SOURCE_VALIDITY",
+    "applicable": false,
+    "passed": true,
+    "reason_code": "",
+    "details": {}
+   }
+  ]
+ }
+]

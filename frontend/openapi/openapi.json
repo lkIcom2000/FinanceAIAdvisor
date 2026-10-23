@@ -348,6 +348,25 @@
         },
         "required" : [ "messages", "personaName" ]
       },
+      "ChatCheck" : {
+        "type" : "object",
+        "description" : "One check on Fine's answer",
+        "properties" : {
+          "description" : {
+            "type" : "string",
+            "description" : "What the check makes sure of, in plain words"
+          },
+          "id" : {
+            "type" : "string",
+            "description" : "Shown only as a small caption",
+            "enum" : [ "SCOPE", "PROFILE_COMPLETE", "SUITABILITY", "COST_TRANSPARENCY", "NO_PRODUCT_NAMING", "NO_GUARANTEE_OR_TIMING", "CONFLICT_OF_INTEREST", "IDD_NEEDS", "DOCUMENTATION", "NUMBER_MATCH", "SOURCE_VALIDITY" ]
+          },
+          "passed" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "description", "id", "passed" ]
+      },
       "ChatMessage" : {
         "type" : "object",
         "description" : "One message of the conversation",
@@ -355,6 +374,13 @@
           "author" : {
             "type" : "string",
             "enum" : [ "USER", "AGENT", "ADVISOR" ]
+          },
+          "checks" : {
+            "type" : "array",
+            "description" : "The checks Fine's answer passed or failed, shown under \"Checks\"; empty on other messages and on fixed answers",
+            "items" : {
+              "$ref" : "#/components/schemas/ChatCheck"
+            }
           },
           "id" : {
             "type" : "string",
@@ -382,7 +408,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "author", "id", "suggestions", "text" ]
+        "required" : [ "author", "checks", "id", "suggestions", "text" ]
       },
       "DatedFigure" : {
         "type" : "object",

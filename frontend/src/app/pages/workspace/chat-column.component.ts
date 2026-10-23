@@ -10,6 +10,8 @@ import {
   viewChild,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
+import { openChecksDialog } from '../../shared/why-link.component';
 import { ChatMessage } from '../../api/models/chat-message';
 import { ChatService } from '../../api/services/chat.service';
 import { ChatComposerComponent } from './chat-composer.component';
@@ -85,6 +87,7 @@ type LoadState = 'loading' | 'ready' | 'failed';
 export class ChatColumnComponent {
   private readonly chat = inject(ChatService);
   private readonly injector = inject(Injector);
+  private readonly dialog = inject(MatDialog);
 
   protected readonly suggestions = SUGGESTIONS;
   protected readonly steps = WAITING_STEPS;
@@ -119,6 +122,16 @@ export class ChatColumnComponent {
       },
       error: () => this.load.set('failed'),
     });
+  }
+
+  /** "Checked · N checks passed": N counts the applicable final checks that passed. */
+  protected passedChecks(message: ChatMessage): number {
+    return message.checks.filter((c) => c.passed).length;
+  }
+
+  /** The footer opens "Why?" on the answer's Checks section. */
+  protected openChecks(message: ChatMessage): void {
+    openChecksDialog(this.dialog, message.checks);
   }
 
   protected isBusy(): boolean {
