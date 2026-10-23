@@ -111,8 +111,7 @@ class CheckChainEndToEndTest extends PostgresIntegrationTest {
         assertThat(t.shadow(CheckId.SCOPE)).containsEntry("passed", false)
                 .containsEntry("reasonCode", "refusal_or_alternative_missing");
         assertThat(t.body().get("finalChecks")).isEqualTo(t.body().get("shadowChecks"));
-        assertThat(t.checks()).filteredOn(c -> c.get("id").equals("SCOPE")).singleElement()
-                .satisfies(c -> assertThat(c).containsEntry("passed", false));
+        assertThat(t.checks()).as("shadow results are not shown on the card").isEmpty();
     }
 
     @Test
@@ -126,6 +125,7 @@ class CheckChainEndToEndTest extends PostgresIntegrationTest {
                 .containsEntry("checks", List.of());
         assertThat(t.body()).containsEntry("route", "block_scope").containsEntry("firedChecks", List.of("SCOPE"))
                 .containsEntry("finalChecks", List.of()).containsEntry("shadowMode", false)
+                .containsEntry("routedOnChecks", t.body().get("shadowChecks"))
                 .containsEntry("firstDraft", "Knock-out certificates are not part of this service.");
     }
 
@@ -165,6 +165,17 @@ class CheckChainEndToEndTest extends PostgresIntegrationTest {
         assertThat(t.body()).containsEntry("route", "released").containsEntry("noValidSource", false);
         assertThat(t.shadow(CheckId.SOURCE_VALIDITY)).containsEntry("applicable", false);
         assertThat(t.checks()).extracting(c -> c.get("id")).doesNotContain("SOURCE_VALIDITY");
+        assertThat(t.body()).containsEntry("citationMarkersRemoved", 0);
+    }
+
+    @Test
+    void withRetrievalOffAMarkerTheModelInventedIsRemovedFromTheReleasedAnswer() throws Exception {
+        llm.answer("An ETF is a fund traded on an exchange [S1].");
+        Turn t = turn(ClassificationEndToEndTest.EXPLANATION);
+
+        assertThat(t.answer()).containsEntry("text", "An ETF is a fund traded on an exchange.");
+        assertThat(t.body()).containsEntry("citationMarkersRemoved", 1)
+                .containsEntry("firstDraft", "An ETF is a fund traded on an exchange [S1].");
     }
 
     @Test

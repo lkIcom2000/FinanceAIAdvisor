@@ -370,6 +370,89 @@ class TurnOrchestratorTest {
     }
 
     /** A classified INFORM turn after the draft, with {@code retrieved} passages of which {@code kept} fit. */
+    /** An INFORM turn whose passages go through the real prompt budget of {@code numCtx}. */
+    TurnState informDraftWithBudget(String draft, List<PromptPayload.Passage> passages, int numCtx) {
+        TurnState turn = informDraft(draft, 0, 0).withPassages(passages);
+        PromptPayload payload = ExposureFilter.apply(ExposureFilter.Level.AGGREGATED, "q", null, List.of(),
+                Map.of(), "", passages);
+        return turn.withPrompt(new TurnState.Prompt(payload, PhrasingPrompt.build("R", "C", payload, numCtx, 700),
+                new java.util.TreeMap<>()));
+    }
+
+    @Test
+    void aCitationBeyondThePassagesTheBudgetKeptIsInvalidAndTheFixNamesTheKeptRange() {
+        when(llm.generate(eq(LlmRole.PHRASING), anyList(), eq(TestContexts.DECODING), isNull()))
+                .thenReturn(result("Fixed answer [S1]."));
+        List<PromptPayload.Passage> passages = List.of(new PromptPayload.Passage("KID p. 1", "short"),
+                new PromptPayload.Passage("KID p. 2", "x".repeat(6000)),
+                new PromptPayload.Passage("KID p. 3", "y".repeat(6000)));
+        TurnState turn = informDraftWithBudget("Answer [S3].", passages, 4096);
+        int kept = TurnOrchestrator.passagesInPrompt(turn);
+        assertThat(kept).as("the budget dropped passages").isBetween(1, 2);
+
+        TurnState released = stages7to10(context, turn);
+        assertThat(released.checks().shadow().get(CheckId.SOURCE_VALIDITY).reasonCode())
+                .isEqualTo("invalid_citation");
+        assertThat(sentMessages().get(3).content()).contains("cite each source you use as [S1] to [S" + kept + "].");
+        assertThat(released.finalText()).isEqualTo("Fixed answer [S1].");
+    }
+
+    @Test
+    void passagesTheBudgetDroppedEntirelyAreNoValidSource() {
+        List<PromptPayload.Passage> passages = List.of(new PromptPayload.Passage("KID p. 1", "x".repeat(6000)));
+        TurnState turn = informDraftWithBudget("Answer [S1].", passages, 1200);
+        assertThat(TurnOrchestrator.passagesInPrompt(turn)).isZero();
+
+        TurnState released = stages7to10(context, turn);
+        assertThat(released.checks().shadow().get(CheckId.SOURCE_VALIDITY).reasonCode()).isEqualTo("no_valid_source");
+        assertThat(released.finalText()).isEqualTo(NoValidSource.TEXT);
+        assertThat(released.suggestions()).containsExactly(NoValidSource.DEFAULT_SUGGESTION);
+        org.mockito.Mockito.verifyNoInteractions(llm);
+    }
+
+    @Test
+    void aRegeneratedTurnRecordsTheFixTheRegeneratedTextAndTheTruncation() {
+        when(chats.conversation(scope)).thenReturn(conversation);
+        when(llm.generate(eq(LlmRole.PHRASING), anyList(), eq(TestContexts.DECODING), isNull()))
+                .thenReturn(new LlmResult("Fixed answer [S1].", "m1", "sha256:d1", TestContexts.DECODING, 10, true,
+                        Duration.ZERO));
+        TurnState turn = stages7to10(context, informDraft("Answer [S3].", 1, 1));
+        ChatMessage answer = orchestrator.auditAndRelease(context, scope, question, "fv-1", turn);
+
+        assertThat(answer.text()).isEqualTo("Fixed answer [S1].");
+        ResponseAuditBody body = auditBody();
+        assertThat(body.regenerated()).isTrue();
+        assertThat(body.regenerationFix()).isEqualTo("Base the explanation on the SOURCES and cite each source you use "
+                + "as [S1] to [S1]. If the SOURCES do not cover the question, say so. Rewrite the whole answer.");
+        assertThat(body.regeneratedText()).isEqualTo("Fixed answer [S1].");
+        assertThat(body.truncated()).as("the regeneration was truncated").isTrue();
+        assertThat(body.firstDraft()).isEqualTo("Answer [S3].");
+        assertThat(body.finalText()).isEqualTo("Fixed answer [S1].");
+        assertThat(body.route()).isEqualTo("released");
+        assertThat(body.routedOnChecks()).isEmpty();
+        assertThat(body.finalChecks().stream().filter(c -> c.checkId() == CheckId.SOURCE_VALIDITY).findFirst()
+                .orElseThrow().passed()).isTrue();
+    }
+
+    @Test
+    void withRetrievalOffCitationMarkersAreRemovedBeforeTheChecksAndCountedTheFirstDraftKeepsThem() {
+        ChatMessage answer = run("An ETF is a fund [S1]. It trades daily [S2].", with(ComplianceLevel.A_B_C, false),
+                false);
+
+        assertThat(answer.text()).isEqualTo("An ETF is a fund. It trades daily.");
+        ResponseAuditBody body = auditBody();
+        assertThat(body.citationMarkersRemoved()).isEqualTo(2);
+        assertThat(body.firstDraft()).isEqualTo("An ETF is a fund [S1]. It trades daily [S2].");
+        assertThat(body.finalText()).isEqualTo("An ETF is a fund. It trades daily.");
+    }
+
+    @Test
+    void withRetrievalOnCitationMarkersStay() {
+        TurnState released = stages7to10(context, informDraft("Sourced answer [S1].", 1, 1));
+        assertThat(released.checks().citationMarkersRemoved()).isZero();
+        assertThat(released.finalText()).isEqualTo("Sourced answer [S1].");
+    }
+
     TurnState informDraft(String draft, int retrieved, int kept) {
         List<PromptPayload.Passage> passages = java.util.stream.IntStream.range(0, retrieved)
                 .mapToObj(i -> new PromptPayload.Passage("KID p. " + i, "text " + i)).toList();
@@ -494,8 +577,8 @@ class TurnOrchestratorTest {
                 .reasonCode()).isEqualTo("refusal_or_alternative_missing");
         assertThat(body.finalChecks()).isEqualTo(body.shadowChecks());
         assertThat(body.complianceLevel()).isEqualTo("A");
-        assertThat(answer.checks()).filteredOn(c -> c.id() == CheckId.SCOPE).singleElement()
-                .satisfies(c -> assertThat(c.passed()).isFalse());
+        assertThat(answer.checks()).as("shadow results stay in the record, the card shows no checks").isEmpty();
+        assertThat(body.routedOnChecks()).isEmpty();
     }
 
     @Test
@@ -512,6 +595,8 @@ class TurnOrchestratorTest {
         assertThat(body.firedChecks()).containsExactly(CheckId.SCOPE);
         assertThat(body.judgeNotImplemented()).isFalse();
         assertThat(body.finalChecks()).isEmpty();
+        assertThat(body.routedOnChecks()).as("the results the template was routed on")
+                .filteredOn(CheckResult::failed).extracting(CheckResult::checkId).containsExactly(CheckId.SCOPE);
         assertThat(body.firstDraft()).isEqualTo("Knock-outs are not part of this service.");
     }
 

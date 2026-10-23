@@ -201,18 +201,16 @@ describe('ChatColumnComponent', () => {
     expect(chip().disabled).toBe(true);
     chip().click();
     fixture.detectChanges();
-    http
-      .expectOne('/api/chat/messages')
-      .flush(
-        {
-          id: 'q2',
-          author: 'USER',
-          text: 'How does an emergency fund work?',
-          suggestions: [],
-          checks: [],
-        },
-        { status: 201, statusText: 'Created' },
-      );
+    http.expectOne('/api/chat/messages').flush(
+      {
+        id: 'q2',
+        author: 'USER',
+        text: 'How does an emergency fund work?',
+        suggestions: [],
+        checks: [],
+      },
+      { status: 201, statusText: 'Created' },
+    );
     fixture.detectChanges();
     expect(chip().disabled).toBe(true);
 
@@ -247,7 +245,7 @@ describe('ChatColumnComponent', () => {
       },
     ]);
     const footer = element.querySelector('.response .check-footer') as HTMLButtonElement;
-    expect(text(footer)).toBe('Checked · 2 checks passed');
+    expect(text(footer)).toBe('Checked · 2 of 3 checks passed');
 
     footer.click();
     fixture.detectChanges();
@@ -263,6 +261,29 @@ describe('ChatColumnComponent', () => {
       'SCOPE',
       'NO_PRODUCT_NAMING',
       'SOURCE_VALIDITY',
+    ]);
+  });
+
+  it('words the footer for one, several and all passed checks', () => {
+    const scope = {
+      id: 'SCOPE' as const,
+      passed: true,
+      description: 'The answer stays within what this service covers',
+    };
+    const naming = {
+      id: 'NO_PRODUCT_NAMING' as const,
+      passed: true,
+      description: 'No single product, provider or ISIN is pushed',
+    };
+    render([
+      question,
+      { ...answer, checks: [scope] },
+      { ...question, id: 'q2' },
+      { ...answer, id: 'a2', replyTo: 'q2', checks: [scope, naming] },
+    ]);
+    expect(Array.from(element.querySelectorAll('.check-footer')).map(text)).toEqual([
+      'Checked · 1 check passed',
+      'Checked · 2 checks passed',
     ]);
   });
 

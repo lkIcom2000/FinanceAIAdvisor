@@ -33,11 +33,15 @@ import java.util.SortedMap;
  * @param shadowChecks the Check Chain on the first draft, at every compliance level
  * @param finalChecks the Check Chain on the released text; empty when block routing released a template (it is
  *     pre-approved text, not model text)
+ * @param routedOnChecks the results block routing released a template on (after a regeneration, the regenerated
+ *     text's); empty when the draft was released
  * @param route block routing's decision, e.g. {@code released}, {@code block_scope}, {@code no_valid_source}
  * @param firedChecks the checks whose failure decided a routed turn
  * @param shadowMode whether the Rule Engine ran in Shadow Mode (level {@code A}): recorded, never enforced
  * @param componentFlags what the compliance level switched on
  * @param judgeNotImplemented whether the level asked for the Judge, which is not implemented (Story 3.9)
+ * @param citationMarkersRemoved citation markers removed from the first draft with retrieval off (the first draft
+ *     keeps them)
  * @param promptHashes file name of each prompt file in the phrasing call to the sha256 of its LF bytes
  * @param truncated whether the model or the prompt budget truncated anything
  * @param droppedHistoryTurns history turns the prompt budget dropped
@@ -69,11 +73,13 @@ record ResponseAuditBody(
         List<String> evidence,
         List<CheckResult> shadowChecks,
         List<CheckResult> finalChecks,
+        List<CheckResult> routedOnChecks,
         String route,
         List<CheckId> firedChecks,
         boolean shadowMode,
         ComponentFlags componentFlags,
         boolean judgeNotImplemented,
+        int citationMarkersRemoved,
         String modelTag,
         String modelDigest,
         SortedMap<String, String> promptHashes,

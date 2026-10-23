@@ -124,9 +124,17 @@ export class ChatColumnComponent {
     });
   }
 
-  /** "Checked · N checks passed": N counts the applicable final checks that passed. */
-  protected passedChecks(message: ChatMessage): number {
-    return message.checks.filter((c) => c.passed).length;
+  /**
+   * The footer of an answer with final checks: "Checked · N checks passed" when all passed, "Checked · N of M checks
+   * passed" when any failed (only a released draft at a future level can show that).
+   */
+  protected checkFooter(message: ChatMessage): string {
+    const total = message.checks.length;
+    const passed = message.checks.filter((c) => c.passed).length;
+    if (passed < total) {
+      return `Checked · ${passed} of ${total} checks passed`;
+    }
+    return `Checked · ${passed} ${passed === 1 ? 'check' : 'checks'} passed`;
   }
 
   /** The footer opens "Why?" on the answer's Checks section. */

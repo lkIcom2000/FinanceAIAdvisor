@@ -68,7 +68,7 @@
         }
         @if (m.checks.length) {
           <button type="button" class="check-footer" (click)="openChecks(m)">
-            Checked · {{ passedChecks(m) }} checks passed
+            {{ checkFooter(m) }}
           </button>
         }
       </article>

@@ -8,11 +8,9 @@ import de.financetool.llm.LlmResult;
 import de.financetool.llm.LlmRole;
 import de.financetool.shared.config.AgentConfiguration;
 import java.time.Duration;
-import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -53,7 +51,6 @@ public class StubLlmConfiguration {
 
         private final List<Call> calls = new CopyOnWriteArrayList<>();
         private final Map<String, String> nluAnswers = new ConcurrentHashMap<>();
-        private final Deque<String> queued = new ConcurrentLinkedDeque<>();
         private volatile String text;
         private volatile String nluDefault;
         private volatile String digest;
@@ -69,7 +66,6 @@ public class StubLlmConfiguration {
             text = DEFAULT_TEXT;
             nluDefault = DEFAULT_NLU;
             nluAnswers.clear();
-            queued.clear();
             digest = DIGEST;
             failure = null;
             failingRole = null;
@@ -79,15 +75,6 @@ public class StubLlmConfiguration {
         /** The phrasing role's answer. */
         public void answer(String value) {
             text = value;
-        }
-
-        /**
-         * The phrasing role's next answers, one per call in this order (a draft, then its regeneration); after them
-         * it answers {@link #answer(String)} again.
-         */
-        public void answers(String... values) {
-            queued.clear();
-            queued.addAll(List.of(values));
         }
 
         /** The NLU role's answer for exactly this user message. */
@@ -131,8 +118,7 @@ public class StubLlmConfiguration {
             if (failure != null && (failingRole == null || failingRole == role)) {
                 throw failure;
             }
-            String next = role == LlmRole.PHRASING ? queued.poll() : null;
-            String answer = role == LlmRole.NLU ? nluAnswer(messages) : next != null ? next : text;
+            String answer = role == LlmRole.NLU ? nluAnswer(messages) : text;
             return new LlmResult(answer, MODEL_TAG, digest, decoding, 42, false, Duration.ofMillis(5));
         }
 

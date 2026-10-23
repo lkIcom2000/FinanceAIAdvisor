@@ -91,39 +91,56 @@ public record TurnState(
      * The checks of a turn.
      *
      * @param flags what the compliance level switches on
+     * @param draftText the first draft as checked and released: with retrieval off, without citation markers
+     * @param citationMarkersRemoved how many citation markers were removed from the first draft (retrieval off)
      * @param shadow the Check Chain on the first draft (every level)
      * @param finalResults the Check Chain on the released text: the shadow results, those of the regenerated text, or
      *     none when block routing released a template
      * @param regeneration the one regeneration of the Rule Engine; {@code null} without one
      * @param route block routing's decision; {@code null} before block routing or when routing is off (level A)
+     * @param routedOn the results block routing decided on when it released a template (the regenerated text's, or
+     *     else the enforcing results); empty when the draft was released
      * @param judgeNotImplemented whether the level asked for the Judge, which is not implemented (Story 3.9)
      */
-    public record Checks(ComponentFlags flags, ChainResult shadow, ChainResult finalResults, Regeneration regeneration,
-            BlockRouting.Route route, boolean judgeNotImplemented) {
+    public record Checks(ComponentFlags flags, String draftText, int citationMarkersRemoved, ChainResult shadow,
+            ChainResult finalResults, Regeneration regeneration, BlockRouting.Route route, ChainResult routedOn,
+            boolean judgeNotImplemented) {
 
         public Checks {
             Objects.requireNonNull(flags, "flags");
+            Objects.requireNonNull(draftText, "draftText");
             Objects.requireNonNull(shadow, "shadow");
             Objects.requireNonNull(finalResults, "finalResults");
+            Objects.requireNonNull(routedOn, "routedOn");
         }
 
         /** After the shadow checks: the final results are the shadow results until something changes them. */
-        public static Checks shadow(ComponentFlags flags, ChainResult shadow) {
-            return new Checks(flags, shadow, shadow, null, null, false);
+        public static Checks shadow(ComponentFlags flags, String draftText, int citationMarkersRemoved,
+                ChainResult shadow) {
+            return new Checks(flags, draftText, citationMarkersRemoved, shadow, shadow, null, null, ChainResult.NONE,
+                    false);
         }
 
         public Checks withRegeneration(Regeneration value, ChainResult results) {
-            return new Checks(flags, shadow, results, value, route, judgeNotImplemented);
+            return new Checks(flags, draftText, citationMarkersRemoved, shadow, results, value, route, routedOn,
+                    judgeNotImplemented);
         }
 
         public Checks withJudgeNotImplemented(boolean value) {
-            return new Checks(flags, shadow, finalResults, regeneration, route, value);
+            return new Checks(flags, draftText, citationMarkersRemoved, shadow, finalResults, regeneration, route,
+                    routedOn, value);
         }
 
-        /** Block routing's decision; a routed template keeps no final results. */
+        /**
+         * Block routing's decision. A routed template keeps no final results (it is pre-approved text, not model
+         * text); the results it was routed on are kept apart.
+         */
         public Checks withRoute(BlockRouting.Route value) {
-            return new Checks(flags, shadow, value.released() ? finalResults : ChainResult.NONE, regeneration, value,
-                    judgeNotImplemented);
+            return value.released()
+                    ? new Checks(flags, draftText, citationMarkersRemoved, shadow, finalResults, regeneration, value,
+                            ChainResult.NONE, judgeNotImplemented)
+                    : new Checks(flags, draftText, citationMarkersRemoved, shadow, ChainResult.NONE, regeneration,
+                            value, finalResults, judgeNotImplemented);
         }
 
         public boolean regenerated() {

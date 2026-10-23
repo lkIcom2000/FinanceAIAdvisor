@@ -6,6 +6,7 @@ import de.financetool.advisory.domain.BlockRouting;
 import de.financetool.advisory.domain.ChainResult;
 import de.financetool.advisory.domain.ChatMessage;
 import de.financetool.advisory.domain.CheckChain;
+import de.financetool.advisory.domain.CitationMarkers;
 import de.financetool.advisory.domain.ClassInstruction;
 import de.financetool.advisory.domain.Classification;
 import de.financetool.advisory.domain.Classifier;
@@ -178,12 +179,17 @@ public class TurnOrchestrator {
 
     /**
      * Stage 7: the Check Chain runs on the first draft at every compliance level; these are the shadow results. Until
-     * something changes them, they are also the final results.
+     * something changes them, they are also the final results. With retrieval off, citation markers the model added
+     * anyway are removed first ({@link CitationMarkers}); the first draft in the record keeps them.
      */
     TurnState shadowChecks(RequestContext context, TurnState turn) {
         ComponentFlags flags = ComponentFlags.of(level(context.agentConfig().compliance()));
-        ChainResult shadow = CheckChain.run(turn.draft().text(), facts(turn, context.agentConfig().retrieval()));
-        return turn.withChecks(TurnState.Checks.shadow(flags, shadow)).ran(TurnStage.SHADOW_CHECKS);
+        boolean retrieval = context.agentConfig().retrieval();
+        CitationMarkers.Stripped draft = retrieval ? new CitationMarkers.Stripped(turn.draft().text(), 0)
+                : CitationMarkers.strip(turn.draft().text());
+        ChainResult shadow = CheckChain.run(draft.text(), facts(turn, retrieval));
+        return turn.withChecks(TurnState.Checks.shadow(flags, draft.text(), draft.removed(), shadow))
+                .ran(TurnStage.SHADOW_CHECKS);
     }
 
     /**
@@ -230,14 +236,14 @@ public class TurnOrchestrator {
     TurnState blockRouting(TurnState turn) {
         TurnState.Checks checks = turn.checks();
         if (!checks.flags().routing()) {
-            return turn.withOutcome(ResponseOutcome.of(turn.messageClass()), releasable(turn.draft().text()))
+            return turn.withOutcome(ResponseOutcome.of(turn.messageClass()), releasable(checks.draftText()))
                     .passedThrough(TurnStage.BLOCK_ROUTING);
         }
         BlockRouting.Route route = BlockRouting.route(checks.finalResults().failed(), turn.classification(),
                 RULE_PARAMETER_ERROR);
         TurnState routed = turn.withChecks(checks.withRoute(route));
         if (route.released()) {
-            String text = checks.regenerated() ? checks.regeneration().text() : turn.draft().text();
+            String text = checks.regenerated() ? checks.regeneration().text() : checks.draftText();
             return routed.withOutcome(ResponseOutcome.of(turn.messageClass()), releasable(text))
                     .ran(TurnStage.BLOCK_ROUTING);
         }
@@ -260,13 +266,15 @@ public class TurnOrchestrator {
      * {@code SOURCE_VALIDITY} applies only with retrieval on, as in the experiment.
      */
     private static CheckChain.Facts facts(TurnState turn, boolean retrievalOn) {
-        return CheckChain.Facts.of(turn.classification(), turn.userText(), null, retrievalOn,
-                turn.passages().size(), passagesInPrompt(turn));
+        return CheckChain.Facts.of(turn.classification(), turn.userText(), null, retrievalOn, passagesInPrompt(turn));
     }
 
-    /** The passages the phrasing prompt holds after the budget: the valid citation range. */
-    private static int passagesInPrompt(TurnState turn) {
-        return turn.prompt().payload().passages().size() - turn.prompt().phrasing().droppedPassages();
+    /**
+     * The passages the phrasing prompt holds after the budget ({@code len(passages_used)}): the valid citation range;
+     * none means no valid source, also when the budget dropped every retrieved passage.
+     */
+    static int passagesInPrompt(TurnState turn) {
+        return Math.max(0, turn.prompt().payload().passages().size() - turn.prompt().phrasing().droppedPassages());
     }
 
     /** The domain's compliance level for the configured one; exhaustive, so a new level does not compile unmapped. */
@@ -283,8 +291,9 @@ public class TurnOrchestrator {
             String fixtureVersion, TurnState turn) {
         TurnState released = turn.ran(TurnStage.AUDIT_RELEASE);
         UUID turnId = UUID.randomUUID();
-        List<ChatMessage.Check> shownChecks = released.checks().finalResults().applicable().stream()
-                .map(ChatMessage.Check::of).toList();
+        // Under level A the results are shadow results: they stay in the Audit Record, the card shows no checks.
+        List<ChatMessage.Check> shownChecks = released.checks().flags().shadowMode() ? List.of()
+                : released.checks().finalResults().applicable().stream().map(ChatMessage.Check::of).toList();
         ChatMessage answer = new ChatMessage(turnId, ChatMessage.Author.AGENT, released.finalText(),
                 released.outcome(), question.id(), released.suggestions(), shownChecks);
         chats.insert(scope, chats.conversation(scope), answer);
@@ -306,9 +315,10 @@ public class TurnOrchestrator {
                         nlu.modelDigest(), nlu.promptHashes(), nlu.cacheHit(), nlu.parseOk(),
                         nlu.extraction().instructionOverrideAttempt(), released.noValidSource(),
                         items.stream().map(EvidenceItem::provId).toList(), checks.shadow().results(),
-                        checks.finalResults().results(), route == null ? BlockRouting.RELEASED : route.route(),
+                        checks.finalResults().results(), checks.routedOn().results(),
+                        route == null ? BlockRouting.RELEASED : route.route(),
                         route == null ? List.of() : route.fired(), checks.flags().shadowMode(), checks.flags(),
-                        checks.judgeNotImplemented(), draft.modelTag(), draft.modelDigest(), prompt.promptHashes(),
+                        checks.judgeNotImplemented(), checks.citationMarkersRemoved(), draft.modelTag(), draft.modelDigest(), prompt.promptHashes(),
                         draft.truncated() || phrasing.truncated() || (regeneration != null && regeneration.truncated()),
                         phrasing.droppedHistoryTurns(), phrasing.droppedPassages(),
                         context.agentConfig().dataExposure(), prompt.payload().messageWithheld(), draft.text(),

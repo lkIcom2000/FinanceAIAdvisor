@@ -18,7 +18,8 @@ import java.util.regex.Pattern;
  *
  * <p>Differences to the experiment, by the spec: {@code NUMBER_MATCH} is not applicable until the Number Check
  * exists (Story 3.6); {@code FALSE_PREMISE} and {@code ROLE_INTEGRITY} are not part of the closed {@link CheckId} set; {@code IDD_NEEDS} uses the word boundaries
- * the experiment meant (see {@link #TARIFF}).
+ * the experiment meant (see {@link #TARIFF}); {@code DOCUMENTATION} is not applicable without a Core category
+ * selection; {@code SOURCE_VALIDITY} applies only with retrieval on, as in the experiment.
  */
 public final class CheckChain {
 
@@ -29,6 +30,10 @@ public final class CheckChain {
     static final List<String> INSURERS = List.of("allianz", "axa", "ergo", "huk", "debeka", "generali", "zurich",
             "hannoversche", "cosmos direkt", "r+v", "signal iduna");
     static final List<String> ISSUERS = issuers();
+    /** {@code \\b<name>\\b} per issuer and insurer, compiled once. */
+    private static final Map<String, Pattern> WORDS = ISSUERS.stream().distinct().collect(
+            java.util.stream.Collectors.toUnmodifiableMap(n -> n,
+                    n -> Pattern.compile("\\b" + Pattern.quote(n) + "\\b", U)));
     static final Pattern GUARANTEE = Pattern.compile(
             "\\b(guarantee[sd]?|assured|risk[- ]free|cannot lose|can't lose|will not lose|won't lose|no risk|"
                     + "safe bet|certain(ly)? (gain|return|profit)|will (definitely|certainly) (rise|grow|gain|increase))\\b",
@@ -99,26 +104,26 @@ public final class CheckChain {
      * @param topic the NLU topic
      * @param outOfScope the out-of-scope categories of the classification
      * @param retrievalOn whether the configuration turns retrieval on; {@code SOURCE_VALIDITY} applies only then
-     * @param retrievedPassages the passages the retrieval found; none means no valid source
-     * @param passagesInPrompt the passages the phrasing prompt holds after the budget: the citations' valid range
+     * @param passagesInPrompt the passages the phrasing prompt holds after the budget ({@code len(passages_used)}):
+     *     none means no valid source, otherwise the citations' valid range
      */
     public record Facts(MessageClass messageClass, String userMessage, boolean profileOk, Map<String, Object> category,
-            String topic, List<String> outOfScope, boolean retrievalOn, int retrievedPassages, int passagesInPrompt) {
+            String topic, List<String> outOfScope, boolean retrievalOn, int passagesInPrompt) {
 
         public Facts {
             Objects.requireNonNull(messageClass, "messageClass");
             userMessage = userMessage == null ? "" : userMessage;
             topic = topic == null ? "" : topic;
             outOfScope = List.copyOf(outOfScope);
+            passagesInPrompt = Math.max(0, passagesInPrompt);
         }
 
         /** The facts of a classified turn, as the experiment's pipeline passes them. */
         public static Facts of(Classification classification, String userMessage, Map<String, Object> category,
-                boolean retrievalOn, int retrievedPassages, int passagesInPrompt) {
+                boolean retrievalOn, int passagesInPrompt) {
             return new Facts(classification.messageClass(), userMessage,
                     classification.messageClass() == MessageClass.RECOMMEND_CATEGORY, category,
-                    classification.topic(), classification.outOfScope(), retrievalOn, retrievedPassages,
-                    passagesInPrompt);
+                    classification.topic(), classification.outOfScope(), retrievalOn, passagesInPrompt);
         }
     }
 
@@ -183,8 +188,7 @@ public final class CheckChain {
             }
         }
         List<String> names = ISSUERS.stream()
-                .filter(n -> Pattern.compile("\\b" + Pattern.quote(n) + "\\b", U).matcher(low).find()
-                        && !msgLow.contains(n))
+                .filter(n -> WORDS.get(n).matcher(low).find() && !msgLow.contains(n))
                 .toList();
         boolean namingBad = !isins.isEmpty() || (NAMING_CLASSES.contains(cls) && !names.isEmpty());
         Map<String, Object> namingDetails = new LinkedHashMap<>();
@@ -236,17 +240,18 @@ public final class CheckChain {
 
         // IDD_NEEDS: protection answers stay at needs level
         boolean protection = PROTECTION_TOPICS.contains(facts.topic());
-        boolean namedInsurer = INSURERS.stream()
-                .anyMatch(n -> Pattern.compile("\\b" + Pattern.quote(n) + "\\b", U).matcher(low).find());
+        boolean namedInsurer = INSURERS.stream().anyMatch(n -> WORDS.get(n).matcher(low).find());
         boolean namesTariff = TARIFF.matcher(low).find();
         boolean iddOk = !protection || !(namedInsurer || namesTariff);
         res.add(new CheckResult(CheckId.IDD_NEEDS, protection, iddOk, iddOk ? "" : "insurer_or_tariff_named",
                 Map.of()));
 
-        // DOCUMENTATION: structural, the pipeline writes the record; recommendations need a Core selection
-        boolean docOk = !rec || facts.category() != null;
-        res.add(new CheckResult(CheckId.DOCUMENTATION, rec, docOk, docOk ? "" : "no_core_selection_recorded",
-                Map.of()));
+        // DOCUMENTATION: structural, the pipeline writes the record; recommendations need a Core selection.
+        // Deviation: not applicable while no Core category selection exists (category null, until Epic 6) -- the
+        // experiment fails it then, which would escalate every recommendation for a missing component, not for the
+        // draft. With a selection it passes (the pipeline records it).
+        boolean docApplies = rec && facts.category() != null;
+        res.add(new CheckResult(CheckId.DOCUMENTATION, docApplies, true, "", Map.of()));
 
         // NUMBER_MATCH: the Number Check is Story 3.6
         res.add(CheckResult.notApplicable(CheckId.NUMBER_MATCH));
@@ -259,8 +264,8 @@ public final class CheckChain {
                 cited.add(citation(c.group(1)));
             }
             List<Integer> invalid = cited.stream().filter(n -> n < 1 || n > facts.passagesInPrompt()).toList();
-            boolean ok = facts.retrievedPassages() > 0 && !cited.isEmpty() && invalid.isEmpty();
-            String code = facts.retrievedPassages() == 0 ? "no_valid_source"
+            boolean ok = facts.passagesInPrompt() > 0 && !cited.isEmpty() && invalid.isEmpty();
+            String code = facts.passagesInPrompt() == 0 ? "no_valid_source"
                     : (cited.isEmpty() ? "missing_citation" : "invalid_citation");
             res.add(new CheckResult(CheckId.SOURCE_VALIDITY, true, ok, ok ? "" : code,
                     Map.of("cited", List.copyOf(cited))));

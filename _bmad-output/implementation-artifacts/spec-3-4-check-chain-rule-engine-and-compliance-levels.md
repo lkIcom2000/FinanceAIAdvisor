@@ -2,10 +2,10 @@
 title: 'Story 3.4: Check Chain, Rule Engine and compliance levels'
 type: 'feature'
 created: '2026-10-23'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '7ae916e26973f887faadd02006867315bce89965'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-3-context.md'
   - '{project-root}/_bmad-output/implementation-artifacts/spec-3-3-deterministic-classification-of-every-message.md'
@@ -78,6 +78,33 @@ deferred: []
 
 ## Review Triage Log
 
+### 2026-10-23 — Review pass
+- verdicts: 23 findings — high 0, medium 6, low 16, false 1, maybe-false 0 (four layers; Blind Hunter and Intent Alignment on sonnet; plus one finding from the live check)
+- findings:
+  - `[low]` `[reject]` IA: regeneration only tested at stage level — no turn has a KB passage before Epic 4; the stage test plus the new audit test (fix 7) cover it
+  - `[medium]` `[patch]` IA/BH: `DOCUMENTATION` fails every `RECOMMEND_CATEGORY` while no Core selection exists — not applicable while the category is null, documented on the check
+  - `[low]` `[reject]` IA: card tested with synthetic fixtures only — the e2e test asserts the `checks` JSON shape; the generated model links both sides
+  - `[medium]` `[patch]` IA/BH: level A shows failed shadow checks on a released card — no checks on the card under A; shadow results stay in the Audit Record
+  - `[low]` `[reject]` IA: deviations from the verbatim port (`TARIFF`, Python truthiness) — the IDD fix is deliberate (the experiment has backspace characters, checked); the rest is semantics-preserving
+  - `[low]` `[reject]` IA/BH: unrelated reformatting and long lines — cosmetic
+  - `[low]` `[patch]` BH/ECH: all passages dropped by the budget give a fix for `[S1] to [S0]` — with `passagesInPrompt == 0` the check fails `no_valid_source`, as `len(passages_used)` in the experiment
+  - `[medium]` `[patch]` BH: a routed turn loses the post-regeneration results in the audit — `routedOnChecks` recorded
+  - `[low]` `[reject]` BH: audit body changed without a version — only development records hold the old shape; no consumer reads them yet; `SCHEMA_VERSION` stays 1
+  - `[medium]` `[patch]` BH/ECH: footer says "1 checks passed" / "0 checks passed" and hides failures — singular/plural and "N of M" when any failed
+  - `[low]` `[patch]` BH: unreachable empty state in the checks dialog — removed
+  - `[low]` `[patch]` BH: literal NBSP characters in `NumberParser` — unicode escapes
+  - `[low]` `[patch]` BH: regexes recompiled per run — precompiled
+  - `[low]` `[reject]` BH: golden test skips `IDD_NEEDS`; no JSONB round-trip test; constant rule-parameter input — IDD deviates on purpose and has hand cases; the e2e reload reads the column; the rule-parameter input arrives with 3.7
+  - `[low]` `[patch]` BH/VG: `StubLlm.answers` unused — removed or used by the new audit test
+  - `[low]` `[reject]` BH/ECH: a failed regeneration call fails the turn — same failure mode as the draft call (503, Try again); a blank regeneration is checked and routed
+  - `[medium]` `[patch]` VG: regeneration fields of the Audit Record never asserted — audit test through `auditAndRelease` with a truncated regeneration
+  - `[low]` `[patch]` VG: the in-prompt passage count is never computed with drops — orchestrator test with a budget that drops passages (with fix above)
+  - `[low]` `[patch]` ECH: negative in-prompt passage count — `max(0, …)`
+  - `[low]` `[reject]` ECH: a renamed `CheckId` in stored JSON breaks the chat load — the enum is closed (AD-6); a rename would come with a migration
+  - `[false]` `[reject]` ECH: level A releases an unsourced INFORM draft — intended: shadow mode releases the draft (`ComponentFlags`, decision 2026-10-23)
+  - `[low]` `[patch]` ECH: split of retrieved vs in-prompt passages differs from the experiment — aligned to `len(passages_used)` (fix above)
+  - `[medium]` `[patch]` Live check (orchestrator): with retrieval off the model cites `[S1]` without sources and it is released — markers removed before the checks when retrieval is off, count recorded as `citationMarkersRemoved`; documented deviation
+
 ## Design Notes
 
 - `FALSE_PREMISE` and `ROLE_INTEGRITY` exist only in the experiment; adding them needs a spine change of AD-6 (open question for the user, Story 3.8).
@@ -90,3 +117,20 @@ deferred: []
 
 **Manual checks (if no CLI):**
 - Local live check (real model, `A+B+C`): Tim's knock-out question → refusal template or released refusal with checks; Lena "What is an ETF?" → template with `route: no_valid_source`; the export shows shadow and final results.
+
+## Implementation Notes
+
+- Deviations from the bmad-build-auto workflow (user cost rules): story commit `0efbf3c` precedes the review, fixes are a separate commit; the session hit its token limit once during implementation and resumed the same subagent; the intent auditor read the intent contract from a file; the generated client, OpenAPI snapshot and the golden check resources were excluded from the review diff.
+- User decision during the run (2026-10-23, E1 result): `SOURCE_VALIDITY` applies only with retrieval on (Spec Change Log); `config/agent/reference.yaml` has `retrieval: false` (commit `f5c16c7`).
+- Deliberate deviations from `experiments/finlab/checks.py`: real word boundaries in the IDD patterns (the experiment has literal backspace characters, so its `IDD_NEEDS` never fires); `DOCUMENTATION` not applicable while no Core category selection exists; citation markers removed from the draft when retrieval is off (`citationMarkersRemoved`), because the model invents "[S1]" without sources (seen live).
+- Level `A` shows no checks on the card; shadow results stay in the Audit Record. A routed turn records the results it was routed on as `routedOnChecks`.
+- Port check: golden output from the experiment's own `run_checks` (`python -I` from the scratchpad) for 39 crafted cases; `IDD_NEEDS` is compared against hand cases because of the deliberate fix.
+
+## Auto Run Result
+
+- **Summary:** closed `CheckId` enum (11), pure `CheckChain` port, `ComponentFlags` (A shadow, A+B and A+B+C enforcing, Judge recorded as not implemented), `BlockRouting` (FR-52 table plus the invalid-Rule-Parameter row), one targeted regeneration, the experiment's templates for routed answers, shadow/final/routed-on results in the Audit Record, persisted final checks on agent messages (V9), and the "Checked · N checks passed" footer that opens the checks in the "Why?" dialog.
+- **Files:** `advisory/domain/{CheckId,CheckResult,ChainResult,CheckChain,NumberParser,ComponentFlags,BlockRouting,ResponseTemplates,RegenerationFix,CitationMarkers}.java`; `advisory/application/{TurnOrchestrator,ResponseAuditBody}.java`; `advisory/adapter/ChatRepository.java`, `web/ChatController.java`; V9; tests `CheckChainTest` (golden), `BlockRoutingTest`, `TurnOrchestratorTest`, `CheckChainEndToEndTest`, `ComplianceLevelSwitch`; frontend chat column, why dialog, why link.
+- **Review:** four layers plus one live-check finding, 23 findings (medium 6, low 16, false 1). Patched 16 rows in 10 fixes (medium 6, low 10); rejected 7 with reasons in the triage log; none deferred.
+- **Follow-up review recommended: true** (6 medium patched). Unverified risk: the regeneration and citation-range paths only run with KB passages, which do not exist before Epic 4; they are covered by stage tests, not by a live turn.
+- **Verification:** before review 481 backend + 74 frontend tests; after the fixes `./mvnw -B verify -Dfine.it.required=true` BUILD SUCCESS, 490 tests, 0 failures, 0 skipped; frontend `api:check` up to date, `ng test` 75 passed, build complete. Live (local `spring-boot:run`, real model, `A+B+C`, retrieval off): before review Tim's knock-out question → `REFUSE_OUT_OF_SCOPE` released after passing `SCOPE`, `NO_PRODUCT_NAMING`, `NO_GUARANTEE_OR_TIMING`; Lena's "What is an ETF?" → checked draft released, but with an invented "[S1]" (fixed); after the fixes Jonas's "What is an ETF?" → released, 3 checks passed on the card, no markers (`citationMarkersRemoved: 0`).
+- **Residual risks:** see the follow-up risk; the "N of M" footer variant is reachable only through a future level and is covered by the frontend spec.

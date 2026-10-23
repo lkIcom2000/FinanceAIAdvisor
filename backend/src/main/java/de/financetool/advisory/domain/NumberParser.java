@@ -19,13 +19,13 @@ public final class NumberParser {
     private static final int CI = Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CHARACTER_CLASS;
 
     static final Pattern NUM = Pattern.compile("(?<![\\w.,])"
-            + "(?<sign>[-−–]?)"
-            + "(?<num>\\d{1,3}(?:[.,  ]\\d{3})+(?:[.,]\\d+)?|\\d+(?:[.,]\\d+)?)"
+            + "(?<sign>[-\u2212\u2013]?)"
+            + "(?<num>\\d{1,3}(?:[.,\u202F ]\\d{3})+(?:[.,]\\d+)?|\\d+(?:[.,]\\d+)?)"
             + "(?<suffix>\\s?(?:%|percent|per cent|k\\b|thousand|million|mn\\b|bn\\b|billion))?", CI);
     static final Pattern APPROX = Pattern.compile(
             "\\b(about|around|roughly|approximately|approx\\.?|circa|ca\\.|nearly|almost|some|up to|~)\\s*$", CI);
     static final Pattern REF_BEFORE = Pattern.compile(
-            "(article|art\\.|§|section|paragraph|para\\.|annex|recital|level|step|item|question|tier|class|"
+            "(article|art\\.|\u00A7|section|paragraph|para\\.|annex|recital|level|step|item|question|tier|class|"
                     + "pillar|chapter|no\\.|nr\\.|number|version|mifid|ucits|basel|solvency|psd|ifrs|figure|table)\\s*$",
             CI);
     private static final String MONTHS = "(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\\.?";
@@ -115,7 +115,7 @@ public final class NumberParser {
 
     /** {@code _to_decimal}: "1,000" is thousands, "2,5" a German decimal. */
     private static Parsed toDecimal(String number) {
-        String s = number.replace(" ", "").replace(" ", "");
+        String s = number.replace("\u202F", "").replace(" ", "");
         char decimalSeparator;
         if (s.contains(",") && s.contains(".")) {
             decimalSeparator = s.lastIndexOf(',') > s.lastIndexOf('.') ? ',' : '.';
