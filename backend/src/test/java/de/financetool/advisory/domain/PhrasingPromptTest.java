@@ -1,6 +1,7 @@
 package de.financetool.advisory.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -66,6 +67,7 @@ class PhrasingPromptTest {
                 How long does my money last?
                 </user_message>""");
         assertThat(prompt.truncated()).isFalse();
+        assertThat(prompt.overBudget()).isFalse();
     }
 
     @Test
@@ -132,6 +134,29 @@ class PhrasingPromptTest {
                 .doesNotContain("EARLIER CONVERSATION");
         assertThat(prompt.droppedHistoryTurns()).isEqualTo(2);
         assertThat(prompt.droppedPassages()).isEqualTo(2);
+        assertThat(prompt.overBudget()).isTrue();
+        assertThat(prompt.truncated()).isTrue();
+    }
+
+    @Test
+    void stillOverBudgetWithNothingToDropIsTruncated() {
+        PhrasingPrompt prompt = PhrasingPrompt.build(ROLE, RULES,
+                new PromptPayload(MESSAGE, List.of(), Map.of(), "", List.of()), 201, 0);
+
+        assertThat(prompt.droppedHistoryTurns()).isZero();
+        assertThat(prompt.droppedPassages()).isZero();
+        assertThat(prompt.overBudget()).isTrue();
+        assertThat(prompt.truncated()).isTrue();
+    }
+
+    @Test
+    void aContextWithoutRoomForThePromptIsRejected() {
+        PromptPayload payload = payload(MESSAGE, HISTORY, PASSAGES);
+        for (int numCtx : new int[] {900, 899, 100}) {
+            assertThatThrownBy(() -> PhrasingPrompt.build(ROLE, RULES, payload, numCtx, 700))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
+        assertThat(PhrasingPrompt.build(ROLE, RULES, payload, 901, 700).overBudget()).isTrue();
     }
 
     @Test

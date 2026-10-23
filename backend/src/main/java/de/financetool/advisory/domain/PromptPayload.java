@@ -11,6 +11,7 @@ import java.util.Objects;
  * for the configured level.
  *
  * @param message the user's message as shown to the model
+ * @param messageWithheld whether level {@code NONE} withheld the message entirely (no depersonalised question)
  * @param history the earlier released turns, oldest first
  * @param profile the customer profile context (empty at level {@code NONE})
  * @param toolResults the Deterministic Core results as text, passed in full at every level (empty without tools)
@@ -18,6 +19,7 @@ import java.util.Objects;
  */
 public record PromptPayload(
         String message,
+        boolean messageWithheld,
         List<HistoryTurn> history,
         Map<String, Object> profile,
         String toolResults,
@@ -47,5 +49,11 @@ public record PromptPayload(
         profile = Collections.unmodifiableMap(new LinkedHashMap<>(profile));
         toolResults = toolResults == null ? "" : toolResults;
         passages = List.copyOf(passages);
+    }
+
+    /** A payload whose message was not withheld. */
+    public PromptPayload(String message, List<HistoryTurn> history, Map<String, Object> profile, String toolResults,
+            List<Passage> passages) {
+        this(message, false, history, profile, toolResults, passages);
     }
 }

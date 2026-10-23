@@ -22,6 +22,7 @@ import de.financetool.llm.LlmRole;
 import de.financetool.shared.PersonaScope;
 import de.financetool.shared.RequestContext;
 import de.financetool.shared.config.AgentConfiguration;
+import de.financetool.shared.config.DataExposureLevel;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -107,8 +108,8 @@ public class TurnOrchestrator {
         AgentConfiguration agent = context.agentConfig();
         List<PromptPayload.HistoryTurn> history =
                 chats.releasedTurnsBefore(scope, question.id(), ExposureFilter.HISTORY_TURNS);
-        PromptPayload payload = ExposureFilter.apply(ExposureFilter.Level.valueOf(agent.dataExposure().name()),
-                turn.userText(), null, history, Map.of(), "", List.of());
+        PromptPayload payload = ExposureFilter.apply(level(agent.dataExposure()), turn.userText(), null, history,
+                Map.of(), "", List.of());
         PromptFiles.Prompt rolePrompt = prompts.rolePrompt(agent.rolePrompt());
         PromptFiles.Prompt rules = prompts.complianceRules();
         PhrasingPrompt phrasing = PhrasingPrompt.build(rolePrompt.text(), rules.text(), payload,
@@ -116,6 +117,14 @@ public class TurnOrchestrator {
         Map<String, String> hashes = Map.of(rolePrompt.fileName(), rolePrompt.hash(), rules.fileName(), rules.hash());
         return turn.withPrompt(new TurnState.Prompt(payload, phrasing, new TreeMap<>(hashes)))
                 .ran(TurnStage.EXPOSURE_FILTER);
+    }
+
+    /** The domain's exposure level for the configured one; exhaustive, so a new level does not compile unmapped. */
+    static ExposureFilter.Level level(DataExposureLevel configured) {
+        return switch (configured) {
+            case AGGREGATED -> ExposureFilter.Level.AGGREGATED;
+            case NONE -> ExposureFilter.Level.NONE;
+        };
     }
 
     /** The phrasing role drafts the answer: prompt files as system message, everything else in the user part. */
@@ -169,7 +178,8 @@ public class TurnOrchestrator {
                 new ResponseAuditBody(released.messageClass(), released.outcome(),
                         items.stream().map(EvidenceItem::provId).toList(), List.of(), draft.modelTag(),
                         draft.modelDigest(), prompt.promptHashes(), draft.truncated() || phrasing.truncated(),
-                        phrasing.droppedHistoryTurns(), phrasing.droppedPassages(), draft.text(),
+                        phrasing.droppedHistoryTurns(), phrasing.droppedPassages(),
+                        context.agentConfig().dataExposure(), prompt.payload().messageWithheld(), draft.text(),
                         released.finalText(), false, context.agentConfig().compliance().value(),
                         released.passThroughStages())));
         return answer;

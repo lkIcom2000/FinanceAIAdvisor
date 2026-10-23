@@ -36,6 +36,26 @@ class ExposureFilterTest {
             I am 61 years old                                             | I am 60s years old
             I’m 52                                                        | I’m 50s
             What is an ETF savings plan?                                  | What is an ETF savings plan?
+            I'm 12,400 EUR short                                          | I'm 10,000–15,000 EUR short
+            I'm 34.                                                       | I'm 30s.
+            I'm 345 days into the plan                                    | I'm 345 days into the plan
+            I have EUR 12,400                                             | I have 10,000–15,000 EUR
+            I have €12.400 left                                           | I have 10,000–15,000 EUR left
+            I have € 12.400,50                                            | I have 10,000–15,000 EUR
+            Mr. Müller called                                             | Mr. X called
+            Client Özdemir asked                                          | Client X asked
+            Mrs Weber-Schmidt asked                                       | Mrs X asked
+            Mrs. Anna Weber asked                                         | Mrs. X asked
+            Herr Müller und Frau Özdemir                                  | Herr X und Frau X
+            Kunde Schmidt und Kundin Weber                                | Kunde X und Kundin X
+            ich bin 34                                                    | ich bin 30s
+            Ich bin 34 Jahre alt                                          | Ich bin 30s Jahre alt
+            mit 34 Jahre alt                                              | mit 30s Jahre alt
+            meine Tochter ist 12 Jahre                                    | meine Tochter ist 10s Jahre
+            he is 41 years old                                            | he is 40s years old
+            seit 10 Jahren                                                | seit 10 Jahren
+            de89-3704-0044-0532-0130-00 is mine                           | [IBAN] is mine
+            de89 3704 0044 0532 0130 00                                   | [IBAN]
             """)
     void aggregatedMessages(String message, String shown) {
         assertThat(ExposureFilter.filterMessage(message, Level.AGGREGATED, null)).isEqualTo(shown);
@@ -63,9 +83,18 @@ class ExposureFilterTest {
             3200     | 3,000–3,500 EUR
             12400    | 10,000–15,000 EUR
             1250000  | 1,000,000–1,500,000 EUR
+            -1250.5  | 0 EUR
+            Infinity | [AMOUNT]
+            NaN      | [AMOUNT]
             """)
     void bands(double value, String band) {
         assertThat(ExposureFilter.band(value)).isEqualTo(band);
+    }
+
+    @Test
+    void anAmountTooLongForADoubleIsNotShown() {
+        assertThat(ExposureFilter.filterMessage("I have " + "9".repeat(400) + " EUR", Level.AGGREGATED, null))
+                .isEqualTo("I have [AMOUNT]");
     }
 
     static Map<String, Object> profile() {
@@ -77,6 +106,9 @@ class ExposureFilterTest {
         profile.put("investment_horizon_years", 15);
         profile.put("children", 2);
         profile.put("risk_tolerance", "medium");
+        profile.put("note", "I'm 34 with 12,400 EUR");
+        profile.put("employer", null);
+        profile.put("goals", List.of("house", "pension"));
         return profile;
     }
 
@@ -86,7 +118,9 @@ class ExposureFilterTest {
                 Map.entry("age", "30s"), Map.entry("net_income_monthly", "3,000–3,500 EUR"),
                 Map.entry("emergency_fund", "0 EUR"), Map.entry("savings", "10,000–15,000 EUR"),
                 Map.entry("investment_horizon_years", 15), Map.entry("children", 2),
-                Map.entry("risk_tolerance", "medium"));
+                Map.entry("risk_tolerance", "medium"), Map.entry("note", "I'm 30s with 10,000–15,000 EUR"),
+                new java.util.AbstractMap.SimpleEntry<>("employer", null),
+                Map.entry("goals", List.of("house", "pension")));
     }
 
     @Test
@@ -107,6 +141,7 @@ class ExposureFilterTest {
                 profile(), CORE, PASSAGES);
 
         assertThat(payload.message()).isEqualTo("I have 10,000–15,000 EUR");
+        assertThat(payload.messageWithheld()).isFalse();
         assertThat(payload.history()).containsExactly(
                 new PromptPayload.HistoryTurn("I'm 30s, mail me at [EMAIL]", "You have 10,000–15,000 EUR."),
                 new PromptPayload.HistoryTurn("What is an ETF?", "A fund."));
@@ -121,6 +156,19 @@ class ExposureFilterTest {
                 CORE, PASSAGES);
 
         assertThat(payload.message()).isEqualTo(ExposureFilter.WITHHELD);
+        assertThat(payload.messageWithheld()).isTrue();
+        assertThat(payload.history()).isEmpty();
+        assertThat(payload.profile()).isEmpty();
+        assertThat(payload.toolResults()).isEqualTo(CORE);
+    }
+
+    @Test
+    void noneWithADepersonalisedQuestionShowsOnlyThatQuestion() {
+        PromptPayload payload = ExposureFilter.apply(Level.NONE, "I'm 34 and have 12,400 EUR, what now?",
+                "What should someone in their 30s do with savings?", HISTORY, profile(), CORE, PASSAGES);
+
+        assertThat(payload.message()).isEqualTo("What should someone in their 30s do with savings?");
+        assertThat(payload.messageWithheld()).isFalse();
         assertThat(payload.history()).isEmpty();
         assertThat(payload.profile()).isEmpty();
         assertThat(payload.toolResults()).isEqualTo(CORE);

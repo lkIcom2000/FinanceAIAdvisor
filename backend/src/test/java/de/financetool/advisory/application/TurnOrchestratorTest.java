@@ -152,6 +152,8 @@ class TurnOrchestratorTest {
         assertThat(body.truncated()).as("the model's own truncated flag").isTrue();
         assertThat(body.droppedHistoryTurns()).isZero();
         assertThat(body.droppedPassages()).isZero();
+        assertThat(body.dataExposure()).isEqualTo(DataExposureLevel.AGGREGATED);
+        assertThat(body.messageWithheld()).isFalse();
         assertThat(body.firstDraft()).isEqualTo("An ETF is a fund.");
         assertThat(body.finalText()).isEqualTo("An ETF is a fund.");
         assertThat(body.regenerated()).isFalse();
@@ -199,6 +201,17 @@ class TurnOrchestratorTest {
         assertThat(messages.get(0).content()).isEqualTo("ROLE\n\nRULES");
         assertThat(messages.get(1).content())
                 .isEqualTo("<user_message>\n" + ExposureFilter.WITHHELD + "\n</user_message>");
+        ResponseAuditBody body = auditBody();
+        assertThat(body.dataExposure()).isEqualTo(DataExposureLevel.NONE);
+        assertThat(body.messageWithheld()).isTrue();
+    }
+
+    @Test
+    void everyConfiguredExposureLevelMapsToTheSameDomainLevel() {
+        for (DataExposureLevel configured : DataExposureLevel.values()) {
+            assertThat(TurnOrchestrator.level(configured).name()).isEqualTo(configured.name());
+        }
+        assertThat(ExposureFilter.Level.values()).hasSameSizeAs(DataExposureLevel.values());
     }
 
     @Test

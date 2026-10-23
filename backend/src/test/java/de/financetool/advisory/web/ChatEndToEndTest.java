@@ -112,7 +112,8 @@ class ChatEndToEndTest extends PostgresIntegrationTest {
                 .containsEntry("modelTag", StubLlm.MODEL_TAG).containsEntry("modelDigest", StubLlm.DIGEST)
                 .containsEntry("promptHashes", promptHashes())
                 .containsEntry("truncated", false).containsEntry("droppedHistoryTurns", 0)
-                .containsEntry("droppedPassages", 0).containsEntry("firstDraft", StubLlm.DEFAULT_TEXT)
+                .containsEntry("droppedPassages", 0).containsEntry("dataExposure", "AGGREGATED")
+                .containsEntry("messageWithheld", false).containsEntry("firstDraft", StubLlm.DEFAULT_TEXT)
                 .containsEntry("finalText", StubLlm.DEFAULT_TEXT).containsEntry("regenerated", false)
                 .containsEntry("complianceLevel", "A+B+C")
                 .containsEntry("passThroughStages", List.of("DIALOG_STATE", "NLU", "CLASSIFY", "TOOL_PLAN",
@@ -178,6 +179,27 @@ class ChatEndToEndTest extends PostgresIntegrationTest {
         Map<String, Object> body = JsonPath.read(payload, "$.body");
         assertThat(body).containsEntry("promptHashes", promptHashes());
         assertThat(promptHashes().values()).doesNotContainNull();
+    }
+
+    @Test
+    void anotherPersonasTurnsNeverReachTheHistory() throws Exception {
+        MockHttpSession lena = login(mvc, "p-lena");
+        MockHttpSession jonas = login(mvc, "p-jonas");
+        turn(lena, "lena question one", "lena answer one");
+        turn(jonas, "JONAS-SECRET question", "JONAS-SECRET answer");
+        turn(lena, "lena question two", "lena answer two");
+        turn(lena, "lena question three", "lena answer three");
+        turn(jonas, "JONAS-SECRET second question", "JONAS-SECRET second answer");
+
+        turn(lena, "lena current question", "lena current answer");
+
+        String user = lastUserPart();
+        assertThat(user).isEqualTo("EARLIER CONVERSATION (oldest first):\n"
+                + "Customer: lena question one\nAssistant: lena answer one\n"
+                + "Customer: lena question two\nAssistant: lena answer two\n"
+                + "Customer: lena question three\nAssistant: lena answer three\n\n"
+                + "<user_message>\nlena current question\n</user_message>");
+        assertThat(user).doesNotContain("JONAS-SECRET");
     }
 
     @Test

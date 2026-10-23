@@ -15,8 +15,10 @@ import java.util.regex.Pattern;
  * @param user the user part: tool results, sources, profile, earlier conversation, then the message slot
  * @param droppedHistoryTurns how many history turns the budget dropped (oldest first)
  * @param droppedPassages how many Knowledge Base passages the budget dropped (last first)
+ * @param overBudget whether the prompt is still over budget after every allowed drop
  */
-public record PhrasingPrompt(String system, String user, int droppedHistoryTurns, int droppedPassages) {
+public record PhrasingPrompt(String system, String user, int droppedHistoryTurns, int droppedPassages,
+        boolean overBudget) {
 
     public static final String SLOT_START = "<user_message>";
     public static final String SLOT_END = "</user_message>";
@@ -33,44 +35,49 @@ public record PhrasingPrompt(String system, String user, int droppedHistoryTurns
         Objects.requireNonNull(user, "user");
     }
 
-    /** Whether the budget dropped anything. */
+    /** Whether the budget dropped anything or could not be kept. */
     public boolean truncated() {
-        return droppedHistoryTurns > 0 || droppedPassages > 0;
+        return droppedHistoryTurns > 0 || droppedPassages > 0 || overBudget;
     }
 
     /**
      * Builds the prompt within {@code numCtx − numPredict − 200} estimated tokens. Over budget, history turns are
      * dropped oldest first, then passages last first; the system part, the Core results and the message are never
-     * dropped, even if the prompt stays over budget.
+     * dropped, even if the prompt stays over budget ({@code overBudget}).
      *
      * @param rolePrompt the role prompt file's text
      * @param complianceRules the compliance rules file's text (every compliance level includes it)
+     * @throws IllegalArgumentException if {@code numCtx} leaves no budget ({@code numCtx <= numPredict + 200})
      */
     public static PhrasingPrompt build(String rolePrompt, String complianceRules, PromptPayload payload, int numCtx,
             int numPredict) {
         String system = rolePrompt.strip() + "\n\n" + complianceRules.strip();
         double budget = numCtx - numPredict - RESERVE_TOKENS;
+        if (budget <= 0) {
+            throw new IllegalArgumentException("numCtx " + numCtx + " leaves no prompt budget beside numPredict "
+                    + numPredict + " and " + RESERVE_TOKENS + " reserved tokens");
+        }
         List<PromptPayload.HistoryTurn> history = new ArrayList<>(payload.history());
         List<PromptPayload.Passage> passages = new ArrayList<>(payload.passages());
         while (true) {
             String user = userPart(payload, history, passages);
             if (tokens(system, user) <= budget) {
-                return result(system, user, payload, history, passages);
+                return result(system, user, payload, history, passages, false);
             }
             if (!history.isEmpty()) {
                 history.removeFirst();
             } else if (!passages.isEmpty()) {
                 passages.removeLast();
             } else {
-                return result(system, user, payload, history, passages);
+                return result(system, user, payload, history, passages, true);
             }
         }
     }
 
     private static PhrasingPrompt result(String system, String user, PromptPayload payload,
-            List<PromptPayload.HistoryTurn> history, List<PromptPayload.Passage> passages) {
+            List<PromptPayload.HistoryTurn> history, List<PromptPayload.Passage> passages, boolean overBudget) {
         return new PhrasingPrompt(system, user, payload.history().size() - history.size(),
-                payload.passages().size() - passages.size());
+                payload.passages().size() - passages.size(), overBudget);
     }
 
     static double tokens(String system, String user) {

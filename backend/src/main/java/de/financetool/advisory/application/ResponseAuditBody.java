@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import de.financetool.advisory.domain.MessageClass;
 import de.financetool.advisory.domain.ResponseOutcome;
 import de.financetool.advisory.domain.TurnStage;
+import de.financetool.shared.config.DataExposureLevel;
 import java.util.List;
 import java.util.SortedMap;
 
@@ -17,6 +18,8 @@ import java.util.SortedMap;
  * @param truncated whether the model or the prompt budget truncated anything
  * @param droppedHistoryTurns history turns the prompt budget dropped
  * @param droppedPassages Knowledge Base passages the prompt budget dropped
+ * @param dataExposure the Data Exposure Level applied to the phrasing prompt
+ * @param messageWithheld whether level {@code NONE} withheld the user's message entirely
  * @param complianceLevel the configured level, e.g. {@code A+B+C}
  * @param passThroughStages the stages that ran as explicit pass-throughs, in pipeline order
  */
@@ -31,6 +34,8 @@ record ResponseAuditBody(
         boolean truncated,
         int droppedHistoryTurns,
         int droppedPassages,
+        DataExposureLevel dataExposure,
+        boolean messageWithheld,
         String firstDraft,
         String finalText,
         boolean regenerated,

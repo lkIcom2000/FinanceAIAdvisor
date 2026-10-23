@@ -29,17 +29,33 @@ public final class ExposureFilter {
     public static final int HISTORY_TURNS = 3;
 
     /**
-     * Matches IBANs with or without spaces, including the two-character tail of a German IBAN (deliberately not
-     * {@code exposure.py}'s pattern, which misses that tail).
+     * Matches IBANs in any case, unseparated or with single spaces or hyphens between the groups, including the
+     * two-character tail of a German IBAN (deliberately not {@code exposure.py}'s pattern, which misses that tail).
      */
-    static final Pattern IBAN = Pattern.compile("\\b[A-Z]{2}\\d{2}(?:\\s?[A-Z0-9]{4}){2,7}(?:\\s?[A-Z0-9]{1,4})?\\b");
+    static final Pattern IBAN = Pattern.compile(
+            "\\b[A-Z]{2}\\d{2}(?:[ -]?[A-Z0-9]{4}){2,7}(?:[ -]?[A-Z0-9]{1,4})?\\b", Pattern.CASE_INSENSITIVE);
     static final Pattern EMAIL = Pattern.compile("\\b[\\w.+-]+@[\\w-]+\\.[\\w.]+\\b");
-    static final Pattern CLIENT = Pattern.compile("\\b(Client|Customer|Mr\\.?|Mrs\\.?|Ms\\.?)\\s+[A-Z][a-z]*\\b");
-    /** {@code euros?} before {@code EUR}: in {@code exposure.py}'s order "Euro" would leave an "o" behind. */
-    static final Pattern MONEY = Pattern.compile("(\\d{1,3}(?:[.,]\\d{3})+|\\d+)(?:[.,]\\d+)?\\s?(euros?|EUR|€)",
+    /** A title followed by a capitalised name (Unicode letters, hyphens) and up to two more capitalised words. */
+    static final Pattern CLIENT = Pattern.compile("\\b(Client|Customer|Mr\\.?|Mrs\\.?|Ms\\.?|Herr|Frau|Kunde|Kundin)"
+            + "(?:\\s+\\p{Lu}[\\p{L}'’-]*){1,3}");
+    private static final String NUMBER = "(?<![\\d.,])(?:\\d{1,3}(?:[.,]\\d{3})+|\\d+)(?:[.,]\\d+)?";
+    /**
+     * A money amount with the currency after ("12,400 EUR") or before it ("EUR 12,400", "€12.400"). {@code euros?}
+     * comes before {@code EUR}: in {@code exposure.py}'s order "Euro" would leave an "o" behind.
+     */
+    static final Pattern MONEY = Pattern.compile(
+            "(?:\\bEUR|€)\\s?" + NUMBER + "|" + NUMBER + "\\s?(?:euros?|EUR|€)",
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
-    static final Pattern AGE = Pattern.compile("\\b(?:age|aged|I am|I['’]m)\\s*:?\\s*(\\d{2})\\b",
+    /** Two digits that are a whole number, not part of a longer one ("12,400" holds no age). */
+    private static final String TWO_DIGITS = "(?<![\\d.,])(\\d{2})(?!\\d|[.,]\\d)";
+    /** An age after "age", "aged", "I am", "I'm" or German "ich bin". */
+    static final Pattern AGE = Pattern.compile("\\b(?:age|aged|I am|I['’]m|ich bin)\\s*:?\\s*" + TWO_DIGITS,
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+    /** An age before "Jahre" ("34 Jahre alt") or "years old". */
+    static final Pattern AGE_BEFORE = Pattern.compile("\\b" + TWO_DIGITS + "(?=\\s*(?:Jahre\\b|years?\\s+old\\b))",
+            Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+    /** Shown instead of an amount that cannot be banded (a digit run too long for a double). */
+    public static final String UNREADABLE_AMOUNT = "[AMOUNT]";
     private static final Pattern THOUSANDS_ONLY = Pattern.compile("\\d{1,3}([.,]\\d{3})+");
 
     /** Profile numbers that are no money amount and stay as they are at {@code AGGREGATED}. */
@@ -60,7 +76,9 @@ public final class ExposureFilter {
         List<PromptPayload.HistoryTurn> shownHistory = level == Level.NONE ? List.of()
                 : history.stream().map(turn -> new PromptPayload.HistoryTurn(filterMessage(turn.userText(), level,
                         null), filterMessage(turn.agentText(), level, null))).toList();
-        return new PromptPayload(filterMessage(message, level, depersonalisedQuestion), shownHistory,
+        boolean withheld = level == Level.NONE
+                && (depersonalisedQuestion == null || depersonalisedQuestion.isBlank());
+        return new PromptPayload(filterMessage(message, level, depersonalisedQuestion), withheld, shownHistory,
                 filterProfile(profile, level), toolResults, passages);
     }
 
@@ -73,13 +91,25 @@ public final class ExposureFilter {
         String out = EMAIL.matcher(message).replaceAll("[EMAIL]");
         out = IBAN.matcher(out).replaceAll("[IBAN]");
         out = CLIENT.matcher(out).replaceAll(m -> Matcher.quoteReplacement(m.group(1) + " X"));
+        // Ages before amounts, so that the age patterns never see a band.
+        out = AGE.matcher(out).replaceAll(ExposureFilter::decadeOfMatch);
+        out = AGE_BEFORE.matcher(out).replaceAll(ExposureFilter::decadeOfMatch);
         out = MONEY.matcher(out).replaceAll(m -> Matcher.quoteReplacement(band(amount(m.group()))));
-        out = AGE.matcher(out).replaceAll(m -> Matcher.quoteReplacement(
-                m.group().replace(m.group(1), decade(Integer.parseInt(m.group(1))))));
         return out;
     }
 
-    /** The profile context at {@code level}: empty at {@code NONE}, numbers as bands or decades at aggregated. */
+    /** The match with its age group replaced by the decade. */
+    private static String decadeOfMatch(java.util.regex.MatchResult m) {
+        String text = m.group();
+        int at = m.start(1) - m.start();
+        return Matcher.quoteReplacement(text.substring(0, at) + decade(Integer.parseInt(m.group(1)))
+                + text.substring(at + 2));
+    }
+
+    /**
+     * The profile context at {@code level}: empty at {@code NONE}; at aggregated numbers become bands or decades
+     * and texts go through the message filter.
+     */
     public static Map<String, Object> filterProfile(Map<String, Object> profile, Level level) {
         Map<String, Object> out = new LinkedHashMap<>();
         if (level == Level.NONE) {
@@ -88,6 +118,8 @@ public final class ExposureFilter {
         profile.forEach((key, value) -> {
             if (value instanceof Number number && !KEPT_PROFILE_KEYS.contains(key)) {
                 out.put(key, key.equals("age") ? decade(number.intValue()) : band(number.doubleValue()));
+            } else if (value instanceof String text) {
+                out.put(key, filterMessage(text, level, null));
             } else {
                 out.put(key, value);
             }
@@ -97,9 +129,12 @@ public final class ExposureFilter {
 
     /**
      * The money band of {@code value} ({@code band()} of {@code exposure.py}): step = max(100, 10^floor(log10 v)/2),
-     * shown as "lo–hi EUR"; 0 or less is "0 EUR".
+     * shown as "lo–hi EUR"; 0 or less is "0 EUR"; a non-finite value is {@link #UNREADABLE_AMOUNT}.
      */
     public static String band(double value) {
+        if (!Double.isFinite(value)) {
+            return UNREADABLE_AMOUNT;
+        }
         if (value <= 0) {
             return "0 EUR";
         }
