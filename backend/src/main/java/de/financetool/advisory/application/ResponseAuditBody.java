@@ -6,12 +6,26 @@ import de.financetool.advisory.domain.ResponseOutcome;
 import de.financetool.advisory.domain.TurnStage;
 import de.financetool.shared.config.DataExposureLevel;
 import java.util.List;
+import java.util.Map;
 import java.util.SortedMap;
 
 /**
  * The body of a turn's {@code RESPONSE} Audit Record (AD-13). Judge verdict and parse status are absent while the
  * Judge does not run.
  *
+ * @param classReasons the facts that led to the class
+ * @param missingFields profile fields an {@code ASK_PROFILE} turn asks for
+ * @param unverifiedPremises the premises that made the turn {@code DETECT_TRAP}
+ * @param outOfScope the out-of-scope product categories of a {@code REFUSE_OUT_OF_SCOPE} turn
+ * @param nlu the grounded NLU extraction (the experiment's keys)
+ * @param nluGrounding what the grounding rules changed in the NLU's proposal
+ * @param nluModelTag the NLU model's tag
+ * @param nluModelDigest the NLU model's pinned digest
+ * @param nluPromptHashes file name of each NLU prompt file to the sha256 of its LF bytes
+ * @param nluCacheHit whether the extraction came from the NLU cache without a model call
+ * @param nluParseOk whether the NLU model's answer was a JSON object
+ * @param instructionOverrideAttempt whether the message tried to override the instructions (treated as data)
+ * @param noValidSource whether the no-valid-source template was released instead of the draft
  * @param evidence the {@code provId}s of the turn's evidence items
  * @param checks the Check Chain results (empty until the Rule Engine runs)
  * @param promptHashes file name of each prompt file in the phrasing call to the sha256 of its LF bytes
@@ -26,6 +40,19 @@ import java.util.SortedMap;
 record ResponseAuditBody(
         @JsonProperty("class") MessageClass messageClass,
         ResponseOutcome outcome,
+        List<String> classReasons,
+        List<String> missingFields,
+        List<Map<String, Object>> unverifiedPremises,
+        List<String> outOfScope,
+        Map<String, Object> nlu,
+        List<String> nluGrounding,
+        String nluModelTag,
+        String nluModelDigest,
+        SortedMap<String, String> nluPromptHashes,
+        boolean nluCacheHit,
+        boolean nluParseOk,
+        boolean instructionOverrideAttempt,
+        boolean noValidSource,
         List<String> evidence,
         List<Object> checks,
         String modelTag,

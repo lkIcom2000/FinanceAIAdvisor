@@ -1,0 +1,265 @@
+{
+  "type": "object",
+  "properties": {
+    "request_type": {
+      "type": "string",
+      "enum": [
+        "general_explanation",
+        "personal_recommendation",
+        "product_selection",
+        "computation",
+        "profile_or_eligibility_question",
+        "other"
+      ]
+    },
+    "subject": {
+      "type": "string",
+      "enum": [
+        "self",
+        "specific_client",
+        "generic"
+      ]
+    },
+    "topic": {
+      "type": "string",
+      "enum": [
+        "asset_allocation",
+        "savings_plan",
+        "investment_decision",
+        "diversification",
+        "short_term_investment",
+        "sustainability_fit",
+        "product_variant_tax",
+        "retirement_strategy",
+        "leverage_or_loan",
+        "fund_selection",
+        "liquidity_management",
+        "subsidy_eligibility",
+        "contract_switch",
+        "protection_needs",
+        "protection_duplicate",
+        "withdrawal_duration",
+        "shortfall_check",
+        "savings_projection",
+        "cost_question",
+        "regulation_or_concept",
+        "tax_question",
+        "market_timing",
+        "other"
+      ]
+    },
+    "product_categories": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "single_stock",
+          "penny_stock",
+          "derivative_or_certificate",
+          "crypto",
+          "forex_or_cfd",
+          "building_society_savings",
+          "insurance_tariff_selection",
+          "individual_tax_advice",
+          "single_bond",
+          "etf",
+          "fund",
+          "deposit",
+          "money_market",
+          "insurance_needs",
+          "pension_product",
+          "gold_or_commodity",
+          "loan",
+          "other"
+        ]
+      }
+    },
+    "asserted_premises": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "claim": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "law_or_regulation",
+              "product_or_isin",
+              "guarantee_or_compensation",
+              "institution_rule_or_capability",
+              "historical_fact",
+              "other"
+            ]
+          },
+          "named_entity": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "claim",
+          "kind",
+          "named_entity"
+        ]
+      }
+    },
+    "instruction_override_attempt": {
+      "type": "boolean"
+    },
+    "market_timing_request": {
+      "type": "boolean"
+    },
+    "stated_profile": {
+      "type": "object",
+      "properties": {
+        "age": {
+          "type": "number"
+        },
+        "occupation": {
+          "type": "string"
+        },
+        "employment_status": {
+          "type": "string"
+        },
+        "net_income": {
+          "type": "number"
+        },
+        "gross_income": {
+          "type": "number"
+        },
+        "monthly_expenses": {
+          "type": "number"
+        },
+        "monthly_surplus": {
+          "type": "number"
+        },
+        "emergency_fund": {
+          "type": "number"
+        },
+        "current_balance": {
+          "type": "number"
+        },
+        "risk_tolerance": {
+          "type": "string"
+        },
+        "loss_aversion": {
+          "type": "string"
+        },
+        "loss_bearing_capacity": {
+          "type": "string"
+        },
+        "investment_horizon_years": {
+          "type": "number"
+        },
+        "goal": {
+          "type": "string"
+        },
+        "knowledge_experience": {
+          "type": "string"
+        },
+        "sustainability_preference": {
+          "type": "string"
+        },
+        "current_holdings": {
+          "type": "string"
+        },
+        "tax_allowance_unused": {
+          "type": "number"
+        },
+        "pension_situation": {
+          "type": "string"
+        },
+        "children": {
+          "type": "number"
+        },
+        "household": {
+          "type": "string"
+        },
+        "dependants": {
+          "type": "string"
+        },
+        "existing_contract_details": {
+          "type": "string"
+        },
+        "existing_contracts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "risk": {
+                "type": "string"
+              },
+              "holder": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "risk",
+              "holder"
+            ]
+          }
+        },
+        "amount": {
+          "type": "number"
+        },
+        "requested_monthly_amount": {
+          "type": "number"
+        }
+      }
+    },
+    "computation_params": {
+      "type": "object",
+      "properties": {
+        "portfolio": {
+          "type": "number"
+        },
+        "monthly_withdrawal": {
+          "type": "number"
+        },
+        "annual_rate": {
+          "type": "number"
+        },
+        "net_income": {
+          "type": "number"
+        },
+        "fixed_costs": {
+          "type": "number"
+        },
+        "balance": {
+          "type": "number"
+        },
+        "due_amount": {
+          "type": "number"
+        },
+        "variable_spending": {
+          "type": "number"
+        },
+        "monthly_contribution": {
+          "type": "number"
+        },
+        "years": {
+          "type": "number"
+        },
+        "initial": {
+          "type": "number"
+        }
+      }
+    },
+    "depersonalized_question": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "request_type",
+    "subject",
+    "topic",
+    "product_categories",
+    "asserted_premises",
+    "instruction_override_attempt",
+    "market_timing_request",
+    "stated_profile",
+    "computation_params",
+    "depersonalized_question"
+  ]
+}

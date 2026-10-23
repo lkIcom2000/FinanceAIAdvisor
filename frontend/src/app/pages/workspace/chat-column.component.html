@@ -34,17 +34,28 @@
       <p class="user-message">{{ m.text }}</p>
     } @else {
       <article class="card response">
+        <!-- The outcome label row comes first, so screen readers read it before the body. -->
         @if (m.outcome; as outcome) {
           <div class="outcome-label">
-            @if (icons[outcomes[outcome].icon]; as path) {
-              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-                <path [attr.d]="path" />
-              </svg>
-            }
-            <span>{{ outcomes[outcome].label }}</span>
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path [attr.d]="icons[outcomes[outcome].icon]" />
+            </svg>
+            <span class="outcome-text">{{ outcomes[outcome].label }}</span>
           </div>
         }
         <p class="body">{{ m.text }}</p>
+        @if (m.suggestions.length) {
+          <div class="chips">
+            @for (s of m.suggestions; track s) {
+              <button type="button" class="chip" (click)="send(s)">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path [attr.d]="icons['chat']" />
+                </svg>
+                {{ s }}
+              </button>
+            }
+          </div>
+        }
       </article>
     }
   }

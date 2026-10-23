@@ -18,5 +18,10 @@ export interface ChatMessage {
    * The question an answer replies to; only on Fine's answers
    */
   replyTo?: string;
+
+  /**
+   * Suggestion chips of Fine's answer: question texts that send themselves; empty on other messages
+   */
+  suggestions: Array<string>;
   text: string;
 }

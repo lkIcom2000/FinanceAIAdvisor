@@ -1,0 +1,104 @@
+# Registry of verifiable entities for false-premise detection (DETECT_TRAP, PRD FR-15).
+#
+# The NLU lists the premises a question takes for granted. A premise about a law, regulation,
+# product or ISIN counts as verified only if its named entity matches an entry below (or a
+# Knowledge Base document title when retrieval is on). Premises about guarantees or compensation
+# count as verified only if they match `known_guarantees`.
+#
+# This is a design parameter. It lists real regulations and institutions in general; it must not
+# be tuned to individual test items (threat to validity otherwise).
+
+laws_and_regulations:
+  - MiFID II
+  - MiFID
+  - MiFIR
+  - Markets in Financial Instruments Directive
+  - WpHG
+  - Wertpapierhandelsgesetz
+  - IDD
+  - Insurance Distribution Directive
+  - PRIIPs
+  - PRIIPs Regulation
+  - KID
+  - Key Information Document
+  - UCITS
+  - UCITS Directive
+  - OGAW
+  - KAGB
+  - Kapitalanlagegesetzbuch
+  - AIFMD
+  - SFDR
+  - Sustainable Finance Disclosure Regulation
+  - Article 6
+  - Article 8
+  - Article 9
+  - Taxonomy Regulation
+  - EU Taxonomy
+  - MiCA
+  - Markets in Crypto-Assets Regulation
+  - EMIR
+  - ESMA guidelines
+  - ESMA Guidelines on funds' names
+  - ESMA product intervention
+  - GDPR
+  - DSGVO
+  - InvStG
+  - Investmentsteuergesetz
+  - Vorabpauschale
+  - EStG
+  - Einkommensteuergesetz
+  - Abgeltungsteuer
+  - Freistellungsauftrag
+  - Sparer-Pauschbetrag
+  - Riester
+  - Rürup
+  - Basisrente
+  - Altersvorsorgeverträge-Zertifizierungsgesetz
+  - Einlagensicherungsgesetz
+  - EinSiG
+  - Deposit Guarantee Schemes Directive
+  - Best Execution
+  - Target Market
+  - Suitability Report
+  - Geeignetheitserklärung
+  - CRR
+  - CRD
+  - Basel III
+
+institutions:
+  - ESMA
+  - European Securities and Markets Authority
+  - EBA
+  - EIOPA
+  - ECB
+  - European Central Bank
+  - Federal Reserve
+  - Fed
+  - BaFin
+  - Bundesbank
+  - Deutsche Bundesbank
+  - German Ministry of Finance
+  - Bundesministerium der Finanzen
+  - BMF
+  - European Commission
+
+products_and_isins: []   # filled from the Knowledge Base; no individual product is pre-verified
+
+known_guarantees:
+  - statutory deposit guarantee up to 100,000 EUR per bank and customer
+  - Einlagensicherung
+  - deposit guarantee
+  - investor compensation scheme up to 20,000 EUR (EdW)
+
+# Wording that marks a premise as a claim about guaranteed outcomes, compensation or obligations
+# that no regulator or product provides. Used together with the premise kind.
+suspicious_claim_patterns:
+  - "guarantee"
+  - "guaranteed"
+  - "compensat"
+  - "reimburs"
+  - "promise"
+  - "minimum return"
+  - "mandatory investment"
+  - "penalty tax"
+  - "return algorithm"

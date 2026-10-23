@@ -1,0 +1,1 @@
+Answer type: false premise. The question assumes: {premises}. This could not be verified. Say clearly that you cannot confirm this premise and that it appears not to exist or not to be true. Do not invent any details, numbers, articles or ISINs about it.

@@ -10,6 +10,7 @@ import de.financetool.shared.ProblemCode;
 import de.financetool.shared.web.ProblemDetailsAdvice;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -56,11 +57,16 @@ class ChatController {
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Author author,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String text,
             @Schema(description = "How the turn ended; only on Fine's answers") ResponseOutcome outcome,
-            @Schema(description = "The question an answer replies to; only on Fine's answers") UUID replyTo) {
+            @Schema(description = "The question an answer replies to; only on Fine's answers") UUID replyTo,
+            @ArraySchema(maxItems = ChatMessage.MAX_SUGGESTIONS, arraySchema = @Schema(
+                    requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "Suggestion chips of Fine's answer: question texts that send themselves; "
+                            + "empty on other messages"))
+            List<String> suggestions) {
 
         static MessageView of(ChatMessage message) {
             return new MessageView(message.id(), Author.valueOf(message.author().name()), message.text(),
-                    message.outcome(), message.replyTo());
+                    message.outcome(), message.replyTo(), message.suggestions());
         }
     }
 

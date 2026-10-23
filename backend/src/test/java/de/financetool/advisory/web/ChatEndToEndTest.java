@@ -10,15 +10,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import de.financetool.PostgresIntegrationTest;
+import de.financetool.advisory.domain.NoValidSource;
 import de.financetool.llm.LlmMessage;
 import de.financetool.llm.LlmRole;
 import de.financetool.shared.config.ConfigFingerprint;
+import de.financetool.testing.StubLlmConfiguration;
 import de.financetool.testing.StubLlmConfiguration.StubLlm;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -27,7 +30,11 @@ import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.web.servlet.ResultActions;
 import tools.jackson.databind.json.JsonMapper;
 
-/** Story 3.1: the chat API end to end, one test per row of the I/O matrix, with the stubbed model. */
+/**
+ * Story 3.1: the chat API end to end, one test per row of the I/O matrix, with the stubbed model. Since Story 3.3 an
+ * {@code INFORM} turn releases the no-valid-source template (no Knowledge Base yet) and keeps the draft as first
+ * draft.
+ */
 class ChatEndToEndTest extends PostgresIntegrationTest {
 
     static final String QUESTION = "What is an ETF?";
@@ -42,6 +49,15 @@ class ChatEndToEndTest extends PostgresIntegrationTest {
 
     @Autowired
     ConfigFingerprint fingerprint;
+
+    /** The NLU answer of a personal request: {@code ASK_PROFILE} for a message about the user (stub incomplete). */
+    static final String PERSONAL_NLU = "{\"request_type\": \"personal_recommendation\", \"subject\": \"self\", "
+            + "\"topic\": \"savings_plan\"}";
+
+    @BeforeEach
+    void forgetCachedExtractions() {
+        jdbc.update("DELETE FROM nlu_cache");
+    }
 
     @AfterEach
     void resetTheModel() {
@@ -96,7 +112,9 @@ class ChatEndToEndTest extends PostgresIntegrationTest {
         String answer = content(answer(lena, questionId).andExpect(status().isOk())
                 .andExpect(jsonPath("$.author").value("AGENT"))
                 .andExpect(jsonPath("$.outcome").value("INFORM"))
-                .andExpect(jsonPath("$.text").value(StubLlm.DEFAULT_TEXT))
+                .andExpect(jsonPath("$.text").value(NoValidSource.TEXT))
+                .andExpect(jsonPath("$.suggestions[0]").value(NoValidSource.DEFAULT_SUGGESTION))
+                .andExpect(jsonPath("$.suggestions.length()").value(1))
                 .andExpect(jsonPath("$.replyTo").value(questionId)));
         String turnId = JsonPath.read(answer, "$.id");
 
@@ -114,19 +132,33 @@ class ChatEndToEndTest extends PostgresIntegrationTest {
                 .containsEntry("truncated", false).containsEntry("droppedHistoryTurns", 0)
                 .containsEntry("droppedPassages", 0).containsEntry("dataExposure", "AGGREGATED")
                 .containsEntry("messageWithheld", false).containsEntry("firstDraft", StubLlm.DEFAULT_TEXT)
-                .containsEntry("finalText", StubLlm.DEFAULT_TEXT).containsEntry("regenerated", false)
+                .containsEntry("finalText", NoValidSource.TEXT).containsEntry("noValidSource", true)
+                .containsEntry("regenerated", false)
                 .containsEntry("complianceLevel", "A+B+C")
-                .containsEntry("passThroughStages", List.of("DIALOG_STATE", "NLU", "CLASSIFY", "TOOL_PLAN",
-                        "KB_RETRIEVE", "SHADOW_CHECKS", "RULE_ENGINE", "JUDGE", "BLOCK_ROUTING"))
+                .containsEntry("passThroughStages", List.of("DIALOG_STATE", "TOOL_PLAN", "KB_RETRIEVE",
+                        "SHADOW_CHECKS", "RULE_ENGINE", "JUDGE"))
+                .containsEntry("classReasons", List.of("general explanation"))
+                .containsEntry("nluModelTag", StubLlm.MODEL_TAG).containsEntry("nluModelDigest", StubLlm.DIGEST)
+                .containsEntry("nluPromptHashes", Map.of(
+                        "nlu-system.txt", fingerprint.fileHashes().get("config/prompts/nlu-system.txt"),
+                        "nlu-few-shot.json", fingerprint.fileHashes().get("config/prompts/nlu-few-shot.json")))
+                .containsEntry("nluCacheHit", false).containsEntry("nluParseOk", true)
+                .containsEntry("instructionOverrideAttempt", false)
                 .doesNotContainKeys("judgeVerdict", "judgeParseStatus");
+        assertThat(JsonPath.<String>read((String) record.get("payload"), "$.body.nlu.request_type")).isEqualTo("other");
 
-        // One phrasing call: role prompt and compliance rules as system message, the question only in the slot.
-        assertThat(llm.calls()).singleElement().satisfies(call -> {
+        // One NLU call, then one phrasing call: role prompt, compliance rules and class instruction as system
+        // message, the question only in the slot.
+        assertThat(llm.calls()).extracting(StubLlmConfiguration.Call::role).containsExactly(LlmRole.NLU,
+                LlmRole.PHRASING);
+        assertThat(llm.calls(LlmRole.PHRASING)).singleElement().satisfies(call -> {
             assertThat(call.role()).isEqualTo(LlmRole.PHRASING);
             assertThat(call.messages()).hasSize(2);
             assertThat(call.messages().get(0).author()).isEqualTo(LlmMessage.Author.SYSTEM);
             assertThat(call.messages().get(0).content()).doesNotContain(QUESTION).contains("financial advisor")
-                    .contains("Rules you must follow:", "7. Tone: plain language");
+                    .contains("Rules you must follow:", "7. Tone: plain language")
+                    .endsWith("Answer type: general explanation. Explain neutrally; do not give a personal "
+                            + "recommendation.");
             assertThat(call.messages().get(1).content()).endsWith("<user_message>\n" + QUESTION + "\n</user_message>");
         });
 
@@ -139,8 +171,14 @@ class ChatEndToEndTest extends PostgresIntegrationTest {
     }
 
     Map<String, String> promptHashes() {
+        return promptHashes("INFORM");
+    }
+
+    Map<String, String> promptHashes(String messageClass) {
+        String classFile = "class-" + messageClass + ".txt";
         return Map.of("role-advisor.txt", fingerprint.fileHashes().get("config/prompts/role-advisor.txt"),
-                "compliance-rules.txt", fingerprint.fileHashes().get("config/prompts/compliance-rules.txt"));
+                "compliance-rules.txt", fingerprint.fileHashes().get("config/prompts/compliance-rules.txt"),
+                classFile, fingerprint.fileHashes().get("config/prompts/" + classFile));
     }
 
     /** Asks and answers {@code question}; the stubbed model answers {@code answer}. */
@@ -150,12 +188,13 @@ class ChatEndToEndTest extends PostgresIntegrationTest {
     }
 
     String lastUserPart() {
-        return llm.calls().getLast().messages().get(1).content();
+        return llm.calls(LlmRole.PHRASING).getLast().messages().get(1).content();
     }
 
     @Test
     void theThirdQuestionSeesBothEarlierTurnsFilteredAndTheRecordHoldsBothPromptHashes() throws Exception {
         MockHttpSession lena = login(mvc, "p-lena");
+        llm.nluAnswer("I'm 34 and have 12,400 EUR saved.", PERSONAL_NLU);
         turn(lena, "I'm 34 and have 12,400 EUR saved.", "Thanks, noted your savings.");
         turn(lena, "What is an ETF?", "An ETF is a fund traded on an exchange.");
 
@@ -167,10 +206,11 @@ class ChatEndToEndTest extends PostgresIntegrationTest {
         assertThat(user).contains("EARLIER CONVERSATION (oldest first):")
                 .contains("Customer: I'm 30s and have 10,000\u201315,000 EUR saved.\n"
                         + "Assistant: Thanks, noted your savings.\n"
-                        + "Customer: What is an ETF?\nAssistant: An ETF is a fund traded on an exchange.\n\n"
+                        + "Customer: What is an ETF?\nAssistant: " + NoValidSource.TEXT + "\n\n"
                         + "<user_message>\nShould I start a savings plan?\n</user_message>")
                 .doesNotContain("12,400").doesNotContain("Lena").doesNotContain("p-lena");
-        assertThat(llm.calls().getLast().messages().get(0).content()).contains("Rules you must follow:")
+        assertThat(llm.calls(LlmRole.PHRASING).getLast().messages().get(0).content())
+                .contains("Rules you must follow:")
                 .doesNotContain("Should I start").doesNotContain("noted your savings")
                 .doesNotContain("traded on an exchange").doesNotContain("12,400");
 
@@ -194,10 +234,11 @@ class ChatEndToEndTest extends PostgresIntegrationTest {
         turn(lena, "lena current question", "lena current answer");
 
         String user = lastUserPart();
+        String released = NoValidSource.TEXT;
         assertThat(user).isEqualTo("EARLIER CONVERSATION (oldest first):\n"
-                + "Customer: lena question one\nAssistant: lena answer one\n"
-                + "Customer: lena question two\nAssistant: lena answer two\n"
-                + "Customer: lena question three\nAssistant: lena answer three\n\n"
+                + "Customer: lena question one\nAssistant: " + released + "\n"
+                + "Customer: lena question two\nAssistant: " + released + "\n"
+                + "Customer: lena question three\nAssistant: " + released + "\n\n"
                 + "<user_message>\nlena current question\n</user_message>");
         assertThat(user).doesNotContain("JONAS-SECRET");
     }
@@ -213,10 +254,11 @@ class ChatEndToEndTest extends PostgresIntegrationTest {
         turn(jonas, "current question", "current answer");
 
         String user = lastUserPart();
+        String released = NoValidSource.TEXT;
         assertThat(user).contains("EARLIER CONVERSATION (oldest first):\n"
-                + "Customer: question 3\nAssistant: answer 3\n"
-                + "Customer: question 4\nAssistant: answer 4\n"
-                + "Customer: question 5\nAssistant: answer 5\n\n"
+                + "Customer: question 3\nAssistant: " + released + "\n"
+                + "Customer: question 4\nAssistant: " + released + "\n"
+                + "Customer: question 5\nAssistant: " + released + "\n\n"
                 + "<user_message>\ncurrent question\n</user_message>")
                 .doesNotContain("question 2").doesNotContain("unanswered");
     }
@@ -231,7 +273,7 @@ class ChatEndToEndTest extends PostgresIntegrationTest {
         String second = content(answer(lena, questionId).andExpect(status().isOk()));
 
         assertThat(second).isEqualTo(first);
-        assertThat(llm.calls()).hasSize(1);
+        assertThat(llm.calls()).hasSize(2);
         assertThat(responseRecords(JsonPath.read(first, "$.id"))).isEqualTo(1);
         assertThat(replies(questionId)).isEqualTo(1);
     }
@@ -288,7 +330,7 @@ class ChatEndToEndTest extends PostgresIntegrationTest {
         answer(lena, questionId).andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("TURN_FAILED"));
 
-        assertThat(llm.calls()).hasSize(1);
+        assertThat(llm.calls()).as("NLU and phrasing ran").hasSize(2);
         assertThat(replies(questionId)).isZero();
         assertThat(allRecords()).as("no Audit Record, no evidence").isEqualTo(records);
     }

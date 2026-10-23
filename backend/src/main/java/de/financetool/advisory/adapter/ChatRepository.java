@@ -5,6 +5,7 @@ import de.financetool.advisory.domain.PromptPayload;
 import de.financetool.advisory.domain.ResponseOutcome;
 import de.financetool.shared.PersonaScope;
 import de.financetool.shared.domain.PersonaId;
+import java.sql.Array;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -21,7 +22,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class ChatRepository {
 
-    private static final String MESSAGE_COLUMNS = "id, author, text, outcome, reply_to";
+    private static final String MESSAGE_COLUMNS = "id, author, text, outcome, reply_to, suggestions";
 
     private final JdbcClient jdbc;
 
@@ -42,10 +43,11 @@ public class ChatRepository {
 
     public void insert(PersonaScope scope, UUID conversationId, ChatMessage message) {
         jdbc.sql("""
-                INSERT INTO messages (id, conversation_id, persona_id, author, text, outcome, reply_to)
-                VALUES (?, ?, ?, ?, ?, ?, ?)""")
+                INSERT INTO messages (id, conversation_id, persona_id, author, text, outcome, reply_to, suggestions)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""")
                 .params(message.id(), conversationId, scope.id(), message.author().name(), message.text(),
-                        message.outcome() == null ? null : message.outcome().name(), message.replyTo())
+                        message.outcome() == null ? null : message.outcome().name(), message.replyTo(),
+                        message.suggestions().toArray(String[]::new))
                 .update();
     }
 
@@ -114,6 +116,10 @@ public class ChatRepository {
         String outcome = rs.getString("outcome");
         return new ChatMessage(rs.getObject("id", UUID.class), ChatMessage.Author.valueOf(rs.getString("author")),
                 rs.getString("text"), outcome == null ? null : ResponseOutcome.valueOf(outcome),
-                rs.getObject("reply_to", UUID.class));
+                rs.getObject("reply_to", UUID.class), suggestions(rs.getArray("suggestions")));
+    }
+
+    private static List<String> suggestions(Array array) throws SQLException {
+        return array == null ? List.of() : List.of((String[]) array.getArray());
     }
 }

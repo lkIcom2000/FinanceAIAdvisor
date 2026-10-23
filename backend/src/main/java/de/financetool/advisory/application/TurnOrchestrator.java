@@ -3,9 +3,16 @@ package de.financetool.advisory.application;
 import de.financetool.advisory.adapter.ChatRepository;
 import de.financetool.advisory.adapter.PromptFiles;
 import de.financetool.advisory.domain.ChatMessage;
+import de.financetool.advisory.domain.ClassInstruction;
+import de.financetool.advisory.domain.Classification;
+import de.financetool.advisory.domain.Classifier;
+import de.financetool.advisory.domain.EntityRegistry;
 import de.financetool.advisory.domain.ExposureFilter;
 import de.financetool.advisory.domain.MessageClass;
+import de.financetool.advisory.domain.NoValidSource;
 import de.financetool.advisory.domain.PhrasingPrompt;
+import de.financetool.advisory.domain.Premise;
+import de.financetool.advisory.domain.ProfileCompleteness;
 import de.financetool.advisory.domain.PromptPayload;
 import de.financetool.advisory.domain.ResponseOutcome;
 import de.financetool.advisory.domain.TurnStage;
@@ -45,14 +52,21 @@ public class TurnOrchestrator {
     private final LlmPort llm;
     private final AuditWriter audit;
     private final EvidenceStore evidence;
+    private final NluExtractor nluExtractor;
+    private final EntityRegistry registry;
+    private final ProfileCompleteness completeness;
 
     TurnOrchestrator(ChatRepository chats, PromptFiles prompts, LlmPort llm, AuditWriter audit,
-            EvidenceStore evidence) {
+            EvidenceStore evidence, NluExtractor nluExtractor, EntityRegistry registry,
+            ProfileCompleteness completeness) {
         this.chats = chats;
         this.prompts = prompts;
         this.llm = llm;
         this.audit = audit;
         this.evidence = evidence;
+        this.nluExtractor = nluExtractor;
+        this.registry = registry;
+        this.completeness = completeness;
     }
 
     /** Runs the turn for the saved user message {@code question} and releases the agent message. */
@@ -60,7 +74,7 @@ public class TurnOrchestrator {
     public ChatMessage run(RequestContext context, PersonaScope scope, ChatMessage question, String fixtureVersion) {
         TurnState turn = TurnState.start(question.text());
         turn = dialogState(scope, turn);
-        turn = nlu(turn);
+        turn = nlu(context, turn);
         turn = classify(turn);
         turn = toolPlan(turn);
         turn = kbRetrieve(turn);
@@ -79,14 +93,22 @@ public class TurnOrchestrator {
                 .passedThrough(TurnStage.DIALOG_STATE);
     }
 
-    /** Pass-through until the NLU role extracts parameters. */
-    TurnState nlu(TurnState turn) {
-        return turn.passedThrough(TurnStage.NLU);
+    /**
+     * The NLU role extracts the message's data (AD-4): cached by model, prompt and message, then grounded by the
+     * deterministic rules. A failed model call fails the turn.
+     */
+    TurnState nlu(RequestContext context, TurnState turn) {
+        return turn.withNlu(nluExtractor.extract(context.agentConfig(), turn.userText())).ran(TurnStage.NLU);
     }
 
-    /** Pass-through until rule-based classification (Story 3.3): every message is {@code INFORM}. */
+    /**
+     * Pure rules pick exactly one class (FR-9): no stored profile until Epic 6, and nothing is computable until the
+     * tool plan exists (Story 3.7).
+     */
     TurnState classify(TurnState turn) {
-        return turn.withClass(MessageClass.INFORM).passedThrough(TurnStage.CLASSIFY);
+        Classification classification = Classifier.classify(turn.nlu().extraction(), Map.of(), completeness,
+                registry, false, turn.userText());
+        return turn.withClassification(classification).ran(TurnStage.CLASSIFY);
     }
 
     /** Pass-through: no tools are planned yet. */
@@ -101,20 +123,23 @@ public class TurnOrchestrator {
 
     /**
      * Applies the Data Exposure Level to the message, the last released turns, the profile context and the Core
-     * results, and fits the phrasing prompt into the context budget (FR-43, FR-45, AD-5). No NLU, Core results,
-     * passages or profile exist yet: those inputs stay empty.
+     * results, and fits the phrasing prompt into the context budget (FR-43, FR-45, AD-5); the system part ends with
+     * the class instruction. No Core results, passages or profile exist yet: those inputs stay empty.
      */
     TurnState exposureFilter(RequestContext context, PersonaScope scope, ChatMessage question, TurnState turn) {
         AgentConfiguration agent = context.agentConfig();
         List<PromptPayload.HistoryTurn> history =
                 chats.releasedTurnsBefore(scope, question.id(), ExposureFilter.HISTORY_TURNS);
-        PromptPayload payload = ExposureFilter.apply(level(agent.dataExposure()), turn.userText(), null, history,
-                Map.of(), "", List.of());
+        PromptPayload payload = ExposureFilter.apply(level(agent.dataExposure()), turn.userText(),
+                turn.nlu().extraction().depersonalizedQuestion(), history, Map.of(), "", List.of());
         PromptFiles.Prompt rolePrompt = prompts.rolePrompt(agent.rolePrompt());
         PromptFiles.Prompt rules = prompts.complianceRules();
-        PhrasingPrompt phrasing = PhrasingPrompt.build(rolePrompt.text(), rules.text(), payload,
+        PromptFiles.Prompt instruction = prompts.classInstruction(turn.messageClass());
+        String classInstruction = ClassInstruction.fill(instruction.text(), turn.classification(), null, "");
+        PhrasingPrompt phrasing = PhrasingPrompt.build(rolePrompt.text(), rules.text(), classInstruction, payload,
                 agent.decoding().numCtx(), agent.decoding().numPredict());
-        Map<String, String> hashes = Map.of(rolePrompt.fileName(), rolePrompt.hash(), rules.fileName(), rules.hash());
+        Map<String, String> hashes = Map.of(rolePrompt.fileName(), rolePrompt.hash(), rules.fileName(), rules.hash(),
+                instruction.fileName(), instruction.hash());
         return turn.withPrompt(new TurnState.Prompt(payload, phrasing, new TreeMap<>(hashes)))
                 .ran(TurnStage.EXPOSURE_FILTER);
     }
@@ -155,8 +180,17 @@ public class TurnOrchestrator {
         return turn.passedThrough(TurnStage.JUDGE);
     }
 
-    /** Pass-through routing: the outcome is the class, the released text the draft. */
+    /**
+     * Pass-through routing (the outcome is the class, the released text the draft), except that an {@code INFORM}
+     * turn without a Knowledge Base passage releases the no-valid-source template with one related in-scope chip
+     * (FR-13); its draft stays recorded as first draft.
+     */
     TurnState blockRouting(TurnState turn) {
+        if (turn.messageClass() == MessageClass.INFORM && turn.prompt().payload().passages().isEmpty()) {
+            return turn.withOutcome(ResponseOutcome.INFORM, NoValidSource.TEXT,
+                    List.of(NoValidSource.suggestion(turn.nlu().extraction().topic())), true)
+                    .ran(TurnStage.BLOCK_ROUTING);
+        }
         return turn.withOutcome(ResponseOutcome.of(turn.messageClass()), turn.draft().text().strip())
                 .passedThrough(TurnStage.BLOCK_ROUTING);
     }
@@ -167,15 +201,22 @@ public class TurnOrchestrator {
         TurnState released = turn.ran(TurnStage.AUDIT_RELEASE);
         UUID turnId = UUID.randomUUID();
         ChatMessage answer = new ChatMessage(turnId, ChatMessage.Author.AGENT, released.finalText(),
-                released.outcome(), question.id());
+                released.outcome(), question.id(), released.suggestions());
         chats.insert(scope, chats.conversation(scope), answer);
         List<EvidenceItem> items = List.of();
         evidence.putIfAbsent(items);
         TurnState.Draft draft = released.draft();
         TurnState.Prompt prompt = released.prompt();
         PhrasingPrompt phrasing = prompt.phrasing();
+        TurnState.Nlu nlu = released.nlu();
+        Classification classification = released.classification();
         audit.write(context, new AuditEntry(AuditKind.RESPONSE, turnId, null, fixtureVersion,
-                new ResponseAuditBody(released.messageClass(), released.outcome(),
+                new ResponseAuditBody(released.messageClass(), released.outcome(), classification.reasons(),
+                        classification.missingFields(),
+                        classification.unverifiedPremises().stream().map(Premise::toMap).toList(),
+                        classification.outOfScope(), nlu.extraction().toMap(), nlu.groundingNotes(), nlu.modelTag(),
+                        nlu.modelDigest(), nlu.promptHashes(), nlu.cacheHit(), nlu.parseOk(),
+                        nlu.extraction().instructionOverrideAttempt(), released.noValidSource(),
                         items.stream().map(EvidenceItem::provId).toList(), List.of(), draft.modelTag(),
                         draft.modelDigest(), prompt.promptHashes(), draft.truncated() || phrasing.truncated(),
                         phrasing.droppedHistoryTurns(), phrasing.droppedPassages(),

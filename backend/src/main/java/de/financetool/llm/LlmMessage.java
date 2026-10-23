@@ -21,4 +21,8 @@ public record LlmMessage(Author author, String content) {
     public static LlmMessage user(String content) {
         return new LlmMessage(Author.USER, content);
     }
+
+    public static LlmMessage assistant(String content) {
+        return new LlmMessage(Author.ASSISTANT, content);
+    }
 }

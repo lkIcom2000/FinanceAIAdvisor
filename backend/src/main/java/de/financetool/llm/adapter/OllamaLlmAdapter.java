@@ -2,6 +2,7 @@ package de.financetool.llm.adapter;
 
 import de.financetool.llm.Embeddings;
 import de.financetool.llm.LlmMessage;
+import de.financetool.llm.LlmModel;
 import de.financetool.llm.LlmPort;
 import de.financetool.llm.LlmResult;
 import de.financetool.llm.LlmRole;
@@ -88,6 +89,12 @@ class OllamaLlmAdapter implements LlmPort {
         String text = response.message() == null || response.message().content() == null
                 ? "" : response.message().content();
         return new LlmResult(text, tag, digest(tag), decoding, promptTokens, truncated, latency);
+    }
+
+    @Override
+    public LlmModel model(LlmRole role) {
+        String tag = tag(role);
+        return new LlmModel(tag, digest(tag));
     }
 
     @Override

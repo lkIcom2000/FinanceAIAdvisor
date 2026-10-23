@@ -1,0 +1,1 @@
+Answer type: computation. Present the results from TOOL RESULTS exactly, list the assumptions, and explain that this is a calculation under assumptions, not a promise.

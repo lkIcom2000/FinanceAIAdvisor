@@ -1,0 +1,1 @@
+Answer type: transparent refusal. The request concerns {oos}, which is outside the service. Say so plainly, give the reason, and offer the nearest in-scope alternative.

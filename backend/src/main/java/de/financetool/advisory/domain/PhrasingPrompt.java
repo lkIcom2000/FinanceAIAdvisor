@@ -11,7 +11,7 @@ import java.util.regex.Pattern;
  * of {@code experiments/finlab/pipeline.py}: the system part holds only the versioned prompt files, everything from
  * the user, the history, the Core and the Knowledge Base goes into the user part as data.
  *
- * @param system the system part: role prompt, then the compliance rules
+ * @param system the system part: role prompt, compliance rules, then the class instruction
  * @param user the user part: tool results, sources, profile, earlier conversation, then the message slot
  * @param droppedHistoryTurns how many history turns the budget dropped (oldest first)
  * @param droppedPassages how many Knowledge Base passages the budget dropped (last first)
@@ -51,7 +51,19 @@ public record PhrasingPrompt(String system, String user, int droppedHistoryTurns
      */
     public static PhrasingPrompt build(String rolePrompt, String complianceRules, PromptPayload payload, int numCtx,
             int numPredict) {
-        String system = rolePrompt.strip() + "\n\n" + complianceRules.strip();
+        return build(rolePrompt, complianceRules, "", payload, numCtx, numPredict);
+    }
+
+    /**
+     * Like {@link #build(String, String, PromptPayload, int, int)}, with the class instruction (layer A) appended to
+     * the system part.
+     *
+     * @param classInstruction the filled class instruction, or blank for none
+     */
+    public static PhrasingPrompt build(String rolePrompt, String complianceRules, String classInstruction,
+            PromptPayload payload, int numCtx, int numPredict) {
+        String system = rolePrompt.strip() + "\n\n" + complianceRules.strip()
+                + (classInstruction.isBlank() ? "" : "\n\n" + classInstruction.strip());
         double budget = numCtx - numPredict - RESERVE_TOKENS;
         if (budget <= 0) {
             throw new IllegalArgumentException("numCtx " + numCtx + " leaves no prompt budget beside numPredict "
@@ -116,7 +128,7 @@ public record PhrasingPrompt(String system, String user, int droppedHistoryTurns
     }
 
     /** Text for the data part with every slot marker removed, so it cannot open or close the message slot. */
-    static String data(String text) {
+    public static String data(String text) {
         String out = text;
         String previous;
         do {

@@ -1,5 +1,7 @@
 package de.financetool.advisory.adapter;
 
+import de.financetool.advisory.domain.ClassInstruction;
+import de.financetool.advisory.domain.MessageClass;
 import de.financetool.shared.AppHome;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -15,43 +17,50 @@ import java.util.stream.Stream;
 import org.springframework.stereotype.Component;
 
 /**
- * The versioned prompt files {@code config/prompts/*.txt} (AD-14), read once at startup. Text and hash use LF line
- * endings, so a checkout with CRLF gives the same hash.
+ * The versioned prompt files {@code config/prompts/*.txt} and {@code *.json} (AD-14), read once at startup. Text and
+ * hash use LF line endings, so a checkout with CRLF gives the same hash.
  */
 @Component
 public class PromptFiles {
 
-    /** A prompt's text and the sha256 (hex) of its UTF-8 bytes with LF line endings. */
-    public record Prompt(String name, String text, String hash) {
-
-        /** The file name in {@code config/prompts/}, the key of the Audit Record's prompt hashes. */
-        public String fileName() {
-            return name + ".txt";
-        }
+    /**
+     * A prompt's text and the sha256 (hex) of its UTF-8 bytes with LF line endings.
+     *
+     * @param fileName the file name in {@code config/prompts/}, the key of the Audit Record's prompt hashes
+     */
+    public record Prompt(String fileName, String text, String hash) {
     }
 
     /** The compliance rules every compliance level gives to the phrasing role. */
-    public static final String COMPLIANCE_RULES = "compliance-rules";
+    public static final String COMPLIANCE_RULES = "compliance-rules.txt";
+    /** The NLU role's system prompt ({@code SYSTEM} of {@code experiments/finlab/nlu.py}). */
+    public static final String NLU_SYSTEM = "nlu-system.txt";
+    /** The NLU role's few-shot examples: a JSON list of [message, extraction] pairs ({@code FEW_SHOT}). */
+    public static final String NLU_FEW_SHOT = "nlu-few-shot.json";
 
     private final Map<String, Prompt> prompts = new TreeMap<>();
 
     PromptFiles(AppHome appHome) {
         Path directory = appHome.config().resolve("prompts");
         try (Stream<Path> files = Files.list(directory)) {
-            for (Path file : files.filter(f -> f.getFileName().toString().endsWith(".txt")).toList()) {
+            for (Path file : files.filter(PromptFiles::isPromptFile).toList()) {
                 String fileName = file.getFileName().toString();
-                String name = fileName.substring(0, fileName.length() - ".txt".length());
                 String text = Files.readString(file, StandardCharsets.UTF_8).replace("\r\n", "\n");
-                prompts.put(name, new Prompt(name, text, sha256(text)));
+                prompts.put(fileName, new Prompt(fileName, text, sha256(text)));
             }
         } catch (IOException e) {
             throw new UncheckedIOException("Cannot read the prompt files in " + directory, e);
         }
     }
 
+    private static boolean isPromptFile(Path file) {
+        String name = file.getFileName().toString();
+        return name.endsWith(".txt") || name.endsWith(".json");
+    }
+
     /** The role prompt {@code role-<rolePrompt>.txt}. */
     public Prompt rolePrompt(String rolePrompt) {
-        return named("role-" + rolePrompt);
+        return named("role-" + rolePrompt + ".txt");
     }
 
     /** The compliance rules {@code compliance-rules.txt}. */
@@ -59,10 +68,23 @@ public class PromptFiles {
         return named(COMPLIANCE_RULES);
     }
 
-    private Prompt named(String name) {
-        Prompt prompt = prompts.get(name);
+    public Prompt nluSystem() {
+        return named(NLU_SYSTEM);
+    }
+
+    public Prompt nluFewShot() {
+        return named(NLU_FEW_SHOT);
+    }
+
+    /** The class instruction {@code class-<CLASS>.txt}. */
+    public Prompt classInstruction(MessageClass messageClass) {
+        return named(ClassInstruction.fileName(messageClass) + ".txt");
+    }
+
+    private Prompt named(String fileName) {
+        Prompt prompt = prompts.get(fileName);
         if (prompt == null) {
-            throw new IllegalStateException("No prompt file config/prompts/" + name + ".txt");
+            throw new IllegalStateException("No prompt file config/prompts/" + fileName);
         }
         return prompt;
     }

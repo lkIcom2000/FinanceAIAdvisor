@@ -2,7 +2,14 @@ import { HttpTestingController } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChatMessage } from '../../api/models/chat-message';
 import { httpTestingProviders } from '../../testing/session-testing';
-import { ChatColumnComponent, SLOW_AFTER_MS, STEP_INTERVAL_MS } from './chat-column.component';
+import {
+  ChatColumnComponent,
+  ICON_PATHS,
+  OUTCOME_LABELS,
+  Outcome,
+  SLOW_AFTER_MS,
+  STEP_INTERVAL_MS,
+} from './chat-column.component';
 
 const GREETING =
   "Hi Lena, I'm Fine. I can explain money topics, look at your situation and calculate what-ifs. " +
@@ -16,13 +23,24 @@ function text(element: Element | null | undefined): string {
   return (element?.textContent ?? '').replace(/\s+/g, ' ').trim();
 }
 
-const question: ChatMessage = { id: 'q1', author: 'USER', text: 'What is an ETF?' };
+const NO_VALID_SOURCE =
+  "I can't answer this reliably: there is no valid source on this topic in my knowledge base for " +
+  "today's date, and I don't answer such questions from memory. A bank advisor can help you with it, " +
+  'or you can ask me about a related topic I have sources for.';
+
+const question: ChatMessage = {
+  id: 'q1',
+  author: 'USER',
+  text: 'What is an ETF?',
+  suggestions: [],
+};
 const answer: ChatMessage = {
   id: 'a1',
   author: 'AGENT',
   text: 'An ETF is a fund traded on an exchange.',
   outcome: 'INFORM',
   replyTo: 'q1',
+  suggestions: [],
 };
 
 describe('ChatColumnComponent', () => {
@@ -101,6 +119,73 @@ describe('ChatColumnComponent', () => {
     expect(text(element.querySelector('.response .outcome-label'))).toBe('Explanation');
     expect(text(element.querySelector('.response .body'))).toBe(answer.text);
     expect(element.querySelector('.failed')).toBeNull();
+  });
+
+  it('starts every response card with the icon and plain label of its outcome', () => {
+    const outcomes = Object.keys(OUTCOME_LABELS) as Outcome[];
+    expect(outcomes).toHaveLength(7);
+    const messages: ChatMessage[] = outcomes.flatMap((outcome, i) => [
+      { id: `q${i}`, author: 'USER', text: `question ${i}`, suggestions: [] },
+      {
+        id: `a${i}`,
+        author: 'AGENT',
+        text: `answer ${i}`,
+        outcome,
+        replyTo: `q${i}`,
+        suggestions: [],
+      },
+    ]);
+    render(messages);
+
+    const cards = Array.from(element.querySelectorAll('.response'));
+    expect(cards).toHaveLength(7);
+    expect(cards.map((card) => text(card.querySelector('.outcome-label')))).toEqual([
+      'Explanation',
+      'Calculated for you',
+      'Recommendation',
+      'A few questions first',
+      'Not part of this service',
+      "Let's check the question",
+      'Passed to a human advisor',
+    ]);
+    cards.forEach((card, i) => {
+      // First in reading order: the label row comes before the body; the icon is decorative.
+      expect(card.firstElementChild?.classList).toContain('outcome-label');
+      const icon = card.querySelector('.outcome-label svg');
+      expect(icon?.getAttribute('aria-hidden')).toBe('true');
+      expect(icon?.querySelector('path')?.getAttribute('d')).toBe(
+        ICON_PATHS[OUTCOME_LABELS[outcomes[i]].icon],
+      );
+      expect(ICON_PATHS[OUTCOME_LABELS[outcomes[i]].icon]).toBeTruthy();
+      expect(text(card.querySelector('.body'))).toBe(`answer ${i}`);
+    });
+  });
+
+  it('shows the no-valid-source answer with one chip that sends its question', () => {
+    render([
+      question,
+      {
+        ...answer,
+        text: NO_VALID_SOURCE,
+        suggestions: ['What is an ETF savings plan?'],
+      },
+    ]);
+    const card = element.querySelector('.response') as HTMLElement;
+    expect(text(card.querySelector('.outcome-label'))).toBe('Explanation');
+    expect(text(card.querySelector('.body'))).toBe(NO_VALID_SOURCE);
+    const chips = Array.from(card.querySelectorAll<HTMLButtonElement>('.chip'));
+    expect(chips.map(text)).toEqual(['What is an ETF savings plan?']);
+
+    chips[0].click();
+    fixture.detectChanges();
+    const post = http.expectOne('/api/chat/messages');
+    expect(post.request.body).toEqual({ text: 'What is an ETF savings plan?' });
+    expect(element.querySelector('.waiting')).not.toBeNull();
+  });
+
+  it('shows no chips on a card without suggestions', () => {
+    render([question, answer]);
+    expect(element.querySelector('.response .chips')).toBeNull();
   });
 
   it('runs a turn: saves the question, waits with timed steps, then shows the response card', () => {

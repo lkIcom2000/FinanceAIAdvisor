@@ -370,11 +370,19 @@
             "format" : "uuid",
             "description" : "The question an answer replies to; only on Fine's answers"
           },
+          "suggestions" : {
+            "type" : "array",
+            "description" : "Suggestion chips of Fine's answer: question texts that send themselves; empty on other messages",
+            "items" : {
+              "type" : "string"
+            },
+            "maxItems" : 3
+          },
           "text" : {
             "type" : "string"
           }
         },
-        "required" : [ "author", "id", "text" ]
+        "required" : [ "author", "id", "suggestions", "text" ]
       },
       "DatedFigure" : {
         "type" : "object",

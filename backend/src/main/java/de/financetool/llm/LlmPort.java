@@ -16,6 +16,9 @@ public interface LlmPort {
     LlmResult generate(LlmRole role, List<LlmMessage> messages, AgentConfiguration.Decoding decoding,
             Map<String, Object> schema);
 
+    /** The model bound to {@code role}, without calling it (for cache keys that include the model digest). */
+    LlmModel model(LlmRole role);
+
     /** Embeddings with the configured embedding model; an over-long text fails instead of being cut. */
     Embeddings embed(List<String> texts);
 }
