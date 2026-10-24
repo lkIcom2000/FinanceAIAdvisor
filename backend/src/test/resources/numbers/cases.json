@@ -334,6 +334,33 @@
   "experimentPassed": true
  },
  {
+  "name": "hundredfold of an integer is not a source",
+  "text": "Keep a buffer of 600 EUR.",
+  "sourced": [
+   "6"
+  ],
+  "passed": false,
+  "checked": 1,
+  "mismatches": [
+   {
+    "text": "600",
+    "value": "600",
+    "approximate": false
+   }
+  ],
+  "experimentPassed": true
+ },
+ {
+  "name": "a sourced value rounds to the integer shown",
+  "text": "That is 1,000 EUR.",
+  "sourced": [
+   "1000.4"
+  ],
+  "passed": true,
+  "checked": 1,
+  "mismatches": []
+ },
+ {
   "name": "no numbers",
   "text": "An ETF is a fund that tracks an index.",
   "sourced": [],

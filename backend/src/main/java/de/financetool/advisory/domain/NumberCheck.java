@@ -14,7 +14,9 @@ import java.util.Set;
  * every number {@link NumberParser} finds in a text must match a sourced value of the {@link NumberLedger}.
  *
  * <p>Deviation: the experiment rounds a percentage's fraction to the decimals shown for the percentage, so "5%"
- * (0.05, rounded to 0) matches any sourced value below 0.5; the port rounds the fraction to two more decimals.
+ * (0.05, rounded to 0) matches any sourced value below 0.5; the port rounds the fraction to two more decimals. The
+ * experiment also tries every sourced value times 100, so a Rule Parameter of 6 sources "600 EUR"; the port takes
+ * the hundredfold only of fractions (absolute value below 1), the values a text can show as a percentage.
  */
 public final class NumberCheck {
 
@@ -26,7 +28,7 @@ public final class NumberCheck {
 
     /**
      * Whether {@code found} matches a sourced value: the number or its absolute value, a percentage also as a
-     * fraction, against each value, its absolute value and both times 100 (a fraction shown as a percentage).
+     * fraction, against each value, its absolute value and, for a fraction, both times 100 (shown as a percentage).
      * Approximate numbers ("about", "roughly", ...) may deviate by 5 %; others must equal the value after rounding
      * both to the decimals shown (half-even, as Python's {@code quantize}); a percentage's fraction has two decimals
      * more than shown.
@@ -41,7 +43,10 @@ public final class NumberCheck {
         for (Candidate candidate : candidates) {
             BigDecimal c = candidate.value();
             for (BigDecimal s : sourced) {
-                for (BigDecimal sv : List.of(s, s.multiply(HUNDRED), s.abs(), s.abs().multiply(HUNDRED))) {
+                List<BigDecimal> variants = s.abs().compareTo(BigDecimal.ONE) < 0
+                        ? List.of(s, s.multiply(HUNDRED), s.abs(), s.abs().multiply(HUNDRED))
+                        : List.of(s, s.abs());
+                for (BigDecimal sv : variants) {
                     if (found.approximate()) {
                         if (sv.signum() != 0 && c.subtract(sv).abs().compareTo(sv.abs().multiply(APPROXIMATION)) <= 0) {
                             return true;

@@ -2,7 +2,7 @@
 title: 'Story 3.6: Numbers only from the Deterministic Core — the Number Check'
 type: 'feature'
 created: '2026-10-24'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'aa8e640'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -45,6 +45,7 @@ deferred: []
 
 - Numbers in earlier user messages of the prompt history are sourced too (the experiment is single-turn); otherwise a follow-up repeating "my 500,000" would escalate.
 - Experiment bug fixed: `matches` rounds a percentage's fraction to the decimals shown for the percentage, so "5%" (0.05 → 0) matches any sourced value below 0.5; the app compares the fraction at shown decimals + 2. The table records both (`experimentPassed`); affects SM-1a comparability for percentages.
+- The experiment tries every sourced value ×100, so a Rule Parameter of 6 sources "600 EUR"; the app takes the hundredfold only of fractions (|value| < 1). Table case `hundredfold of an integer is not a source`.
 - With Core results in the prompt, the number fix restates them under the experiment's `TOOL RESULTS` header ("regenerated with the Core results restated"); inactive until Story 3.7.
 
 ## Spec Change Log
@@ -53,6 +54,11 @@ deferred: []
 
 ## Review Triage Log
 
+Combined reviewer (edge case + verification gap + intent, sonnet) and Blind Hunter (sonnet), 14 findings:
+- Fixed: history turns dropped by the budget were sourced (now only kept turns); ×100 variants restricted to fractions (deviation above); Double profile values flattened as "1.0E7" (now plain digits); kept-passage count computed twice (one helper); `experimentPassed` unchecked in the table test (asserted to differ); weak `doesNotContain("TOOL RESULTS (")` (uses the header constant); AC3 asserted only at level `A` (escalation test now checks `shadowChecks` and `numberLedger` in the Audit Record under `A+B+C`); table gained the sourced-1000.4-shows-1,000 case.
+- Deferred to Story 3.7: Core numbers are not in the ledger until Core items are added as `CORE` entries (the experiment's `add_core`, not parsed from the tool text); 3.7 must add them, or every correct figure fails.
+- Rejected: `allValid` "one per key" (loading already rejects overlapping versions); ledger size/duplicates in the audit body (small, kept as the record of sources); per-call variant precomputation (negligible); `str(Decimal)` exponent form (the experiment multiplies by ints, no exponent arises); golden cases with digits (golden expectations exclude `NUMBER_MATCH`).
+
 ## Implementation Notes
 
 - Lean loop per `epic-3-handoff.md`: inline implementation; table expectations generated with `experiments/finlab/numbercheck.py` (scratch script, not committed).
@@ -60,3 +66,9 @@ deferred: []
 - `NUMBER_MATCH` is now applicable on every draft, so cards under `A+B`/`A+B+C` show one more check. Parser parity has a visible effect: "question 4" masks the 4 as a reference, so a draft repeating it is a mismatch (test answers in `ChatEndToEndTest` made digit-free).
 - Live check (`A+B+C`, retrieval off): Lena's 12,000/2,000 EUR question passed with the exposure band limits sourced; Jonas' "4% of 500,000 EUR" first draft invented 525,000 / 21,000 / 1,750, was regenerated once and the number-free regeneration released. The escalation after a second mismatch is covered by `TurnOrchestratorTest` (not reproduced live).
 
+
+## Auto Run Result
+
+- **Summary:** `NumberLedger` (per-turn sources), `NumberCheck` (port of `matches`/`check` with two documented fixes), `NUMBER_MATCH` live in the Check Chain, `RuleParamPort.allValid`, number fix restating Core results, `numberLedger` in the Audit Record.
+- **Verification:** `./mvnw -B verify -Dfine.it.required=true` green, 0 skipped; frontend `api:check`, `ng test` (77), build green; live check see Implementation Notes.
+- **Review:** combined reviewer + Blind Hunter; 8 fixed, 1 deferred to 3.7, 5 rejected (see Review Triage Log).

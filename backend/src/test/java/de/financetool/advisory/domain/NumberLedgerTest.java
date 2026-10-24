@@ -21,7 +21,7 @@ class NumberLedgerTest {
         Map<String, BigDecimal> parameters = new LinkedHashMap<>();
         parameters.put("emergency_fund_months_min", new BigDecimal("3"));
 
-        NumberLedger ledger = NumberLedger.of("I have 2.000 EUR in 2026", payload, 1, parameters);
+        NumberLedger ledger = NumberLedger.of("I have 2.000 EUR in 2026", payload, 0, 1, parameters);
 
         assertThat(ledger.entries()).extracting(NumberLedger.Entry::source).containsExactly(
                 NumberLedger.Source.RULE_PARAMETER, NumberLedger.Source.USER, NumberLedger.Source.USER,
@@ -34,6 +34,18 @@ class NumberLedgerTest {
         assertThat(ledger.entries().get(4).label()).isEqualTo("KID p. 1");
         assertThat(ledger.values()).as("the agent's earlier answer and the dropped passage are not sources")
                 .doesNotContain(new BigDecimal("999"), new BigDecimal("42"));
+    }
+
+    @Test
+    void historyTurnsThePromptBudgetDroppedAreNotSources() {
+        PromptPayload payload = new PromptPayload("q", false, List.of(new PromptPayload.HistoryTurn("I said 111.", "a"),
+                new PromptPayload.HistoryTurn("I said 222.", "b")), Map.of("savings", 1.0E7), "", List.of());
+
+        NumberLedger ledger = NumberLedger.of("q", payload, 1, 0, Map.of());
+
+        assertThat(ledger.values()).contains(new BigDecimal("222")).doesNotContain(new BigDecimal("111"));
+        assertThat(ledger.values()).as("a Double profile value in plain digits")
+                .contains(new BigDecimal("10000000")).doesNotContain(new BigDecimal("7"));
     }
 
     @Test

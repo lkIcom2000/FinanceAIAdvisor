@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
  */
 public final class RegenerationFix {
 
-    static final String TOOL_RESULTS_HEADER = "TOOL RESULTS (deterministic calculations; use these numbers exactly):";
+    public static final String TOOL_RESULTS_HEADER = "TOOL RESULTS (deterministic calculations; use these numbers exactly):";
     static final Set<String> REPAIRABLE_SOURCE_CODES = Set.of("missing_citation", "invalid_citation");
 
     private RegenerationFix() {

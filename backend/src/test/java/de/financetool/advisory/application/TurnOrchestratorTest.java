@@ -27,6 +27,7 @@ import de.financetool.advisory.domain.PhrasingPrompt;
 import de.financetool.advisory.domain.Premise;
 import de.financetool.advisory.domain.ProfileCompleteness;
 import de.financetool.advisory.domain.PromptPayload;
+import de.financetool.advisory.domain.RegenerationFix;
 import de.financetool.advisory.domain.ResponseOutcome;
 import de.financetool.advisory.domain.ResponseTemplates;
 import de.financetool.escalation.EscalationCases;
@@ -759,7 +760,10 @@ class TurnOrchestratorTest {
         ResponseAuditBody body = auditBody();
         assertThat(body.route()).isEqualTo("number_mismatch_after_regeneration");
         assertThat(body.regenerated()).isTrue();
-        assertThat(body.regenerationFix()).doesNotContain("TOOL RESULTS (");
+        assertThat(body.regenerationFix()).doesNotContain(RegenerationFix.TOOL_RESULTS_HEADER);
+        assertThat(body.shadowChecks()).filteredOn(c -> c.checkId() == CheckId.NUMBER_MATCH)
+                .singleElement().matches(CheckResult::failed);
+        assertThat(body.numberLedger()).containsExactlyElementsOf(CORE_522.entries());
         assertThat(body.routedOnChecks()).filteredOn(c -> c.checkId() == CheckId.NUMBER_MATCH)
                 .allMatch(CheckResult::failed);
     }

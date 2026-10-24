@@ -46,17 +46,20 @@ public record NumberLedger(List<Entry> entries) {
      * the user's message, the Knowledge Base passages in the prompt, then what the exposure filter shows. Deviation:
      * the user's earlier messages in the prompt history count as the user's own numbers too.
      *
-     * @param ruleParameters the key and value of every Rule Parameter valid at the turn's as-of date
+     * @param droppedHistoryTurns how many of the payload's history turns the prompt budget dropped (oldest first)
      * @param passagesInPrompt how many of the payload's passages the prompt budget kept
+     * @param ruleParameters the key and value of every Rule Parameter valid at the turn's as-of date
      */
-    public static NumberLedger of(String userText, PromptPayload payload, int passagesInPrompt,
-            Map<String, BigDecimal> ruleParameters) {
+    public static NumberLedger of(String userText, PromptPayload payload, int droppedHistoryTurns,
+            int passagesInPrompt, Map<String, BigDecimal> ruleParameters) {
         NumberLedger ledger = EMPTY;
         for (Map.Entry<String, BigDecimal> parameter : ruleParameters.entrySet()) {
             ledger = ledger.with(Source.RULE_PARAMETER, parameter.getKey(), List.of(parameter.getValue()));
         }
         ledger = ledger.with(Source.USER, "numbers in the user's message", NumberParser.numbersIn(userText));
-        for (PromptPayload.HistoryTurn turn : payload.history()) {
+        List<PromptPayload.HistoryTurn> history = payload.history();
+        for (PromptPayload.HistoryTurn turn : history.subList(Math.min(Math.max(0, droppedHistoryTurns),
+                history.size()), history.size())) {
             ledger = ledger.with(Source.USER, "numbers in an earlier user message",
                     NumberParser.numbersIn(turn.userText()));
         }
@@ -88,8 +91,9 @@ public record NumberLedger(List<Entry> entries) {
         if (value instanceof List<?> list) {
             return list.stream().map(NumberLedger::flatten).collect(Collectors.joining(" ; "));
         }
-        if (value instanceof BigDecimal number) {
-            return number.toPlainString();
+        if (value instanceof Number number) {
+            // plain digits: a Double's "1.0E7" would parse as 1.0 and 7
+            return new BigDecimal(number.toString()).toPlainString();
         }
         return value == null ? "" : value.toString();
     }

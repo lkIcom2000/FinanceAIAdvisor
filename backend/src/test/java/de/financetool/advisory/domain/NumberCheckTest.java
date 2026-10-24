@@ -45,6 +45,10 @@ class NumberCheckTest {
         assertThat(result.checkId()).isEqualTo(CheckId.NUMBER_MATCH);
         assertThat(result.applicable()).isTrue();
         assertThat(result.passed()).isEqualTo(c.get("passed"));
+        if (c.containsKey("experimentPassed")) {
+            assertThat(c.get("experimentPassed")).as("a deviation differs from the experiment")
+                    .isEqualTo(!(Boolean) c.get("passed"));
+        }
         assertThat(result.reasonCode()).isEqualTo((Boolean) c.get("passed") ? "" : "number_mismatch");
         assertThat(result.details().get("checked")).isEqualTo(c.get("checked"));
         List<Map<String, Object>> mismatches = (List<Map<String, Object>>) result.details().get("mismatches");

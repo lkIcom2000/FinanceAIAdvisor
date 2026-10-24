@@ -72,7 +72,7 @@ development_status:
   3-3-deterministic-classification-of-every-message: done  # end 2026-10-23; block A review (3.1+3.3, four layers), 9 fixes; ports experiments/finlab nlu+classify at b72a70e
   3-4-check-chain-rule-engine-and-compliance-levels: done  # [code-review] Check Chain; end 2026-10-23; 4-layer review, 10 fixes; E1 applied (retrieval off)
   3-5-hand-over-to-a-human-advisor-when-the-answer-is-blocked: review
-  3-6-numbers-only-from-the-deterministic-core-the-number-check: backlog  # [code-review] Number Check
+  3-6-numbers-only-from-the-deterministic-core-the-number-check: done  # [code-review] Number Check
   3-7-calculated-answers-with-parameter-proposal-and-figure-chips: backlog
   3-8-transparent-refusals-trap-detection-and-injection-resistance: backlog  # [code-review] injection resistance (Epic 1 A6, Commc 2026-10-22)
   3-9-block-only-judge-under-a-b-c: backlog  # [depends-on E3] check E3 result first; reserve item 1: only if E3 selects A+B+C

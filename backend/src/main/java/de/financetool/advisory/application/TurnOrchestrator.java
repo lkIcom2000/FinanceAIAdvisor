@@ -166,8 +166,8 @@ public class TurnOrchestrator {
                 instruction.fileName(), instruction.hash());
         Map<String, BigDecimal> parameters = new LinkedHashMap<>();
         ruleParameters.allValid(context.asOf()).forEach(p -> parameters.put(p.key(), p.value()));
-        int passagesInPrompt = Math.max(0, payload.passages().size() - phrasing.droppedPassages());
-        NumberLedger ledger = NumberLedger.of(turn.userText(), payload, passagesInPrompt, parameters);
+        NumberLedger ledger = NumberLedger.of(turn.userText(), payload, phrasing.droppedHistoryTurns(),
+                passagesInPrompt(payload, phrasing), parameters);
         return turn.withPrompt(new TurnState.Prompt(payload, phrasing, new TreeMap<>(hashes), ledger))
                 .ran(TurnStage.EXPOSURE_FILTER);
     }
@@ -293,7 +293,11 @@ public class TurnOrchestrator {
      * none means no valid source, also when the budget dropped every retrieved passage.
      */
     static int passagesInPrompt(TurnState turn) {
-        return Math.max(0, turn.prompt().payload().passages().size() - turn.prompt().phrasing().droppedPassages());
+        return passagesInPrompt(turn.prompt().payload(), turn.prompt().phrasing());
+    }
+
+    private static int passagesInPrompt(PromptPayload payload, PhrasingPrompt phrasing) {
+        return Math.max(0, payload.passages().size() - phrasing.droppedPassages());
     }
 
     /** The domain's compliance level for the configured one; exhaustive, so a new level does not compile unmapped. */
