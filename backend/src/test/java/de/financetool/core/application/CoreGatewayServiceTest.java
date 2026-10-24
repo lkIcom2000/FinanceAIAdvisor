@@ -43,9 +43,9 @@ class CoreGatewayServiceTest {
                         LocalDate.of(2025, 7, 1), new BigDecimal("100.00"), new BigDecimal("100.00"))),
                 List.of(), List.of(), List.of(), List.of());
         List<EvidenceItem> stored = new ArrayList<>();
-        RuleParamPort refusing = (key, asOf) -> {
+        RuleParamPort refusing = port((key, asOf) -> {
             throw new IllegalStateException("No version of Rule Parameter " + key + " is valid on " + asOf);
-        };
+        });
         CoreGatewayService gateway = new CoreGatewayService((persona, asOf) -> snapshot, stored::addAll, refusing,
                 Optional::empty);
 
@@ -61,8 +61,23 @@ class CoreGatewayServiceTest {
             "projection_inflation", "0.02", "projection_default_horizon_years", "30",
             "forecast_variable_spending_band", "0.15", "emergency_fund_months_min", "3",
             "emergency_fund_months_max", "6");
-    static final RuleParamPort PARAMETERS = (key, asOf) -> new RuleParameter(key,
-            new BigDecimal(PROJECTION_PARAMETERS.get(key)), "FRACTION", LocalDate.of(2020, 1, 1), null, "test", "1");
+    static final RuleParamPort PARAMETERS = port((key, asOf) -> new RuleParameter(key,
+            new BigDecimal(PROJECTION_PARAMETERS.get(key)), "FRACTION", LocalDate.of(2020, 1, 1), null, "test", "1"));
+
+    /** A Rule Parameter port answering {@code valid} with {@code valid}; the gateway never lists all parameters. */
+    static RuleParamPort port(java.util.function.BiFunction<String, LocalDate, RuleParameter> valid) {
+        return new RuleParamPort() {
+            @Override
+            public RuleParameter valid(String key, LocalDate asOf) {
+                return valid.apply(key, asOf);
+            }
+
+            @Override
+            public List<RuleParameter> allValid(LocalDate asOf) {
+                throw new UnsupportedOperationException();
+            }
+        };
+    }
 
     static BankSnapshot withHolding(boolean holding) {
         UUID depot = UUID.randomUUID();

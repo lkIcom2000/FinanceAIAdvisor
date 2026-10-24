@@ -19,7 +19,9 @@ import de.financetool.advisory.domain.Classification;
 import de.financetool.advisory.domain.EntityRegistry;
 import de.financetool.advisory.domain.ExposureFilter;
 import de.financetool.advisory.domain.MessageClass;
+import de.financetool.advisory.domain.HandoverReason;
 import de.financetool.advisory.domain.NluExtraction;
+import de.financetool.advisory.domain.NumberLedger;
 import de.financetool.advisory.domain.NoValidSource;
 import de.financetool.advisory.domain.PhrasingPrompt;
 import de.financetool.advisory.domain.Premise;
@@ -28,6 +30,8 @@ import de.financetool.advisory.domain.PromptPayload;
 import de.financetool.advisory.domain.ResponseOutcome;
 import de.financetool.advisory.domain.ResponseTemplates;
 import de.financetool.escalation.EscalationCases;
+import de.financetool.knowledge.RuleParamPort;
+import de.financetool.knowledge.RuleParameter;
 import de.financetool.advisory.domain.TurnStage;
 import de.financetool.advisory.domain.TurnState;
 import de.financetool.audit.AuditEntry;
@@ -62,7 +66,8 @@ import org.mockito.InOrder;
 /**
  * AR6: the fixed stage order, the explicit pass-throughs and what the release writes (Story 3.1); the exposure
  * stage, the phrasing prompt and its budget (Story 3.2); NLU, classification, class instruction and the
- * no-valid-source rule (Story 3.3); the case an {@code ESCALATE} turn opens for a human advisor (Story 3.5).
+ * no-valid-source rule (Story 3.3); the case an {@code ESCALATE} turn opens for a human advisor (Story 3.5); the Number Check against the turn's
+ * ledger (Story 3.6).
  */
 class TurnOrchestratorTest {
 
@@ -79,9 +84,11 @@ class TurnOrchestratorTest {
     final EntityRegistry registry = new EntityRegistry(Map.of("laws_and_regulations", List.of("MiFID II")), List.of(),
             List.of());
     final EscalationCases escalations = mock(EscalationCases.class);
+    final RuleParamPort ruleParameters = mock(RuleParamPort.class);
     ProfileCompleteness profile = ProfileCompleteness.INCOMPLETE;
     final TurnOrchestrator orchestrator = new TurnOrchestrator(chats, prompts, llm, audit, evidence, nluExtractor,
-            registry, (stored, stated, topic) -> profile.check(stored, stated, topic), escalations);
+            registry, (stored, stated, topic) -> profile.check(stored, stated, topic), escalations,
+            ruleParameters);
 
     final PersonaScope scope = new PersonaScope(TestContexts.LENA);
     final RequestContext context = TestContexts.context();
@@ -192,7 +199,7 @@ class TurnOrchestratorTest {
         assertThat(body.passThroughStages()).doesNotContain(TurnStage.BLOCK_ROUTING);
         assertThat(body.route()).isEqualTo("released");
         assertThat(answer.checks()).extracting(ChatMessage.Check::id).containsExactly(CheckId.SCOPE,
-                CheckId.NO_PRODUCT_NAMING, CheckId.NO_GUARANTEE_OR_TIMING);
+                CheckId.NO_PRODUCT_NAMING, CheckId.NO_GUARANTEE_OR_TIMING, CheckId.NUMBER_MATCH);
         assertThat(answer.checks()).allMatch(ChatMessage.Check::passed);
         assertThat(sentMessages().get(0).content())
                 .isEqualTo("ROLE\n\nRULES\n\nCLASS REFUSE_OUT_OF_SCOPE derivative or certificate");
@@ -383,7 +390,7 @@ class TurnOrchestratorTest {
         PromptPayload payload = ExposureFilter.apply(ExposureFilter.Level.AGGREGATED, "q", null, List.of(),
                 Map.of(), "", passages);
         return turn.withPrompt(new TurnState.Prompt(payload, PhrasingPrompt.build("R", "C", payload, numCtx, 700),
-                new java.util.TreeMap<>()));
+                new java.util.TreeMap<>(), NumberLedger.EMPTY));
     }
 
     @Test
@@ -473,7 +480,7 @@ class TurnOrchestratorTest {
                 .withClassification(inform)
                 .withPassages(passages)
                 .withPrompt(new TurnState.Prompt(payload, PhrasingPrompt.build("R", "C", payload, 4096, 700),
-                        new java.util.TreeMap<>()))
+                        new java.util.TreeMap<>(), NumberLedger.EMPTY))
                 .withDraft(new TurnState.Draft(draft, "m1", "d1", false));
     }
 
@@ -699,5 +706,85 @@ class TurnOrchestratorTest {
                 "iShares Core MSCI World is a good fit. Could you tell me your horizon?",
                 List.of("block_no_product_naming", "NO_PRODUCT_NAMING:product_named"), null));
         assertThat(auditBody().escalationCaseId()).isEqualTo(caseId);
+    }
+
+    /** An INFORM turn with Core results in the prompt and the given ledger. */
+    TurnState numberDraft(String draft, String toolResults, NumberLedger ledger) {
+        Classification inform = new Classification(MessageClass.INFORM, List.of(), List.of(), List.of(), List.of(),
+                "other");
+        PromptPayload payload = ExposureFilter.apply(ExposureFilter.Level.AGGREGATED, "q", null, List.of(),
+                Map.of(), toolResults, List.of());
+        return TurnState.start("q")
+                .withNlu(new TurnState.Nlu(NluExtraction.defaults(), List.of(), "m", "d", new java.util.TreeMap<>(),
+                        false, true))
+                .withClassification(inform)
+                .withPassages(List.of())
+                .withPrompt(new TurnState.Prompt(payload, PhrasingPrompt.build("R", "C", payload, 4096, 700),
+                        new java.util.TreeMap<>(), ledger))
+                .withDraft(new TurnState.Draft(draft, "m1", "d1", false));
+    }
+
+    static final NumberLedger CORE_522 = NumberLedger.EMPTY.with(NumberLedger.Source.CORE, "prov-1",
+            List.of(new java.math.BigDecimal("522")));
+
+    @Test
+    void aNumberMismatchIsRegeneratedOnceWithTheCoreResultsRestatedAndAFixedDraftIsReleased() {
+        when(llm.generate(eq(LlmRole.PHRASING), anyList(), eq(TestContexts.DECODING), isNull()))
+                .thenReturn(result("You can make 522 full withdrawals."));
+        TurnState released = stages7to10(with(ComplianceLevel.A_B, false),
+                numberDraft("You can make 523 full withdrawals.", "withdrawals: 522", CORE_522));
+
+        assertThat(sentMessages().get(3)).isEqualTo(LlmMessage.user("Your draft used numbers that are not in TOOL "
+                + "RESULTS, SOURCES or the user's message: 523. Use only the numbers from TOOL RESULTS, SOURCES or the "
+                + "user's message. Do not calculate. TOOL RESULTS (deterministic calculations; use these numbers "
+                + "exactly):\nwithdrawals: 522 Rewrite the whole answer."));
+        assertThat(released.checks().shadow().get(CheckId.NUMBER_MATCH).reasonCode()).isEqualTo("number_mismatch");
+        assertThat(released.checks().finalResults().get(CheckId.NUMBER_MATCH).passed()).isTrue();
+        assertThat(released.outcome()).isEqualTo(ResponseOutcome.INFORM);
+        assertThat(released.finalText()).isEqualTo("You can make 522 full withdrawals.");
+    }
+
+    @Test
+    void aSecondNumberMismatchEscalatesWithTheFiguresReasonWithoutAThirdCall() {
+        when(chats.conversation(scope)).thenReturn(conversation);
+        when(llm.generate(eq(LlmRole.PHRASING), anyList(), eq(TestContexts.DECODING), isNull()))
+                .thenReturn(result("You can make 524 full withdrawals."));
+        RequestContext enforcing = with(ComplianceLevel.A_B_C, false);
+        TurnState turn = stages7to10(enforcing, numberDraft("You can make 523 full withdrawals.", "", CORE_522));
+        ChatMessage answer = orchestrator.auditAndRelease(enforcing, scope, question, "fv-1", turn);
+
+        org.mockito.Mockito.verify(llm, org.mockito.Mockito.times(1)).generate(any(), anyList(), any(), any());
+        assertThat(answer.outcome()).isEqualTo(ResponseOutcome.ESCALATE);
+        assertThat(answer.handover().reason()).isEqualTo(HandoverReason.FIGURES_NOT_CONFIRMED.text());
+        ResponseAuditBody body = auditBody();
+        assertThat(body.route()).isEqualTo("number_mismatch_after_regeneration");
+        assertThat(body.regenerated()).isTrue();
+        assertThat(body.regenerationFix()).doesNotContain("TOOL RESULTS (");
+        assertThat(body.routedOnChecks()).filteredOn(c -> c.checkId() == CheckId.NUMBER_MATCH)
+                .allMatch(CheckResult::failed);
+    }
+
+    @Test
+    void underLevelATheShadowNumberCheckAndTheLedgerAreRecordedAndTheDraftIsReleased() {
+        when(ruleParameters.allValid(TestContexts.AS_OF)).thenReturn(List.of(new RuleParameter(
+                "emergency_fund_months_min", new java.math.BigDecimal("3"), "MONTHS",
+                java.time.LocalDate.of(2020, 1, 1), null, "test", "1")));
+        ChatMessage asked = new ChatMessage(UUID.randomUUID(), ChatMessage.Author.USER,
+                "I keep 1,000 EUR in cash. What is an ETF?", null, null);
+        ChatMessage answer = run(asked, "With 1,000 EUR and 3 months of costs, add 999 EUR.",
+                with(ComplianceLevel.A, false), false, NluExtraction.defaults());
+
+        assertThat(answer.text()).isEqualTo("With 1,000 EUR and 3 months of costs, add 999 EUR.");
+        org.mockito.Mockito.verify(llm, org.mockito.Mockito.times(1)).generate(any(), anyList(), any(), any());
+        ResponseAuditBody body = auditBody();
+        CheckResult shadow = body.shadowChecks().stream().filter(c -> c.checkId() == CheckId.NUMBER_MATCH)
+                .findFirst().orElseThrow();
+        assertThat(shadow.failed()).isTrue();
+        assertThat(shadow.details().get("checked")).isEqualTo(3);
+        assertThat(shadow.details().get("mismatches")).asString().contains("999").doesNotContain("1,000");
+        assertThat(body.numberLedger()).extracting(NumberLedger.Entry::source).contains(
+                NumberLedger.Source.RULE_PARAMETER, NumberLedger.Source.USER, NumberLedger.Source.EXPOSURE);
+        assertThat(body.numberLedger()).contains(new NumberLedger.Entry(new java.math.BigDecimal("3"),
+                NumberLedger.Source.RULE_PARAMETER, "emergency_fund_months_min"));
     }
 }

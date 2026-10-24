@@ -1,0 +1,344 @@
+[
+ {
+  "name": "integer from the Core",
+  "text": "You can make 522 full withdrawals.",
+  "sourced": [
+   "522"
+  ],
+  "passed": true,
+  "checked": 1,
+  "mismatches": []
+ },
+ {
+  "name": "integer not in the ledger",
+  "text": "You can make 523 full withdrawals.",
+  "sourced": [
+   "522"
+  ],
+  "passed": false,
+  "checked": 1,
+  "mismatches": [
+   {
+    "text": "523",
+    "value": "523",
+    "approximate": false
+   }
+  ]
+ },
+ {
+  "name": "percent as a fraction",
+  "text": "The return assumption is 4% a year.",
+  "sourced": [
+   "0.04"
+  ],
+  "passed": true,
+  "checked": 1,
+  "mismatches": []
+ },
+ {
+  "name": "percent with a decimal shown",
+  "text": "The return assumption is 4.0% a year.",
+  "sourced": [
+   "0.04"
+  ],
+  "passed": true,
+  "checked": 1,
+  "mismatches": []
+ },
+ {
+  "name": "wrong percent",
+  "text": "The return assumption is 5% a year.",
+  "sourced": [
+   "0.04"
+  ],
+  "passed": false,
+  "checked": 1,
+  "mismatches": [
+   {
+    "text": "5%",
+    "value": "5",
+    "approximate": false
+   }
+  ],
+  "experimentPassed": true
+ },
+ {
+  "name": "about within 5 percent",
+  "text": "That lasts about 530 months.",
+  "sourced": [
+   "522"
+  ],
+  "passed": true,
+  "checked": 1,
+  "mismatches": []
+ },
+ {
+  "name": "about beyond 5 percent",
+  "text": "That lasts about 560 months.",
+  "sourced": [
+   "522"
+  ],
+  "passed": false,
+  "checked": 1,
+  "mismatches": [
+   {
+    "text": "560",
+    "value": "560",
+    "approximate": true
+   }
+  ]
+ },
+ {
+  "name": "roughly with thousands",
+  "text": "You spend roughly 1,000 EUR a month.",
+  "sourced": [
+   "1040"
+  ],
+  "passed": true,
+  "checked": 1,
+  "mismatches": []
+ },
+ {
+  "name": "English format",
+  "text": "Your balance is 1,000.50 EUR.",
+  "sourced": [
+   "1000.5"
+  ],
+  "passed": true,
+  "checked": 1,
+  "mismatches": []
+ },
+ {
+  "name": "German format",
+  "text": "Your balance is 1.000,50 EUR.",
+  "sourced": [
+   "1000.5"
+  ],
+  "passed": true,
+  "checked": 1,
+  "mismatches": []
+ },
+ {
+  "name": "German thousands and decimals",
+  "text": "The fund holds 12.400,50 EUR.",
+  "sourced": [
+   "12400.5"
+  ],
+  "passed": true,
+  "checked": 1,
+  "mismatches": []
+ },
+ {
+  "name": "rounded to two decimals shown",
+  "text": "Your balance is EUR 1,234.57.",
+  "sourced": [
+   "1234.5678"
+  ],
+  "passed": true,
+  "checked": 1,
+  "mismatches": []
+ },
+ {
+  "name": "rounded to the integer shown",
+  "text": "Your balance is EUR 1,235.",
+  "sourced": [
+   "1234.5678"
+  ],
+  "passed": true,
+  "checked": 1,
+  "mismatches": []
+ },
+ {
+  "name": "wrongly rounded",
+  "text": "Your balance is EUR 1,234.56.",
+  "sourced": [
+   "1234.5678"
+  ],
+  "passed": false,
+  "checked": 1,
+  "mismatches": [
+   {
+    "text": "1,234.56",
+    "value": "1234.56",
+    "approximate": false
+   }
+  ]
+ },
+ {
+  "name": "half-even down",
+  "text": "That is 2 years.",
+  "sourced": [
+   "2.5"
+  ],
+  "passed": true,
+  "checked": 1,
+  "mismatches": []
+ },
+ {
+  "name": "half-even never up from an even neighbour",
+  "text": "That is 3 years.",
+  "sourced": [
+   "2.5"
+  ],
+  "passed": false,
+  "checked": 1,
+  "mismatches": [
+   {
+    "text": "3",
+    "value": "3",
+    "approximate": false
+   }
+  ]
+ },
+ {
+  "name": "German date excluded",
+  "text": "On 31.12.2026 the plan ends.",
+  "sourced": [],
+  "passed": true,
+  "checked": 0,
+  "mismatches": []
+ },
+ {
+  "name": "ISO date excluded",
+  "text": "On 2026-10-24 the plan started.",
+  "sourced": [],
+  "passed": true,
+  "checked": 0,
+  "mismatches": []
+ },
+ {
+  "name": "written date excluded",
+  "text": "The plan started on 3 March 2025.",
+  "sourced": [],
+  "passed": true,
+  "checked": 0,
+  "mismatches": []
+ },
+ {
+  "name": "list positions excluded",
+  "text": "1. Build an emergency fund\n2. Start a savings plan",
+  "sourced": [],
+  "passed": true,
+  "checked": 0,
+  "mismatches": []
+ },
+ {
+  "name": "article number excluded",
+  "text": "Under Article 25 MiFID II the bank checks suitability.",
+  "sourced": [],
+  "passed": true,
+  "checked": 0,
+  "mismatches": []
+ },
+ {
+  "name": "paragraph sign excluded",
+  "text": "See § 34 of the act.",
+  "sourced": [],
+  "passed": true,
+  "checked": 0,
+  "mismatches": []
+ },
+ {
+  "name": "negative matches the absolute value",
+  "text": "A drop of -5% is possible.",
+  "sourced": [
+   "0.05"
+  ],
+  "passed": true,
+  "checked": 1,
+  "mismatches": []
+ },
+ {
+  "name": "million multiplier",
+  "text": "The pool holds 1.5 million EUR.",
+  "sourced": [
+   "1500000"
+  ],
+  "passed": true,
+  "checked": 1,
+  "mismatches": []
+ },
+ {
+  "name": "k multiplier",
+  "text": "A 50k emergency fund.",
+  "sourced": [
+   "50000"
+  ],
+  "passed": true,
+  "checked": 1,
+  "mismatches": []
+ },
+ {
+  "name": "German decimal percent",
+  "text": "The fee is 2,5 % a year.",
+  "sourced": [
+   "0.025"
+  ],
+  "passed": true,
+  "checked": 1,
+  "mismatches": []
+ },
+ {
+  "name": "about zero",
+  "text": "That costs about 0 EUR.",
+  "sourced": [
+   "0"
+  ],
+  "passed": true,
+  "checked": 1,
+  "mismatches": []
+ },
+ {
+  "name": "fraction shown as percent of a sourced fraction",
+  "text": "The band is 15 percent.",
+  "sourced": [
+   "0.15"
+  ],
+  "passed": true,
+  "checked": 1,
+  "mismatches": []
+ },
+ {
+  "name": "several numbers, one unsourced",
+  "text": "You get 522 payments of 2,000 EUR and a final one of 900 EUR in 3 steps.",
+  "sourced": [
+   "522",
+   "2000",
+   "3"
+  ],
+  "passed": false,
+  "checked": 4,
+  "mismatches": [
+   {
+    "text": "900",
+    "value": "900",
+    "approximate": false
+   }
+  ]
+ },
+ {
+  "name": "small percent against an unrelated fraction",
+  "text": "The fee is 1% a year.",
+  "sourced": [
+   "0.15"
+  ],
+  "passed": false,
+  "checked": 1,
+  "mismatches": [
+   {
+    "text": "1%",
+    "value": "1",
+    "approximate": false
+   }
+  ],
+  "experimentPassed": true
+ },
+ {
+  "name": "no numbers",
+  "text": "An ETF is a fund that tracks an index.",
+  "sourced": [],
+  "passed": true,
+  "checked": 0,
+  "mismatches": []
+ }
+]

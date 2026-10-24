@@ -56,6 +56,9 @@ class YamlRuleParametersTest {
         assertThatThrownBy(() -> parameters.valid("k", AS_OF)).isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("No version of Rule Parameter k is valid on 2026-10-15");
         assertThatThrownBy(() -> parameters.valid("unknown", AS_OF)).isInstanceOf(IllegalStateException.class);
+        assertThat(parameters.allValid(LocalDate.of(2027, 1, 1))).extracting(RuleParameter::version)
+                .containsExactly("2");
+        assertThat(parameters.allValid(AS_OF)).isEmpty();
     }
 
     @Test

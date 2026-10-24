@@ -249,7 +249,7 @@ class CheckChainEndToEndTest extends PostgresIntegrationTest {
 
         assertThat(t.answer()).containsEntry("outcome", "ASK_PROFILE").containsEntry("text", draft);
         assertThat(t.checks()).extracting(c -> c.get("id")).containsExactly("SCOPE", "PROFILE_COMPLETE",
-                "NO_PRODUCT_NAMING", "NO_GUARANTEE_OR_TIMING");
+                "NO_PRODUCT_NAMING", "NO_GUARANTEE_OR_TIMING", "NUMBER_MATCH");
         assertThat(t.checks()).allSatisfy(c -> assertThat(c).containsEntry("passed", true));
         assertThat(t.checks().getFirst())
                 .containsEntry("description", CheckId.SCOPE.description());

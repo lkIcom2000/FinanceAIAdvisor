@@ -11,9 +11,13 @@ import java.util.stream.Collectors;
  * The Rule Engine's targeted instruction for the one regeneration (stage 8 of {@code run_turn} in
  * {@code experiments/finlab/pipeline.py}, verbatim): repairable failures are a failed {@code NUMBER_MATCH} and a
  * {@code SOURCE_VALIDITY} with a missing or invalid citation. Any other failure goes straight to block routing.
+ *
+ * <p>Deviation: with Core results in the prompt, the number fix restates them under the experiment's
+ * {@code TOOL RESULTS} header (FR-52: "regenerated with the Core results restated").
  */
 public final class RegenerationFix {
 
+    static final String TOOL_RESULTS_HEADER = "TOOL RESULTS (deterministic calculations; use these numbers exactly):";
     static final Set<String> REPAIRABLE_SOURCE_CODES = Set.of("missing_citation", "invalid_citation");
 
     private RegenerationFix() {
@@ -25,12 +29,25 @@ public final class RegenerationFix {
      * @return the fix sent as the user's next message, empty if no failure is repairable
      */
     public static Optional<String> of(List<CheckResult> failed, int passagesInPrompt) {
+        return of(failed, passagesInPrompt, "");
+    }
+
+    /**
+     * @param failed the applicable checks that did not pass on the first draft
+     * @param passagesInPrompt the passages the phrasing prompt holds, the valid citation range
+     * @param toolResults the Core results in the prompt as text, empty without any
+     * @return the fix sent as the user's next message, empty if no failure is repairable
+     */
+    public static Optional<String> of(List<CheckResult> failed, int passagesInPrompt, String toolResults) {
         List<String> fixes = new ArrayList<>();
         for (CheckResult f : failed) {
             if (f.checkId() == CheckId.NUMBER_MATCH) {
                 fixes.add("Your draft used numbers that are not in TOOL RESULTS, SOURCES or the user's message: "
                         + mismatches(f) + ". Use only the numbers from TOOL RESULTS, SOURCES or the user's message. "
                         + "Do not calculate.");
+                if (!toolResults.isBlank()) {
+                    fixes.add(TOOL_RESULTS_HEADER + "\n" + toolResults.strip());
+                }
             } else if (f.checkId() == CheckId.SOURCE_VALIDITY && REPAIRABLE_SOURCE_CODES.contains(f.reasonCode())) {
                 fixes.add("Base the explanation on the SOURCES and cite each source you use as [S1] to [S"
                         + passagesInPrompt + "]. If the SOURCES do not cover the question, say so.");

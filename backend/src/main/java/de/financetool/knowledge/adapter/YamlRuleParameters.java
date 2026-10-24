@@ -53,6 +53,11 @@ class YamlRuleParameters implements RuleParamPort {
                         + " is valid on " + asOf));
     }
 
+    @Override
+    public List<RuleParameter> allValid(LocalDate asOf) {
+        return parameters.stream().filter(p -> p.isValidAt(asOf)).toList();
+    }
+
     static List<RuleParameter> load(Path file) {
         Object root;
         try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {

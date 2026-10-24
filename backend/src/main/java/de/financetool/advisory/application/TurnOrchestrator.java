@@ -14,6 +14,7 @@ import de.financetool.advisory.domain.ComponentFlags;
 import de.financetool.advisory.domain.EntityRegistry;
 import de.financetool.advisory.domain.ExposureFilter;
 import de.financetool.advisory.domain.NoValidSource;
+import de.financetool.advisory.domain.NumberLedger;
 import de.financetool.advisory.domain.PhrasingPrompt;
 import de.financetool.advisory.domain.Premise;
 import de.financetool.advisory.domain.ProfileCompleteness;
@@ -29,6 +30,7 @@ import de.financetool.audit.AuditWriter;
 import de.financetool.audit.EvidenceItem;
 import de.financetool.audit.EvidenceStore;
 import de.financetool.escalation.EscalationCases;
+import de.financetool.knowledge.RuleParamPort;
 import de.financetool.llm.LlmMessage;
 import de.financetool.llm.LlmPort;
 import de.financetool.llm.LlmResult;
@@ -38,7 +40,9 @@ import de.financetool.shared.RequestContext;
 import de.financetool.shared.config.AgentConfiguration;
 import de.financetool.shared.config.ComplianceLevel;
 import de.financetool.shared.config.DataExposureLevel;
+import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -69,10 +73,11 @@ public class TurnOrchestrator {
     private final EntityRegistry registry;
     private final ProfileCompleteness completeness;
     private final EscalationCases escalations;
+    private final RuleParamPort ruleParameters;
 
     TurnOrchestrator(ChatRepository chats, PromptFiles prompts, LlmPort llm, AuditWriter audit,
             EvidenceStore evidence, NluExtractor nluExtractor, EntityRegistry registry,
-            ProfileCompleteness completeness, EscalationCases escalations) {
+            ProfileCompleteness completeness, EscalationCases escalations, RuleParamPort ruleParameters) {
         this.chats = chats;
         this.prompts = prompts;
         this.llm = llm;
@@ -82,6 +87,7 @@ public class TurnOrchestrator {
         this.registry = registry;
         this.completeness = completeness;
         this.escalations = escalations;
+        this.ruleParameters = ruleParameters;
     }
 
     /** Runs the turn for the saved user message {@code question} and releases the agent message. */
@@ -140,7 +146,8 @@ public class TurnOrchestrator {
     /**
      * Applies the Data Exposure Level to the message, the last released turns, the profile context and the Core
      * results, and fits the phrasing prompt into the context budget (FR-43, FR-45, AD-5); the system part ends with
-     * the class instruction. No Core results, passages or profile exist yet: those inputs stay empty.
+     * the class instruction. No Core results, passages or profile exist yet: those inputs stay empty. The turn's
+     * {@link NumberLedger} is built from the same inputs plus the Rule Parameters valid at the as-of date.
      */
     TurnState exposureFilter(RequestContext context, PersonaScope scope, ChatMessage question, TurnState turn) {
         AgentConfiguration agent = context.agentConfig();
@@ -157,7 +164,11 @@ public class TurnOrchestrator {
                 agent.decoding().numCtx(), agent.decoding().numPredict());
         Map<String, String> hashes = Map.of(rolePrompt.fileName(), rolePrompt.hash(), rules.fileName(), rules.hash(),
                 instruction.fileName(), instruction.hash());
-        return turn.withPrompt(new TurnState.Prompt(payload, phrasing, new TreeMap<>(hashes)))
+        Map<String, BigDecimal> parameters = new LinkedHashMap<>();
+        ruleParameters.allValid(context.asOf()).forEach(p -> parameters.put(p.key(), p.value()));
+        int passagesInPrompt = Math.max(0, payload.passages().size() - phrasing.droppedPassages());
+        NumberLedger ledger = NumberLedger.of(turn.userText(), payload, passagesInPrompt, parameters);
+        return turn.withPrompt(new TurnState.Prompt(payload, phrasing, new TreeMap<>(hashes), ledger))
                 .ran(TurnStage.EXPOSURE_FILTER);
     }
 
@@ -208,7 +219,8 @@ public class TurnOrchestrator {
         if (checks.flags().shadowMode() || RULE_PARAMETER_ERROR) {
             return turn.ran(TurnStage.RULE_ENGINE);
         }
-        Optional<String> fix = RegenerationFix.of(checks.shadow().failed(), passagesInPrompt(turn));
+        Optional<String> fix = RegenerationFix.of(checks.shadow().failed(), passagesInPrompt(turn),
+                turn.prompt().payload().toolResults());
         if (fix.isEmpty()) {
             return turn.ran(TurnStage.RULE_ENGINE);
         }
@@ -267,11 +279,13 @@ public class TurnOrchestrator {
     }
 
     /**
-     * What the Check Chain needs besides the text; no Core category selection exists yet (Epic 6).
+     * What the Check Chain needs besides the text, with the turn's ledger for the Number Check; no Core category
+     * selection exists yet (Epic 6).
      * {@code SOURCE_VALIDITY} applies only with retrieval on, as in the experiment.
      */
     private static CheckChain.Facts facts(TurnState turn, boolean retrievalOn) {
-        return CheckChain.Facts.of(turn.classification(), turn.userText(), null, retrievalOn, passagesInPrompt(turn));
+        return CheckChain.Facts.of(turn.classification(), turn.userText(), null, retrievalOn, passagesInPrompt(turn),
+                turn.prompt().ledger());
     }
 
     /**
@@ -340,7 +354,7 @@ public class TurnOrchestrator {
                         context.agentConfig().dataExposure(), prompt.payload().messageWithheld(), draft.text(),
                         released.finalText(), regeneration != null, regeneration == null ? null : regeneration.fix(),
                         regeneration == null ? null : regeneration.text(), context.agentConfig().compliance().value(),
-                        released.passThroughStages())));
+                        released.passThroughStages(), prompt.ledger().entries())));
         return answer;
     }
 

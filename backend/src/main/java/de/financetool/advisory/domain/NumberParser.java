@@ -10,8 +10,8 @@ import java.util.regex.Pattern;
 /**
  * The number parsing of {@code experiments/finlab/numbercheck.py} ({@code parse_numbers}, {@code _to_decimal},
  * {@code numbers_in}), ported verbatim. Dates, years, citation markers, ISINs, list positions and reference numbers
- * (article, paragraph, ...) are masked; English (1,000.50) and German (1.000,50) formats are both parsed. The Number
- * Check itself (matching against the Evidence ledger) is Story 3.6.
+ * (article, paragraph, ...) are masked; English (1,000.50) and German (1.000,50) formats are both parsed. {@link NumberCheck}
+ * matches the numbers against the turn's {@link NumberLedger}.
  */
 public final class NumberParser {
 

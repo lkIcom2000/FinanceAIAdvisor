@@ -16,8 +16,7 @@ import java.util.regex.Pattern;
  * The deterministic Check Chain (FR-10 to FR-16, FR-25, FR-27; AD-6): a verbatim port of {@code run_checks} of
  * {@code experiments/finlab/checks.py} at {@code b72a70e} (regexes, word lists, reason codes, details), pure.
  *
- * <p>Differences to the experiment, by the spec: {@code NUMBER_MATCH} is not applicable until the Number Check
- * exists (Story 3.6); {@code FALSE_PREMISE} and {@code ROLE_INTEGRITY} are not part of the closed {@link CheckId} set; {@code IDD_NEEDS} uses the word boundaries
+ * <p>Differences to the experiment, by the spec: {@code FALSE_PREMISE} and {@code ROLE_INTEGRITY} are not part of the closed {@link CheckId} set; {@code IDD_NEEDS} uses the word boundaries
  * the experiment meant (see {@link #TARIFF}); {@code DOCUMENTATION} is not applicable without a Core category
  * selection; {@code SOURCE_VALIDITY} applies only with retrieval on, as in the experiment.
  */
@@ -106,9 +105,11 @@ public final class CheckChain {
      * @param retrievalOn whether the configuration turns retrieval on; {@code SOURCE_VALIDITY} applies only then
      * @param passagesInPrompt the passages the phrasing prompt holds after the budget ({@code len(passages_used)}):
      *     none means no valid source, otherwise the citations' valid range
+     * @param sourced the values of the turn's {@link NumberLedger}, for {@code NUMBER_MATCH}
      */
     public record Facts(MessageClass messageClass, String userMessage, boolean profileOk, Map<String, Object> category,
-            String topic, List<String> outOfScope, boolean retrievalOn, int passagesInPrompt) {
+            String topic, List<String> outOfScope, boolean retrievalOn, int passagesInPrompt,
+            List<BigDecimal> sourced) {
 
         public Facts {
             Objects.requireNonNull(messageClass, "messageClass");
@@ -116,14 +117,16 @@ public final class CheckChain {
             topic = topic == null ? "" : topic;
             outOfScope = List.copyOf(outOfScope);
             passagesInPrompt = Math.max(0, passagesInPrompt);
+            sourced = List.copyOf(sourced);
         }
 
         /** The facts of a classified turn, as the experiment's pipeline passes them. */
         public static Facts of(Classification classification, String userMessage, Map<String, Object> category,
-                boolean retrievalOn, int passagesInPrompt) {
+                boolean retrievalOn, int passagesInPrompt, NumberLedger ledger) {
             return new Facts(classification.messageClass(), userMessage,
                     classification.messageClass() == MessageClass.RECOMMEND_CATEGORY, category,
-                    classification.topic(), classification.outOfScope(), retrievalOn, passagesInPrompt);
+                    classification.topic(), classification.outOfScope(), retrievalOn, passagesInPrompt,
+                    ledger.values());
         }
     }
 
@@ -253,8 +256,8 @@ public final class CheckChain {
         boolean docApplies = rec && facts.category() != null;
         res.add(new CheckResult(CheckId.DOCUMENTATION, docApplies, true, "", Map.of()));
 
-        // NUMBER_MATCH: the Number Check is Story 3.6
-        res.add(CheckResult.notApplicable(CheckId.NUMBER_MATCH));
+        // NUMBER_MATCH: every number in the text is in the turn's ledger
+        res.add(NumberCheck.check(text, facts.sourced()));
 
         // SOURCE_VALIDITY: explanations cite only provided passages (only with retrieval on)
         if (facts.retrievalOn() && cls == MessageClass.INFORM) {

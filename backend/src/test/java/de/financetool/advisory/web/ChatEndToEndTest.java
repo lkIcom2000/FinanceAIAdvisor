@@ -115,7 +115,7 @@ class ChatEndToEndTest extends PostgresIntegrationTest {
                 .andExpect(jsonPath("$.suggestions.length()").value(0))
                 .andExpect(jsonPath("$.checks[0].id").value("SCOPE"))
                 .andExpect(jsonPath("$.checks[0].passed").value(true))
-                .andExpect(jsonPath("$.checks.length()").value(3))
+                .andExpect(jsonPath("$.checks.length()").value(4))
                 .andExpect(jsonPath("$.replyTo").value(questionId)));
         String turnId = JsonPath.read(answer, "$.id");
 
@@ -247,7 +247,8 @@ class ChatEndToEndTest extends PostgresIntegrationTest {
     void theHistoryIsTheLastThreeReleasedTurnsWithoutUnansweredQuestions() throws Exception {
         MockHttpSession jonas = login(mvc, "p-jonas");
         for (int i = 1; i <= 5; i++) {
-            turn(jonas, "question " + i, "answer " + i);
+            // digit-free answers: "question 4" is a reference, not a sourced number, for the Number Check
+            turn(jonas, "question " + i, "answer " + (char) ('a' + i - 1));
         }
         ask(jonas, "unanswered question");
 
@@ -255,9 +256,9 @@ class ChatEndToEndTest extends PostgresIntegrationTest {
 
         String user = lastUserPart();
         assertThat(user).contains("EARLIER CONVERSATION (oldest first):\n"
-                + "Customer: question 3\nAssistant: answer 3\n"
-                + "Customer: question 4\nAssistant: answer 4\n"
-                + "Customer: question 5\nAssistant: answer 5\n\n"
+                + "Customer: question 3\nAssistant: answer c\n"
+                + "Customer: question 4\nAssistant: answer d\n"
+                + "Customer: question 5\nAssistant: answer e\n\n"
                 + "<user_message>\ncurrent question\n</user_message>")
                 .doesNotContain("question 2").doesNotContain("unanswered");
     }

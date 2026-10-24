@@ -69,13 +69,16 @@ public record TurnState(
      * @param payload what the exposure filter let through
      * @param phrasing the system and user parts within the budget
      * @param promptHashes file name of each prompt file in the system part to the sha256 of its LF bytes
+     * @param ledger every number the turn has a source for; the Number Check matches the draft against it
      */
-    public record Prompt(PromptPayload payload, PhrasingPrompt phrasing, SortedMap<String, String> promptHashes) {
+    public record Prompt(PromptPayload payload, PhrasingPrompt phrasing, SortedMap<String, String> promptHashes,
+            NumberLedger ledger) {
 
         public Prompt {
             Objects.requireNonNull(payload, "payload");
             Objects.requireNonNull(phrasing, "phrasing");
             promptHashes = Collections.unmodifiableSortedMap(new TreeMap<>(promptHashes));
+            Objects.requireNonNull(ledger, "ledger");
         }
     }
 

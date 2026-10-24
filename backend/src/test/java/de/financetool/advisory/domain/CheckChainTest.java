@@ -26,7 +26,7 @@ import tools.jackson.databind.json.JsonMapper;
 class CheckChainTest {
 
     static final JsonMapper JSON = JsonMapper.builder().build();
-    static final Set<CheckId> IMPLEMENTED = EnumSet.complementOf(EnumSet.of(CheckId.NUMBER_MATCH));
+    static final Set<CheckId> IMPLEMENTED = EnumSet.allOf(CheckId.class);
 
     record Case(String name, String text, MessageClass messageClass, String user, String topic, List<String> oos,
             boolean retrieval, int retrieved, Map<String, Object> category) {
@@ -62,7 +62,7 @@ class CheckChainTest {
 
     static ChainResult run(Case c) {
         return CheckChain.run(c.text(), new CheckChain.Facts(c.messageClass(), c.user(),
-                c.messageClass() == MessageClass.RECOMMEND_CATEGORY, c.category(), c.topic(), c.oos(), c.retrieval(), c.retrieved()));
+                c.messageClass() == MessageClass.RECOMMEND_CATEGORY, c.category(), c.topic(), c.oos(), c.retrieval(), c.retrieved(), List.of()));
     }
 
     static Stream<Arguments> goldenCases() {
@@ -114,13 +114,18 @@ class CheckChainTest {
     }
 
     @Test
-    void theNumberCheckIsNotApplicableUntilStory36() {
-        cases().stream().map(CheckChainTest::run).forEach(r -> assertThat(r.get(CheckId.NUMBER_MATCH))
-                .isEqualTo(CheckResult.notApplicable(CheckId.NUMBER_MATCH)));
+    void theNumberCheckAppliesToEveryTextAgainstTheSourcedValues() {
+        CheckChain.Facts facts = new CheckChain.Facts(MessageClass.INFORM, "", false, null, "other", List.of(), false,
+                0, List.of(new java.math.BigDecimal("522")));
+        assertThat(CheckChain.run("You get 522 withdrawals.", facts).get(CheckId.NUMBER_MATCH).passed()).isTrue();
+        CheckResult mismatch = CheckChain.run("You get 523 withdrawals.", facts).get(CheckId.NUMBER_MATCH);
+        assertThat(mismatch.applicable()).isTrue();
+        assertThat(mismatch.reasonCode()).isEqualTo("number_mismatch");
+        assertThat(CheckChain.run("An ETF is a fund.", facts).get(CheckId.NUMBER_MATCH).passed()).isTrue();
     }
 
     static CheckResult idd(String text, String topic) {
-        return CheckChain.run(text, new CheckChain.Facts(MessageClass.INFORM, "", false, null, topic, List.of(), true, 1))
+        return CheckChain.run(text, new CheckChain.Facts(MessageClass.INFORM, "", false, null, topic, List.of(), true, 1, List.of()))
                 .get(CheckId.IDD_NEEDS);
     }
 
@@ -146,21 +151,21 @@ class CheckChainTest {
     @Test
     void sourceValidityChecksCitationsAgainstThePassagesInThePrompt() {
         CheckChain.Facts droppedByBudget =
-                new CheckChain.Facts(MessageClass.INFORM, "q", false, null, "other", List.of(), true, 1);
+                new CheckChain.Facts(MessageClass.INFORM, "q", false, null, "other", List.of(), true, 1, List.of());
         assertThat(CheckChain.run("Answer [S2].", droppedByBudget).get(CheckId.SOURCE_VALIDITY).reasonCode())
                 .isEqualTo("invalid_citation");
         assertThat(CheckChain.run("Answer [S1].", droppedByBudget).get(CheckId.SOURCE_VALIDITY).passed()).isTrue();
-        CheckChain.Facts none = new CheckChain.Facts(MessageClass.INFORM, "q", false, null, "other", List.of(), true, 0);
+        CheckChain.Facts none = new CheckChain.Facts(MessageClass.INFORM, "q", false, null, "other", List.of(), true, 0, List.of());
         assertThat(CheckChain.run("Answer [S1].", none).get(CheckId.SOURCE_VALIDITY).reasonCode())
                 .isEqualTo("no_valid_source");
-        CheckChain.Facts off = new CheckChain.Facts(MessageClass.INFORM, "q", false, null, "other", List.of(), false, 0);
+        CheckChain.Facts off = new CheckChain.Facts(MessageClass.INFORM, "q", false, null, "other", List.of(), false, 0, List.of());
         assertThat(CheckChain.run("Answer.", off).get(CheckId.SOURCE_VALIDITY))
                 .isEqualTo(CheckResult.notApplicable(CheckId.SOURCE_VALIDITY));
     }
 
     static CheckResult documentation(Map<String, Object> category) {
         return CheckChain.run("A broad equity ETF fits.", new CheckChain.Facts(MessageClass.RECOMMEND_CATEGORY, "",
-                true, category, "savings_plan", List.of(), false, 0)).get(CheckId.DOCUMENTATION);
+                true, category, "savings_plan", List.of(), false, 0, List.of())).get(CheckId.DOCUMENTATION);
     }
 
     @Test
@@ -169,13 +174,13 @@ class CheckChainTest {
         assertThat(documentation(Map.of("category", "equity_etf_broad")))
                 .satisfies(r -> assertThat(r.applicable()).isTrue()).satisfies(r -> assertThat(r.passed()).isTrue());
         assertThat(CheckChain.run("An ETF is a fund.", new CheckChain.Facts(MessageClass.INFORM, "", false,
-                Map.of("category", "x"), "other", List.of(), false, 0)).get(CheckId.DOCUMENTATION).applicable())
+                Map.of("category", "x"), "other", List.of(), false, 0, List.of())).get(CheckId.DOCUMENTATION).applicable())
                 .as("only recommendations").isFalse();
     }
 
     @Test
     void negativePassageCountsAreClampedToNone() {
-        assertThat(new CheckChain.Facts(MessageClass.INFORM, "", false, null, "other", List.of(), true, -2)
+        assertThat(new CheckChain.Facts(MessageClass.INFORM, "", false, null, "other", List.of(), true, -2, List.of())
                 .passagesInPrompt()).isZero();
     }
 

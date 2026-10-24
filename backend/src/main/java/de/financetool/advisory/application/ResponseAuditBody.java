@@ -5,6 +5,7 @@ import de.financetool.advisory.domain.CheckId;
 import de.financetool.advisory.domain.CheckResult;
 import de.financetool.advisory.domain.ComponentFlags;
 import de.financetool.advisory.domain.MessageClass;
+import de.financetool.advisory.domain.NumberLedger;
 import de.financetool.advisory.domain.ResponseOutcome;
 import de.financetool.advisory.domain.TurnStage;
 import de.financetool.shared.config.DataExposureLevel;
@@ -55,6 +56,7 @@ import java.util.UUID;
  * @param regeneratedText the regenerated text, before block routing
  * @param complianceLevel the configured level, e.g. {@code A+B+C}
  * @param passThroughStages the stages that ran as explicit pass-throughs, in pipeline order
+ * @param numberLedger the turn's sourced numbers (value, source, label) the Number Check matched against
  */
 record ResponseAuditBody(
         @JsonProperty("class") MessageClass messageClass,
@@ -97,5 +99,6 @@ record ResponseAuditBody(
         String regenerationFix,
         String regeneratedText,
         String complianceLevel,
-        List<TurnStage> passThroughStages) {
+        List<TurnStage> passThroughStages,
+        List<NumberLedger.Entry> numberLedger) {
 }
