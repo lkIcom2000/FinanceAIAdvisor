@@ -4,13 +4,13 @@ import java.util.List;
 
 /**
  * The fixed, pre-approved answers block routing releases instead of a draft: {@code TEMPLATES} of
- * {@code experiments/finlab/prompts.py}, verbatim. {@code ESCALATE} is the experiment's text until Story 3.5 brings
- * the handover card.
+ * {@code experiments/finlab/prompts.py}, verbatim, except {@code ESCALATE}: the handover card's text (UX-DR26,
+ * Story 3.5).
  */
 public final class ResponseTemplates {
 
-    public static final String ESCALATE = "I can't give you a reliable answer to this right now. I've passed your "
-            + "question to a human advisor of the bank, who will get back to you.";
+    public static final String ESCALATE = "Your question has been passed to a human advisor at your bank. You'll see "
+            + "their answer here in the chat.";
 
     static final String REFUSE_OUT_OF_SCOPE = "This is outside what I can advise on: {oos} are not part of this "
             + "service, because they carry risks that don't fit a basic advisory service for everyday savers. What I "

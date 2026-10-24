@@ -67,12 +67,27 @@ class ChatController {
             @ArraySchema(arraySchema = @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                     description = "The checks Fine's answer passed or failed, shown under \"Checks\"; empty on "
                             + "other messages and on fixed answers"))
-            List<CheckView> checks) {
+            List<CheckView> checks,
+            @Schema(description = "The case for a human advisor; only on answers passed to an advisor (ESCALATE)")
+            HandoverView handover) {
 
         static MessageView of(ChatMessage message) {
             return new MessageView(message.id(), Author.valueOf(message.author().name()), message.text(),
                     message.outcome(), message.replyTo(), message.suggestions(),
-                    message.checks().stream().map(CheckView::of).toList());
+                    message.checks().stream().map(CheckView::of).toList(),
+                    message.handover() == null ? null : HandoverView.of(message.handover()));
+        }
+    }
+
+    @Schema(name = "ChatHandover", description = "What the card shows of a case for a human advisor")
+    record HandoverView(
+            @Schema(description = "A plain reason class, e.g. \"because I couldn't confirm every figure in my "
+                    + "answer\"; null when there is none") String reason,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "OPEN: waiting for the advisor; CLOSED: answered") ChatMessage.Handover.Status status) {
+
+        static HandoverView of(ChatMessage.Handover handover) {
+            return new HandoverView(handover.reason(), handover.status());
         }
     }
 

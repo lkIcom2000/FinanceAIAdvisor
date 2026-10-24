@@ -76,15 +76,20 @@ class ChatResearchEndToEndTest extends PostgresIntegrationTest {
         assertThat(count("SELECT count(*) FROM nlu_cache WHERE persona_id = 'p-marco'"))
                 .as("stated profile facts may sit in Marco's cached extraction").isPositive();
         assertThat(lenaCache).isPositive();
+        for (String persona : List.of("p-marco", "p-lena")) {
+            jdbc.update("INSERT INTO escalation_cases (id, persona_id, origin, turn_id, question) "
+                    + "VALUES (gen_random_uuid(), ?, 'TURN', gen_random_uuid(), 'q')", persona);
+        }
 
         mvc.perform(post("/api/research/personas/{id}/reset", "p-marco").session(login(mvc, "researcher"))
                 .with(csrf())).andExpect(status().isNoContent());
 
-        for (String table : List.of("messages", "conversations", "dialog_states", "nlu_cache")) {
+        for (String table : List.of("messages", "conversations", "dialog_states", "nlu_cache", "escalation_cases")) {
             assertThat(count("SELECT count(*) FROM " + table + " WHERE persona_id = 'p-marco'")).as(table).isZero();
         }
         assertThat(count("SELECT count(*) FROM messages WHERE persona_id = 'p-lena'")).isEqualTo(lenaMessages);
         assertThat(count("SELECT count(*) FROM nlu_cache WHERE persona_id = 'p-lena'")).isEqualTo(lenaCache);
+        assertThat(count("SELECT count(*) FROM escalation_cases WHERE persona_id = 'p-lena'")).isPositive();
         assertThat(count("SELECT count(*) FROM audit_records WHERE turn_id = '" + turnId + "'::uuid")).isEqualTo(1);
         mvc.perform(get("/api/chat").session(marco)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.messages").isEmpty());

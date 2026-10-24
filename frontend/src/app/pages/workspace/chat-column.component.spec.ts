@@ -292,6 +292,38 @@ describe('ChatColumnComponent', () => {
     expect(element.querySelector('.check-footer')).toBeNull();
   });
 
+  it('shows a handover with its plain reason and status, and keeps the composer usable', () => {
+    const handover =
+      "Your question has been passed to a human advisor at your bank. You'll see their answer here in the chat.";
+    render([
+      question,
+      {
+        ...answer,
+        text: handover,
+        outcome: 'ESCALATE',
+        handover: { reason: "because I couldn't confirm every figure in my answer", status: 'OPEN' },
+      },
+    ]);
+    expect(text(element.querySelector('.response .outcome-label'))).toBe('Passed to a human advisor');
+    expect(text(element.querySelector('.response .body'))).toBe(handover);
+    expect(text(element.querySelector('.handover-reason'))).toBe(
+      "It was passed on because I couldn't confirm every figure in my answer.",
+    );
+    expect(text(element.querySelector('.handover-status'))).toBe('Waiting for advisor');
+    expect(field().disabled).toBe(false);
+  });
+
+  it('shows no reason line for a handover without a reason class, and no handover on other cards', () => {
+    render([
+      question,
+      { ...answer, outcome: 'ESCALATE', handover: { status: 'OPEN' } },
+      { ...question, id: 'q2' },
+      { ...answer, id: 'a2', replyTo: 'q2' },
+    ]);
+    expect(element.querySelector('.handover-reason')).toBeNull();
+    expect(element.querySelectorAll('.handover-status').length).toBe(1);
+  });
+
   it('shows no chips on a card without suggestions', () => {
     render([question, answer]);
     expect(element.querySelector('.response .chips')).toBeNull();

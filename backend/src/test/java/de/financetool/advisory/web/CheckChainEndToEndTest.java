@@ -179,6 +179,7 @@ class CheckChainEndToEndTest extends PostgresIntegrationTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     void aNamedProductEscalatesWithTheFiredCheckRecorded() throws Exception {
         llm.answer("iShares Core MSCI World is a good fit. Could you tell me your horizon?");
         Turn t = turn(PERSONAL);
@@ -188,6 +189,55 @@ class CheckChainEndToEndTest extends PostgresIntegrationTest {
         assertThat(t.body()).containsEntry("route", "block_no_product_naming")
                 .containsEntry("firedChecks", List.of("NO_PRODUCT_NAMING"));
         assertThat(t.shadow(CheckId.NO_PRODUCT_NAMING)).containsEntry("reasonCode", "product_named");
+
+        // Story 3.5: one TURN case in the same transaction, the card sees no draft and no technical reason
+        Map<String, Object> row = jdbc.queryForMap("SELECT id::text AS id, persona_id, origin, question, draft, "
+                + "block_reasons::text AS reasons, reason_class, status FROM escalation_cases WHERE turn_id = ?::uuid",
+                (String) t.answer().get("id"));
+        assertThat(row).containsEntry("persona_id", "p-lena").containsEntry("origin", "TURN")
+                .containsEntry("question", PERSONAL)
+                .containsEntry("draft", "iShares Core MSCI World is a good fit. Could you tell me your horizon?")
+                .containsEntry("reasons", "[\"block_no_product_naming\", \"NO_PRODUCT_NAMING:product_named\"]")
+                .containsEntry("status", "OPEN");
+        assertThat(row.get("reason_class")).isNull();
+        assertThat(t.body()).containsEntry("escalationCaseId", row.get("id"));
+        assertThat((Map<String, Object>) t.answer().get("handover")).containsEntry("status", "OPEN")
+                .containsEntry("reason", null);
+        assertThat(t.answer().toString()).doesNotContain("iShares").doesNotContain("product_named");
+
+        String chat = ChatEndToEndTest.content(mvc.perform(get("/api/chat").session(login(mvc, "p-lena"))));
+        List<Map<String, Object>> messages = JsonPath.read(chat, "$.messages");
+        assertThat(messages.getLast().get("handover")).isEqualTo(t.answer().get("handover"));
+        assertThat(messages.get(messages.size() - 2).get("handover")).isNull();
+    }
+
+    @Test
+    void whenTheAuditWriteOfAnEscalatedTurnFailsNoCaseRemains() throws Exception {
+        llm.answer("iShares Core MSCI World is a good fit. Could you tell me your horizon?");
+        long cases = jdbc.queryForObject("SELECT count(*) FROM escalation_cases", Long.class);
+        // Only the Audit Record carries the digest; PostgreSQL rejects a NUL character in JSONB.
+        llm.digest("sha256: ");
+        var lena = login(mvc, "p-lena");
+        String saved = mvc.perform(post("/api/chat/messages").session(lena).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON).content(ChatEndToEndTest.body(PERSONAL)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        mvc.perform(post("/api/chat/messages/{id}/answer", (String) JsonPath.read(saved, "$.id")).session(lena)
+                .with(csrf())).andExpect(status().isServiceUnavailable());
+
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM escalation_cases", Long.class)).isEqualTo(cases);
+    }
+
+    @Test
+    void aReleasedOrTemplatedTurnOpensNoCase() throws Exception {
+        config.set(ComplianceLevel.A_B);
+        llm.answer("Knock-out certificates are not part of this service.");
+        Turn t = turn(ClassificationEndToEndTest.KNOCK_OUT);
+
+        assertThat(t.answer()).containsEntry("outcome", "REFUSE_OUT_OF_SCOPE");
+        assertThat(t.answer().get("handover")).isNull();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM escalation_cases WHERE turn_id = ?::uuid", Long.class,
+                (String) t.answer().get("id"))).isZero();
     }
 
     @Test

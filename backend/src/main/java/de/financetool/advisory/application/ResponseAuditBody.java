@@ -11,6 +11,7 @@ import de.financetool.shared.config.DataExposureLevel;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
+import java.util.UUID;
 
 /**
  * The body of a turn's {@code RESPONSE} Audit Record (AD-13). Judge verdict and parse status are absent while the
@@ -37,6 +38,7 @@ import java.util.SortedMap;
  *     text's); empty when the draft was released
  * @param route block routing's decision, e.g. {@code released}, {@code block_scope}, {@code no_valid_source}
  * @param firedChecks the checks whose failure decided a routed turn
+ * @param escalationCaseId the case an {@code ESCALATE} turn opened for a human advisor; {@code null} otherwise
  * @param shadowMode whether the Rule Engine ran in Shadow Mode (level {@code A}): recorded, never enforced
  * @param componentFlags what the compliance level switched on
  * @param judgeNotImplemented whether the level asked for the Judge, which is not implemented (Story 3.9)
@@ -76,6 +78,7 @@ record ResponseAuditBody(
         List<CheckResult> routedOnChecks,
         String route,
         List<CheckId> firedChecks,
+        UUID escalationCaseId,
         boolean shadowMode,
         ComponentFlags componentFlags,
         boolean judgeNotImplemented,

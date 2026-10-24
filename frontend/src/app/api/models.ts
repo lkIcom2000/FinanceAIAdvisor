@@ -3,6 +3,7 @@
 
 export type { Chat } from './models/chat';
 export type { ChatCheck } from './models/chat-check';
+export type { ChatHandover } from './models/chat-handover';
 export type { ChatMessage } from './models/chat-message';
 export type { DatedFigure } from './models/dated-figure';
 export type { EmergencyFund } from './models/emergency-fund';

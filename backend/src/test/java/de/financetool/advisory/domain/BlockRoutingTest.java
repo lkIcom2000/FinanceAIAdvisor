@@ -109,8 +109,8 @@ class BlockRoutingTest {
         assertThat(r.outcome()).isEqualTo(ResponseOutcome.ESCALATE);
         assertThat(r.route()).isEqualTo("block_conflict_of_interest_no_product_naming");
         assertThat(r.fired()).containsExactly(CheckId.NO_PRODUCT_NAMING, CheckId.CONFLICT_OF_INTEREST);
-        assertThat(r.text()).isEqualTo("I can't give you a reliable answer to this right now. I've passed your "
-                + "question to a human advisor of the bank, who will get back to you.");
+        assertThat(r.text()).isEqualTo("Your question has been passed to a human advisor at your bank. You'll see "
+                + "their answer here in the chat.");
     }
 
     @Test

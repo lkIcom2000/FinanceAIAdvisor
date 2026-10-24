@@ -49,6 +49,15 @@
           </div>
         }
         <p class="body">{{ m.text }}</p>
+        <!-- A handover shows at most a plain reason class, never the draft or a technical reason. -->
+        @if (m.handover; as handover) {
+          @if (handover.reason) {
+            <p class="handover-reason">It was passed on {{ handover.reason }}.</p>
+          }
+          <p class="handover-status">
+            {{ handover.status === 'OPEN' ? 'Waiting for advisor' : 'Answered' }}
+          </p>
+        }
         @if (m.suggestions.length) {
           <div class="chips">
             @for (s of m.suggestions; track s) {

@@ -19,6 +19,7 @@ import de.financetool.advisory.domain.Premise;
 import de.financetool.advisory.domain.ProfileCompleteness;
 import de.financetool.advisory.domain.PromptPayload;
 import de.financetool.advisory.domain.RegenerationFix;
+import de.financetool.advisory.domain.HandoverReason;
 import de.financetool.advisory.domain.ResponseOutcome;
 import de.financetool.advisory.domain.TurnStage;
 import de.financetool.advisory.domain.TurnState;
@@ -27,6 +28,7 @@ import de.financetool.audit.AuditKind;
 import de.financetool.audit.AuditWriter;
 import de.financetool.audit.EvidenceItem;
 import de.financetool.audit.EvidenceStore;
+import de.financetool.escalation.EscalationCases;
 import de.financetool.llm.LlmMessage;
 import de.financetool.llm.LlmPort;
 import de.financetool.llm.LlmResult;
@@ -36,6 +38,7 @@ import de.financetool.shared.RequestContext;
 import de.financetool.shared.config.AgentConfiguration;
 import de.financetool.shared.config.ComplianceLevel;
 import de.financetool.shared.config.DataExposureLevel;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -65,10 +68,11 @@ public class TurnOrchestrator {
     private final NluExtractor nluExtractor;
     private final EntityRegistry registry;
     private final ProfileCompleteness completeness;
+    private final EscalationCases escalations;
 
     TurnOrchestrator(ChatRepository chats, PromptFiles prompts, LlmPort llm, AuditWriter audit,
             EvidenceStore evidence, NluExtractor nluExtractor, EntityRegistry registry,
-            ProfileCompleteness completeness) {
+            ProfileCompleteness completeness, EscalationCases escalations) {
         this.chats = chats;
         this.prompts = prompts;
         this.llm = llm;
@@ -77,6 +81,7 @@ public class TurnOrchestrator {
         this.nluExtractor = nluExtractor;
         this.registry = registry;
         this.completeness = completeness;
+        this.escalations = escalations;
     }
 
     /** Runs the turn for the saved user message {@code question} and releases the agent message. */
@@ -286,7 +291,10 @@ public class TurnOrchestrator {
         };
     }
 
-    /** Writes the agent message, its evidence and the Audit Record; the turn id is the agent message's id. */
+    /**
+     * Writes the agent message, its evidence, an {@code ESCALATE} turn's case for a human advisor and the Audit
+     * Record; the turn id is the agent message's id.
+     */
     ChatMessage auditAndRelease(RequestContext context, PersonaScope scope, ChatMessage question,
             String fixtureVersion, TurnState turn) {
         TurnState released = turn.ran(TurnStage.AUDIT_RELEASE);
@@ -297,6 +305,14 @@ public class TurnOrchestrator {
         ChatMessage answer = new ChatMessage(turnId, ChatMessage.Author.AGENT, released.finalText(),
                 released.outcome(), question.id(), released.suggestions(), shownChecks);
         chats.insert(scope, chats.conversation(scope), answer);
+        UUID caseId = null;
+        if (released.outcome() == ResponseOutcome.ESCALATE) {
+            Optional<HandoverReason> reason = HandoverReason.of(released.checks().route().route());
+            caseId = escalations.openForTurn(scope, snapshot(turnId, question, released.checks(),
+                    reason.map(HandoverReason::name).orElse(null)));
+            answer = answer.withHandover(new ChatMessage.Handover(reason.map(HandoverReason::text).orElse(null),
+                    ChatMessage.Handover.Status.OPEN));
+        }
         List<EvidenceItem> items = List.of();
         evidence.putIfAbsent(items);
         TurnState.Draft draft = released.draft();
@@ -317,7 +333,7 @@ public class TurnOrchestrator {
                         items.stream().map(EvidenceItem::provId).toList(), checks.shadow().results(),
                         checks.finalResults().results(), checks.routedOn().results(),
                         route == null ? BlockRouting.RELEASED : route.route(),
-                        route == null ? List.of() : route.fired(), checks.flags().shadowMode(), checks.flags(),
+                        route == null ? List.of() : route.fired(), caseId, checks.flags().shadowMode(), checks.flags(),
                         checks.judgeNotImplemented(), checks.citationMarkersRemoved(), draft.modelTag(), draft.modelDigest(), prompt.promptHashes(),
                         draft.truncated() || phrasing.truncated() || (regeneration != null && regeneration.truncated()),
                         phrasing.droppedHistoryTurns(), phrasing.droppedPassages(),
@@ -326,5 +342,18 @@ public class TurnOrchestrator {
                         regeneration == null ? null : regeneration.text(), context.agentConfig().compliance().value(),
                         released.passThroughStages())));
         return answer;
+    }
+
+    /**
+     * What the case keeps: the question as written, the draft routing decided on and the block reasons (the route,
+     * then {@code CHECK_ID:reason_code} per failed check it was routed on).
+     */
+    private static EscalationCases.TurnSnapshot snapshot(UUID turnId, ChatMessage question, TurnState.Checks checks,
+            String reasonClass) {
+        String draft = checks.regenerated() ? checks.regeneration().text() : checks.draftText();
+        List<String> reasons = new ArrayList<>();
+        reasons.add(checks.route().route());
+        checks.routedOn().failed().forEach(r -> reasons.add(r.checkId().name() + ":" + r.reasonCode()));
+        return new EscalationCases.TurnSnapshot(turnId, question.text(), draft, reasons, reasonClass);
     }
 }

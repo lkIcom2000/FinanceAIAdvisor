@@ -27,6 +27,7 @@ import de.financetool.advisory.domain.ProfileCompleteness;
 import de.financetool.advisory.domain.PromptPayload;
 import de.financetool.advisory.domain.ResponseOutcome;
 import de.financetool.advisory.domain.ResponseTemplates;
+import de.financetool.escalation.EscalationCases;
 import de.financetool.advisory.domain.TurnStage;
 import de.financetool.advisory.domain.TurnState;
 import de.financetool.audit.AuditEntry;
@@ -50,14 +51,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 
 /**
  * AR6: the fixed stage order, the explicit pass-throughs and what the release writes (Story 3.1); the exposure
  * stage, the phrasing prompt and its budget (Story 3.2); NLU, classification, class instruction and the
- * no-valid-source rule (Story 3.3).
+ * no-valid-source rule (Story 3.3); the case an {@code ESCALATE} turn opens for a human advisor (Story 3.5).
  */
 class TurnOrchestratorTest {
 
@@ -73,8 +78,10 @@ class TurnOrchestratorTest {
     final NluExtractor nluExtractor = mock(NluExtractor.class);
     final EntityRegistry registry = new EntityRegistry(Map.of("laws_and_regulations", List.of("MiFID II")), List.of(),
             List.of());
+    final EscalationCases escalations = mock(EscalationCases.class);
+    ProfileCompleteness profile = ProfileCompleteness.INCOMPLETE;
     final TurnOrchestrator orchestrator = new TurnOrchestrator(chats, prompts, llm, audit, evidence, nluExtractor,
-            registry, ProfileCompleteness.INCOMPLETE);
+            registry, (stored, stated, topic) -> profile.check(stored, stated, topic), escalations);
 
     final PersonaScope scope = new PersonaScope(TestContexts.LENA);
     final RequestContext context = TestContexts.context();
@@ -636,5 +643,61 @@ class TurnOrchestratorTest {
             }
         }
         return out.toString();
+    }
+
+    static Stream<Arguments> outcomesWithoutACase() {
+        Premise premise = new Premise("The Savings Bonus Act 2026 exists", "law_or_regulation",
+                "Savings Bonus Act 2026");
+        return Stream.of(
+                Arguments.of(ResponseOutcome.INFORM, NluExtraction.defaults(), false, "What is an ETF?"),
+                Arguments.of(ResponseOutcome.ASK_PROFILE, nlu("personal_recommendation", "savings_plan",
+                        List.of("etf"), List.of()), false, "Should I invest in an ETF?"),
+                Arguments.of(ResponseOutcome.RECOMMEND_CATEGORY, nlu("personal_recommendation", "savings_plan",
+                        List.of("etf"), List.of()), true, "Should I invest in an ETF?"),
+                Arguments.of(ResponseOutcome.REFUSE_OUT_OF_SCOPE, nlu("product_selection", "other",
+                        List.of("derivative_or_certificate"), List.of()), false, "Which knock-out should I buy?"),
+                Arguments.of(ResponseOutcome.DETECT_TRAP, nlu("general_explanation", "regulation_or_concept",
+                        List.of(), List.of(premise)), false, "Does the Savings Bonus Act 2026 apply to me?"));
+    }
+
+    /** {@code COMPUTE} needs Story 3.7's {@code computable}; the guard in the release is on the outcome alone. */
+    @ParameterizedTest
+    @MethodSource("outcomesWithoutACase")
+    void noOutcomeButEscalateOpensACase(ResponseOutcome expected, NluExtraction extraction, boolean profileComplete,
+            String text) {
+        if (profileComplete) {
+            profile = (stored, stated, topic) -> new ProfileCompleteness.Result(true, List.of());
+        }
+        ChatMessage asked = new ChatMessage(UUID.randomUUID(), ChatMessage.Author.USER, text, null, null);
+        ChatMessage answer = run(asked, "I recommend iShares Core MSCI World now.", with(ComplianceLevel.A, false),
+                false, extraction);
+
+        assertThat(answer.outcome()).isEqualTo(expected);
+        assertThat(answer.handover()).isNull();
+        assertThat(auditBody().escalationCaseId()).isNull();
+        org.mockito.Mockito.verifyNoInteractions(escalations);
+    }
+
+    @Test
+    void anEscalatedTurnOpensOneCaseWithTheSnapshotBeforeTheAuditRecord() {
+        UUID caseId = UUID.randomUUID();
+        when(escalations.openForTurn(eq(scope), any())).thenReturn(caseId);
+        ChatMessage answer = run(question, "iShares Core MSCI World is a good fit. Could you tell me your horizon?",
+                context, false, nlu("personal_recommendation", "savings_plan", List.of("etf"), List.of()));
+
+        assertThat(answer.outcome()).isEqualTo(ResponseOutcome.ESCALATE);
+        assertThat(answer.text()).isEqualTo(ResponseTemplates.ESCALATE);
+        assertThat(answer.handover()).as("a generic route has no plain reason class")
+                .isEqualTo(new ChatMessage.Handover(null, ChatMessage.Handover.Status.OPEN));
+        ArgumentCaptor<EscalationCases.TurnSnapshot> snapshot =
+                ArgumentCaptor.forClass(EscalationCases.TurnSnapshot.class);
+        var order = inOrder(chats, escalations, audit);
+        order.verify(chats).insert(eq(scope), eq(conversation), any());
+        order.verify(escalations).openForTurn(eq(scope), snapshot.capture());
+        order.verify(audit).write(any(), any());
+        assertThat(snapshot.getValue()).isEqualTo(new EscalationCases.TurnSnapshot(answer.id(), question.text(),
+                "iShares Core MSCI World is a good fit. Could you tell me your horizon?",
+                List.of("block_no_product_naming", "NO_PRODUCT_NAMING:product_named"), null));
+        assertThat(auditBody().escalationCaseId()).isEqualTo(caseId);
     }
 }

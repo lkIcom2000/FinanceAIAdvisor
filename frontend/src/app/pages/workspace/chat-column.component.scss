@@ -144,6 +144,18 @@
   }
 }
 
+.handover-reason {
+  margin: 8px 0 0;
+  font: var(--fine-body-sm);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.handover-status {
+  margin: 8px 0 0;
+  font: var(--fine-label);
+  color: var(--mat-sys-primary);
+}
+
 .slow {
   margin: 12px 0 0;
   font: var(--fine-body-sm);

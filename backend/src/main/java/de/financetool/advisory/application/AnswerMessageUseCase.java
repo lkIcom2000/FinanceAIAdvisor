@@ -29,13 +29,15 @@ public class AnswerMessageUseCase {
     private final PersonaDirectory personas;
     private final ChatRepository chats;
     private final TurnOrchestrator orchestrator;
+    private final Handovers handovers;
 
     AnswerMessageUseCase(RequestContextFactory contexts, PersonaDirectory personas, ChatRepository chats,
-            TurnOrchestrator orchestrator) {
+            TurnOrchestrator orchestrator, Handovers handovers) {
         this.contexts = contexts;
         this.personas = personas;
         this.chats = chats;
         this.orchestrator = orchestrator;
+        this.handovers = handovers;
     }
 
     /**
@@ -51,7 +53,7 @@ public class AnswerMessageUseCase {
         }
         Optional<ChatMessage> stored = chats.findReply(scope, messageId);
         if (stored.isPresent()) {
-            return stored;
+            return Optional.of(handovers.attach(scope, stored.get()));
         }
         RequestContext context = contexts.forPersona(scope, null);
         String fixtureVersion = personas.fixtureVersion(scope);

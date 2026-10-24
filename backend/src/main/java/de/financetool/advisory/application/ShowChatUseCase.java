@@ -8,7 +8,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** The persona's conversation: every saved message in order, and the name the greeting uses. */
+/** The persona's conversation: every saved message in order with its handover, and the name the greeting uses. */
 @Service
 public class ShowChatUseCase {
 
@@ -17,14 +17,16 @@ public class ShowChatUseCase {
 
     private final PersonaDirectory personas;
     private final ChatRepository chats;
+    private final Handovers handovers;
 
-    ShowChatUseCase(PersonaDirectory personas, ChatRepository chats) {
+    ShowChatUseCase(PersonaDirectory personas, ChatRepository chats, Handovers handovers) {
         this.personas = personas;
         this.chats = chats;
+        this.handovers = handovers;
     }
 
     @Transactional(readOnly = true)
     public Chat show(PersonaScope scope) {
-        return new Chat(personas.find(scope).displayName(), chats.messages(scope));
+        return new Chat(personas.find(scope).displayName(), handovers.attach(scope, chats.messages(scope)));
     }
 }
