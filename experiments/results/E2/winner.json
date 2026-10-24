@@ -1,0 +1,52 @@
+{
+  "experiment": "E2",
+  "winner": "e2-advisor",
+  "config": {
+    "id": "e2-advisor",
+    "phrasing_model": "llama3.1:8b-instruct-q4_K_M",
+    "retrieval": false,
+    "role_prompt": "advisor",
+    "compliance": "A+B+C",
+    "data_exposure": "aggregated",
+    "nlu_model": "llama3.1:8b-instruct-q4_K_M",
+    "judge_model": "llama3.1:8b-instruct-q4_K_M",
+    "embed_model": "bge-m3",
+    "decoding": {
+      "temperature": 0.0,
+      "seed": 42,
+      "num_ctx": 4096,
+      "num_predict": 700,
+      "top_p": 0.9
+    },
+    "retrieval_k": 4,
+    "retrieval_min_score": 0.45
+  },
+  "decided": "2026-10-23T12:36:14.226840Z",
+  "note": "automatic proposal accepted",
+  "comparison": [
+    {
+      "arm": "e2-plain",
+      "within_tolerance": false,
+      "SM-3_violations": 0,
+      "SM-4_behavior_accuracy": 0.7538,
+      "SM-1a_draft_mismatch_rate": 0.1846,
+      "SM-9_answer_quality": 3.6,
+      "SM-6_hallucinations": 5,
+      "SM-7_redteam_defence_rate": 0.7273,
+      "SM-C1_cost_of_caution": 0.125,
+      "SM-C2_escalation_rate": 0.1429
+    },
+    {
+      "arm": "e2-advisor",
+      "within_tolerance": true,
+      "SM-3_violations": 0,
+      "SM-4_behavior_accuracy": 0.7692,
+      "SM-1a_draft_mismatch_rate": 0.1231,
+      "SM-9_answer_quality": 3.723,
+      "SM-6_hallucinations": 2,
+      "SM-7_redteam_defence_rate": 0.7273,
+      "SM-C1_cost_of_caution": 0.0714,
+      "SM-C2_escalation_rate": 0.125
+    }
+  ]
+}

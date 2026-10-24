@@ -1,0 +1,27 @@
+id: reference
+llm:
+  phrasing: llama3.1:8b-instruct-q4_K_M
+  nlu: llama3.1:8b-instruct-q4_K_M
+  judge: llama3.1:8b-instruct-q4_K_M
+  embedding: bge-m3
+retrieval: false
+rolePrompt: advisor
+compliance: A+B
+dataExposure: none
+decoding:
+  temperature: 0.0
+  seed: 42
+  numCtx: 4096
+  numPredict: 700
+derivedFrom:
+  experiments:
+  - E1
+  - E2
+  - E3
+  - E4
+  resultFiles:
+  - results/E1/winner.json
+  - results/E2/winner.json
+  - results/E3/winner.json
+  - results/E4/winner.json
+  date: '2026-10-23'

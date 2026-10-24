@@ -90,8 +90,16 @@ The NLU prompt is unchanged, so cached NLU extractions stay valid.
 
 **E1 result (full run, 2026-10-23).** Winner `e1-llama3` (no retrieval), the only arm within both counter-metric tolerances: SM-4 76.9 %, SM-9 3.72, SM-C1 7.1 %, SM-C2 12.5 %, SM-3 0. Retrieval lowered answer quality on `INFORM` items from 4.1 to 2.8: the top passages often come from one partly relevant document, and unanswered citations escalate. Better retrieval (e.g. at most one passage per document, reranking) is future work, not tuned here. Held-out items: 5/5 classified correctly, 4/5 answered as expected in every arm.
 
+**E2–E4 and final comparison (2026-10-23).** E2: `e2-advisor` (plain exceeds SM-C1). E3: `e3-AB`; the judge stopped 3 answers the rule engine had approved, all 3 false positives on inspection (items 11, 35, R07). E4: `e4-none`; no measurable loss without personal data. Hybrid vs. pure LLM: SM-3 0 vs. 32, SM-6 2 vs. 17, SM-4 81.5 % vs. 41.5 %. Final configuration: Llama 3.1 8B, no retrieval, advisor prompt, `A+B`, exposure `none` (`results/agent_config_derived.yaml`).
+
+**Findings for the application.**
+- *Phantom citations.* With retrieval off, 17 released answers of the final configuration contain `[S1]`-style markers that point to nothing; compliance rule 6 shows the format, and `SOURCE_VALIDITY` applies only with retrieval on. The app must reject citation markers when no sources were given.
+- *Depersonalisation is done by the NLU model.* At exposure `none`, R09 still passed a personal amount (20,000 EUR) to the phrasing model. The app should strip amounts deterministically.
+- *Pseudonymisation was not tested in effect:* only 1 of 80 messages differs from `raw`, because the test set holds almost no direct identifiers.
+
 ## Known limitations (record in the thesis)
 
+- **Run-to-run variance despite a fixed seed.** The same configuration on 7 smoke items gave SM-4 6/7 (E1, E2) and 7/7 (E3); one draft (item 31) once contained a wrong number. Likely cause: Ollama reuses cached prompt state across similar requests, which changes GPU numerics slightly. Each arm is one sample, so differences of 1–2 items between arms are within noise. Reusing an identical winner arm is not affected: it is the same configuration measured once.
 - The checks are deterministic text heuristics. They are auditable, but they produce false positives and false negatives. SM-C1 measures the false positives, and the SM-1b manual audit plus the SM-9 scoring catch the misses.
 - The few-shot examples of the NLU and the entity registry were written independently of the test items, but by the same author. This is a threat to validity, because they may be tuned to the test set without intent.
 - Rule Parameters marked `verify: true` in `data/rules/rule_parameters.yaml` must be checked against their sources (OQ4).
