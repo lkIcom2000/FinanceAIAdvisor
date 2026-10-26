@@ -59,6 +59,15 @@ public final class RegenerationFix {
      */
     public static Optional<String> of(List<CheckResult> failed, int passagesInPrompt, String toolResults,
             boolean costsApply) {
+        return of(failed, passagesInPrompt, toolResults, costsApply, !costsApply);
+    }
+
+    /**
+     * @param needs whether the turn is a demands-and-needs statement (protection topic); a recommendation that is
+     *     neither an investment nor a needs statement gets the recommendation fix without costs
+     */
+    public static Optional<String> of(List<CheckResult> failed, int passagesInPrompt, String toolResults,
+            boolean costsApply, boolean needs) {
         List<String> fixes = new ArrayList<>();
         boolean restated = false;
         boolean statement = false;
@@ -77,6 +86,8 @@ public final class RegenerationFix {
                 fixes.add(costsApply ? "Your draft did not explain the recommendation completely. Refer to the "
                         + "customer's figures, name the main risks of the recommended category and state the ex-ante "
                         + "costs from TOOL RESULTS."
+                        : !needs ? "Your draft did not explain the recommendation completely. Refer to the "
+                                + "customer's figures and name the main risks of the recommended category."
                         : "Your draft did not explain the statement completely. Speak to the customer directly as "
                                 + "\"you\", refer to their household, dependants and occupation and name the risk each "
                                 + "cover protects against.");

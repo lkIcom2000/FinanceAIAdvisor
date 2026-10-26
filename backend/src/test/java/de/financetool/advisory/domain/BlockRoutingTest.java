@@ -179,6 +179,9 @@ class BlockRoutingTest {
                 .doesNotContain("costs");
         assertThat(RegenerationFix.of(suitability, 0, "x: 1", true).orElseThrow())
                 .contains("state the ex-ante costs from TOOL RESULTS.");
+        assertThat(RegenerationFix.of(suitability, 0, "x: 1", false, false).orElseThrow())
+                .as("neither investment nor needs statement").contains("name the main risks of the recommended category")
+                .doesNotContain("costs", "household");
     }
 
     @Test

@@ -35,6 +35,7 @@ import de.financetool.advisory.domain.ResponseOutcome;
 import de.financetool.advisory.domain.ResponseTemplates;
 import de.financetool.escalation.EscalationCases;
 import de.financetool.core.domain.CoreResult;
+import de.financetool.core.domain.WhatIfProjection;
 import de.financetool.knowledge.NoValidRuleParameterException;
 import de.financetool.knowledge.RuleParamPort;
 import de.financetool.knowledge.RuleParameter;
@@ -1175,6 +1176,68 @@ class TurnOrchestratorTest {
         ResponseAuditBody body = auditBody();
         assertThat(body.ruleParameterError()).isTrue();
         assertThat(body.regenerated()).isFalse();
+    }
+
+    /**
+     * A what-if result whose low end the fixed text shows rounded half up (1,234.57) while the Number Check rounds
+     * the sourced 1234.565 half even (1234.56): the only way the fixed range text can fail a check.
+     */
+    static CoreResult whatIfResult() {
+        List<de.financetool.core.domain.Figure> outputs = List.of(
+                new de.financetool.core.domain.Figure(WhatIfProjection.OUTPUT_P10, "Low end", new BigDecimal("1234.565"),
+                        Unit.EUR),
+                new de.financetool.core.domain.Figure(WhatIfProjection.OUTPUT_P50, "Middle", new BigDecimal("2000.00"),
+                        Unit.EUR),
+                new de.financetool.core.domain.Figure(WhatIfProjection.OUTPUT_P90, "High end", new BigDecimal("3000.00"),
+                        Unit.EUR),
+                new de.financetool.core.domain.Figure(WhatIfProjection.OUTPUT_YEARS, "Years", new BigDecimal("10"),
+                        Unit.COUNT));
+        List<SourcedNumber> numbers = List.of(
+                new SourcedNumber("00000000000000b1", new BigDecimal("1234.565"), Unit.EUR, "Low end"),
+                new SourcedNumber("00000000000000b2", new BigDecimal("2000.00"), Unit.EUR, "Middle"),
+                new SourcedNumber("00000000000000b3", new BigDecimal("3000.00"), Unit.EUR, "High end"),
+                new SourcedNumber("00000000000000b4", new BigDecimal("10"), Unit.COUNT, "Years"));
+        return new CoreResult(WhatIfProjection.FUNCTION, List.of(), outputs, List.of(), Map.of(), numbers);
+    }
+
+    @Test
+    void aBlockedRangeAnswerIsNeitherRegeneratedNorReleasedWithItsChartOrFigures() {
+        SimulationSpec spec = item40Spec();
+        RequestContext enforcing = with(ComplianceLevel.A_B_C, false);
+        ChatMessage.RangeChart chart = new ChatMessage.RangeChart(List.of(), List.of(), "00000000000000b2");
+        when(tools.run(enforcing, spec)).thenReturn(new ToolRegistry.Ran(List.of(whatIfResult()), chart));
+        when(escalations.openForTurn(eq(scope), any())).thenReturn(UUID.randomUUID());
+
+        ChatMessage answer = calculate("unused", enforcing, spec);
+
+        assertThat(answer.outcome()).isEqualTo(ResponseOutcome.ESCALATE);
+        assertThat(answer.range()).isNull();
+        assertThat(answer.figures()).isEmpty();
+        assertThat(answer.text()).doesNotContain("1,234.57");
+        org.mockito.Mockito.verifyNoInteractions(llm);
+        ResponseAuditBody body = auditBody();
+        assertThat(body.regenerated()).isFalse();
+        assertThat(body.routedOnChecks()).filteredOn(c -> c.checkId() == CheckId.NUMBER_MATCH)
+                .singleElement().matches(c -> !c.passed());
+    }
+
+    @Test
+    void aSubsidyWhatIfWithoutRulesForTheAsOfDateEscalatesInsteadOfProposing() {
+        RequestContext enforcing = with(ComplianceLevel.A_B_C, false);
+        org.mockito.Mockito.doThrow(new NoValidRuleParameterException("No version")).when(tools)
+                .requireSubsidyRules(enforcing.asOf());
+        when(escalations.openForTurn(eq(scope), any())).thenReturn(UUID.randomUUID());
+        ChatMessage asked = new ChatMessage(UUID.randomUUID(), ChatMessage.Author.USER,
+                "What if I save 100 EUR a month for 10 years with the Riester subsidy?", null, null);
+
+        ChatMessage answer = run(asked, "unused", enforcing, false, new NluExtraction("computation", "self",
+                "savings_projection", List.of(), List.of(), false, false, Map.of(),
+                Map.of("monthly_contribution", 100.0, "years", 10.0), ""));
+
+        assertThat(answer.outcome()).isEqualTo(ResponseOutcome.ESCALATE);
+        assertThat(answer.proposal()).isNull();
+        verify(tools, org.mockito.Mockito.never()).netIncome(any());
+        assertThat(auditBody().ruleParameterError()).isTrue();
     }
 
     static final String UJ_5 = "Should I cancel my Riester contract and switch to the new subsidised product next year?";

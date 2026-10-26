@@ -11,7 +11,8 @@
 - Plan (Commc 2026-10-26): Epic 7 (only Story 7.1) is done before the Epic 6 epic-end tasks, which then cover Epics 6 and 7 together.
 - Story 7.1 done (spec `spec-7-1-…`, context `epic-7-context.md`): `ToolPlan` tool `savingsProjection` (monthly amount, years, optional start, subsidy row `Unit.FLAG` from `monthlyNetIncome`); pure Core `WhatIfProjection` (shares `MonteCarloProjection.simulate`, Riester basic allowance per year) via `CoreGateway.whatIf`/`netIncome`; fixed answer `ResponseTemplates.range`, no LLM, no regeneration; `ChatMessage.RangeChart` (V17); shared frontend `RangeChartComponent` (Wealth tab + chat card), two-step waiting card on `ChatProposal.range`.
 - Live check of 6.4 and 7.1 done (spec Implementation Notes): 7.1 passed unchanged; 6.4 needed two app additions — NLU grounding turns a first-person protection `general_explanation` into `personal_recommendation`; the needs prompt and the cost-free `RegenerationFix` text ask for "you", the three Needs Profile facts and the risk each cover protects against. Jonas's Needs Profile is now stored in the local DB (single, 0, "Software developer"), plus one open escalation case from the first attempt.
-- Next, as one block: (1) a batched epic-end review of Epics 6 and 7; (2) a compose image rebuild with the full compose check (incl. research profile); (3) a joint retro for Epics 6 and 7 (Epic 4 inputs folded in).
+- Epic-end review of Epics 6 and 7 done (one sonnet reviewer, 8 findings): fixed — orchestrator test for a blocked range answer; a subsidy what-if without subsidy rules at the as-of date escalates at proposal time (`toolPlan`); `RegenerationFix` has an explicit needs flag (other recommendations get a fix without costs or household); own-cover grounding needs own-cover wording (`NluExtraction.OWN_COVER`, reuses `CheckChain.protectionTopic`); the invest rule keeps `monthly_expenses` when the message also states spending. Persona isolation of the new endpoints is covered by `PersonaIsolationTest`. Three low items in `deferred-work.md`.
+- Next: (2) compose image rebuild with the full compose check (incl. research profile, V14–V17); (3) joint retro for Epics 6 and 7 (Epic 4 inputs folded in).
 
 ## Checklist per story (lean loop, memory build-loop-economy)
 
@@ -27,9 +28,8 @@
 - Marco has no seeded profile (decided 6.3); tests store it via `Profiles.confirm`, live he fills the card.
 - Compose image predates V14–V16 and the new Rule Parameters: rebuild at epic end (compose check).
 - Frontend component-style warning budget raised to 7 kB (chat column stylesheet 6.5 kB).
-- Epic-end review: include the 6.4 diff follow-ups and the 6.3 live-check fixes (`NluExtraction.ground` invest rule, `RegenerationFix` recommendation fix).
 - 6.3 residual: the selection's category for Marco is only `build_emergency_fund_first`, so the text never adds "then a small savings plan in a broad world equity fund"; decide at the retro whether the AC wording needs a follow-up category.
-- Epic-end review: add the 7.1 deferral (orchestrator unit test for a blocked range answer); the Riester rules end 2026-12-31, so a what-if after that date escalates until 2027 rules exist.
+- The Riester rules end 2026-12-31: a subsidy what-if after that date escalates until 2027 rules exist.
 - Compose rebuild must also cover V17.
-- Epic-end review: include the 6.4 live-check fixes (`NluExtraction.ground` own-cover rule, `RegenerationFix` needs text, `class-RECOMMEND_CATEGORY-needs.txt`). Retro: the 6.4 model text quality (repetition, "a good thing" for duplicate cover, "your insurance provider" instead of the parents).
+- Retro: the 6.4 model text quality (repetition, "a good thing" for duplicate cover, "your insurance provider" instead of the parents).
 - Verify ECB rates against the ECB before moving the reference date (`data/rules/README.md`).

@@ -148,6 +148,11 @@ class NluExtractionTest {
         assertThat(other.extraction().statedProfile()).containsEntry("monthly_expenses", 1800)
                 .containsEntry("requested_monthly_amount", 300);
         assertThat(other.notes()).isEmpty();
+
+        NluExtraction.Grounded spent = NluExtraction.normalize(Map.of("stated_profile",
+                Map.of("monthly_expenses", 800))).ground("I spend 800 EUR a month and want to invest 800 EUR a month.");
+        assertThat(spent.extraction().statedProfile()).as("stated as spending too")
+                .containsEntry("monthly_expenses", 800).containsEntry("requested_monthly_amount", 800.0);
     }
 
     /** App addition: the live model returned a question about the user's own cover as a general explanation. */
@@ -162,6 +167,16 @@ class NluExtractionTest {
         NluExtraction.Grounded general = NluExtraction.normalize(Map.of("request_type", "general_explanation",
                 "subject", "self", "topic", "protection_needs")).ground("What does liability insurance cover?");
         assertThat(general.extraction().requestType()).isEqualTo("general_explanation");
+
+        NluExtraction.Grounded needed = NluExtraction.normalize(Map.of("request_type", "general_explanation",
+                "subject", "self", "topic", "protection_needs")).ground("Which cover do I need?");
+        assertThat(needed.extraction().requestType()).isEqualTo("personal_recommendation");
+
+        NluExtraction.Grounded friend = NluExtraction.normalize(Map.of("request_type", "general_explanation",
+                "subject", "self", "topic", "protection_needs")).ground(
+                "How does liability insurance work? My friend asked me.");
+        assertThat(friend.extraction().requestType()).as("first person, but not about own cover")
+                .isEqualTo("general_explanation");
     }
 
     @Test

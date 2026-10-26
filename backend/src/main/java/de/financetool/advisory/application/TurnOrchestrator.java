@@ -271,6 +271,16 @@ public class TurnOrchestrator {
             return turn.passedThrough(TurnStage.TOOL_PLAN);
         }
         if (planned.spec() == null) {
+            // A what-if with a subsidy row needs this year's subsidy rules; without them the proposal would only
+            // escalate at Calculate, so the turn escalates now.
+            if (planned.planned().subsidyAsked()) {
+                try {
+                    tools.requireSubsidyRules(context.asOf());
+                } catch (NoValidRuleParameterException e) {
+                    return turn.withTools(new TurnState.Tools(null, null, null, false, List.of(), true))
+                            .ran(TurnStage.TOOL_PLAN);
+                }
+            }
             // A what-if's subsidy eligibility is account data, read for the card like the 3.7 portfolio.
             SourcedNumber netIncome = planned.planned().subsidyAsked() ? tools.netIncome(context) : null;
             SimulationSpec spec = ToolPlan.spec(planned.planned(), planned.accountPortfolio(), netIncome);
@@ -416,7 +426,8 @@ public class TurnOrchestrator {
             return turn.ran(TurnStage.RULE_ENGINE);
         }
         Optional<String> fix = RegenerationFix.of(checks.shadow().failed(), passagesInPrompt(turn),
-                turn.prompt().payload().toolResults(), CheckChain.investTopic(turn.nlu().extraction().topic()));
+                turn.prompt().payload().toolResults(), CheckChain.investTopic(turn.nlu().extraction().topic()),
+                CheckChain.protectionTopic(turn.nlu().extraction().topic()));
         if (fix.isEmpty()) {
             return turn.ran(TurnStage.RULE_ENGINE);
         }

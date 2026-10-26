@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -105,7 +104,10 @@ public record NluExtraction(
     static final Pattern ADVICE = Pattern.compile("\\b(should|can|could|may|shall) (i|we)\\b|\\bi should\\b"
             + "|\\bfor me\\b|\\bmy (wealth|savings|money|portfolio|income|capital)\\b", FLAGS_CI);
     static final Pattern PERSON = Pattern.compile("\\b(i|i'm|i've|i'd|me|my|mine|we|our|ours)\\b", FLAGS_CI);
-    static final Set<String> PROTECTION_TOPICS = Set.of("protection_needs", "protection_duplicate");
+    /** The user's own cover: "my liability insurance", "what cover do I need", "am I insured". */
+    static final Pattern OWN_COVER = Pattern.compile("\\b(my|our)\\s+(?:\\w+\\s+){0,2}(insurance|cover|policy|policies"
+            + "|contracts?)\\b|\\b(do|should|am|are|must)\\s+(i|we)\\s+(?:\\w+\\s+){0,2}(need|have|get|covered|insured"
+            + "|paying)\\b|\\bi\\s+need\\b", FLAGS_CI);
     static final Pattern CLIENT =Pattern.compile("\\b(client|customer|profile|he|she|his|her)\\b", FLAGS_CI);
     private static final String MONEY = "(\\d{1,3}(?:[.,]\\d{3})+|\\d+)(?:[.,]\\d+)?\\s?(?:EUR|€|euros?)";
     private static final Pattern MONTHLY = Pattern.compile(
@@ -113,7 +115,9 @@ public record NluExtraction(
     private static final Pattern INVEST_MONTHLY = Pattern.compile(
             "\\b(?:invest|save|put)\\w*\\s+(?:aside\\s+|away\\s+)?(?:about\\s+|around\\s+)?" + MONEY
                     + "\\s*(?:per month|a month|monthly|each month)", FLAGS_CI);
-    private static final Pattern PORTFOLIO = Pattern.compile(
+    private static final Pattern EXPENSES = Pattern.compile("\\b(spend\\w*|pay|paying|rent|expenses?|outgoings)\\b",
+            FLAGS_CI);
+    private static final Pattern PORTFOLIO =Pattern.compile(
             "\\b(portfolio|capital|savings|wealth|assets|lump sum)\\b[^.?]{0,20}?" + MONEY, FLAGS_CI);
     private static final Pattern RATE = Pattern.compile(
             "(\\d+(?:[.,]\\d+)?)\\s?%\\s*(?:\\w+\\s+){0,3}(return|interest|yield|growth)", FLAGS_CI);
@@ -238,8 +242,8 @@ public record NluExtraction(
         }
         // App addition: the live model returned "Am I paying twice for my liability insurance?" as a general
         // explanation; a protection question about the user's own cover needs the demands-and-needs statement.
-        if (PROTECTION_TOPICS.contains(topic) && type.equals("general_explanation") && !who.equals("generic")
-                && PERSON.matcher(message).find()) {
+        if (CheckChain.protectionTopic(topic) && type.equals("general_explanation") && !who.equals("generic")
+                && OWN_COVER.matcher(message).find()) {
             type = "personal_recommendation";
             notes.add("request asks about the user's own insurance cover");
         }
@@ -286,7 +290,8 @@ public record NluExtraction(
         if (invest.find()) {
             double requested = amount(invest.group(1));
             Object expenses = profile.get("monthly_expenses");
-            if (expenses != null && sameAmount(expenses, requested)) {
+            // An equal amount the message also states as spending is a real expense figure and stays.
+            if (expenses != null && sameAmount(expenses, requested) && !EXPENSES.matcher(message).find()) {
                 profile.remove("monthly_expenses");
                 notes.add("monthly_expenses dropped: it is the monthly amount to invest");
             }
