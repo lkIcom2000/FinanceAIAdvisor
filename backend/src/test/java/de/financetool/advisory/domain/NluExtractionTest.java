@@ -131,6 +131,25 @@ class NluExtractionTest {
         assertThat(zeroInitial.extraction().computationParams()).doesNotContainKey("portfolio");
     }
 
+    /** App addition: the live model returned "invest 400 EUR per month" as the user's monthly expenses. */
+    @Test
+    void theMonthlyAmountToInvestIsNeverTheMonthlyExpenses() {
+        String message = "I want to invest 400 EUR per month in an equity ETF. Is that a good idea?";
+        NluExtraction.Grounded g = NluExtraction.normalize(Map.of("request_type", "personal_recommendation",
+                "stated_profile", Map.of("monthly_expenses", 400))).ground(message);
+        assertThat(g.extraction().statedProfile()).doesNotContainKey("monthly_expenses")
+                .containsEntry("requested_monthly_amount", 400.0);
+        assertThat(g.notes()).containsExactly("monthly_expenses dropped: it is the monthly amount to invest",
+                "requested_monthly_amount taken from the message");
+
+        NluExtraction.Grounded other = NluExtraction.normalize(Map.of("stated_profile",
+                Map.of("monthly_expenses", 1800, "requested_monthly_amount", 300))).ground(
+                "My expenses are 1,800 EUR. Should I save 400 EUR a month?");
+        assertThat(other.extraction().statedProfile()).containsEntry("monthly_expenses", 1800)
+                .containsEntry("requested_monthly_amount", 300);
+        assertThat(other.notes()).isEmpty();
+    }
+
     @Test
     void theSchemaIsTheExperimentsSchema() throws IOException {
         try (InputStream in = getClass().getResourceAsStream("/nlu/schema.json")) {

@@ -152,6 +152,24 @@ class BlockRoutingTest {
                         + "[S1]. If the SOURCES do not cover the question, say so. Rewrite the whole answer.");
     }
 
+    /** App addition (Story 6.3 live check): a recommendation without figures, risks or costs is repairable. */
+    @Test
+    void aRecommendationWithoutRisksOrCostsGetsTheTargetedFix() {
+        assertThat(RegenerationFix.of(List.of(failed(CheckId.SUITABILITY, "no_profile_reference_or_risk"),
+                failed(CheckId.COST_TRANSPARENCY, "costs_not_mentioned")), 0, "monthly surplus: 100.00 EUR"))
+                .contains("Your draft did not explain the recommendation completely. Refer to the customer's figures, "
+                        + "name the main risks of the recommended category and state the ex-ante costs from TOOL "
+                        + "RESULTS. " + RegenerationFix.TOOL_RESULTS_HEADER + "\nmonthly surplus: 100.00 EUR Rewrite "
+                        + "the whole answer.");
+        assertThat(RegenerationFix.of(List.of(failed(CheckId.SUITABILITY, "no_profile_reference_or_risk")), 0,
+                "x: 1").orElseThrow()).contains("state the ex-ante costs").contains(RegenerationFix.TOOL_RESULTS_HEADER);
+        CheckResult numbers = new CheckResult(CheckId.NUMBER_MATCH, true, false, "number_mismatch",
+                Map.of("mismatches", List.of(Map.of("text", "12"))));
+        assertThat(RegenerationFix.of(List.of(numbers, failed(CheckId.COST_TRANSPARENCY, "costs_not_mentioned")), 0,
+                "x: 1").orElseThrow()).containsOnlyOnce(RegenerationFix.TOOL_RESULTS_HEADER);
+        assertThat(RegenerationFix.of(List.of(failed(CheckId.SUITABILITY, "other")), 0)).isEmpty();
+    }
+
     @Test
     void numbersInTheUsersMessageParseBothFormatsAndSkipDatesAndReferences() {
         assertThat(NumberParser.numbersIn("I have 12.500,50 EUR and 1,000 EUR, about 7% since 3 March 2024, "

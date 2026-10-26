@@ -108,6 +108,9 @@ public record NluExtraction(
     private static final String MONEY = "(\\d{1,3}(?:[.,]\\d{3})+|\\d+)(?:[.,]\\d+)?\\s?(?:EUR|€|euros?)";
     private static final Pattern MONTHLY = Pattern.compile(
             MONEY + "\\s*(?:per month|a month|monthly|each month)", FLAGS_CI);
+    private static final Pattern INVEST_MONTHLY = Pattern.compile(
+            "\\b(?:invest|save|put)\\w*\\s+(?:aside\\s+|away\\s+)?(?:about\\s+|around\\s+)?" + MONEY
+                    + "\\s*(?:per month|a month|monthly|each month)", FLAGS_CI);
     private static final Pattern PORTFOLIO = Pattern.compile(
             "\\b(portfolio|capital|savings|wealth|assets|lump sum)\\b[^.?]{0,20}?" + MONEY, FLAGS_CI);
     private static final Pattern RATE = Pattern.compile(
@@ -267,8 +270,24 @@ public record NluExtraction(
                 notes.add("annual_rate taken from the message");
             }
         }
+        // App addition: the monthly amount the user wants to invest is the requested amount; the model sometimes
+        // returns it as monthly_expenses, which would overwrite the stored expenses for the turn (AD-23).
+        Map<String, Object> profile = new LinkedHashMap<>(statedProfile);
+        Matcher invest = INVEST_MONTHLY.matcher(message);
+        if (invest.find()) {
+            double requested = amount(invest.group(1));
+            Object expenses = profile.get("monthly_expenses");
+            if (expenses != null && sameAmount(expenses, requested)) {
+                profile.remove("monthly_expenses");
+                notes.add("monthly_expenses dropped: it is the monthly amount to invest");
+            }
+            if (!profile.containsKey("requested_monthly_amount")) {
+                profile.put("requested_monthly_amount", requested);
+                notes.add("requested_monthly_amount taken from the message");
+            }
+        }
         return new Grounded(new NluExtraction(type, who, topic, cats, assertedPremises, instructionOverrideAttempt,
-                marketTimingRequest, statedProfile, p, depersonalizedQuestion), notes);
+                marketTimingRequest, profile, p, depersonalizedQuestion), notes);
     }
 
     /** The extraction with the experiment's keys, for the Audit Record. */
@@ -338,6 +357,14 @@ public record NluExtraction(
     /** {@code _amount} of {@code nlu.py}: thousands separators removed, a decimal comma read as a point. */
     static double amount(String s) {
         return number(THOUSANDS.matcher(s).replaceAll("").replace(",", "."));
+    }
+
+    private static boolean sameAmount(Object value, double amount) {
+        try {
+            return Double.compare(value instanceof Number n ? n.doubleValue() : number(text(value)), amount) == 0;
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 
     /** Like Python's {@code float}: any Unicode decimal digit counts. */
