@@ -1123,7 +1123,7 @@ class TurnOrchestratorTest {
     @Test
     void calculateRunsTheRegistryToolPhrasesItsResultsAndListsItsFigures() {
         SimulationSpec spec = item40Spec();
-        when(tools.run(context, spec)).thenReturn(List.of(withdrawalResult()));
+        when(tools.run(context, spec)).thenReturn(new ToolRegistry.Ran(List.of(withdrawalResult()), null));
 
         ChatMessage answer = calculate("It lasts 522 full monthly withdrawals, or 538 with monthly rates.", context,
                 spec);

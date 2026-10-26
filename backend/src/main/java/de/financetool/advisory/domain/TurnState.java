@@ -91,14 +91,28 @@ public record TurnState(
     public record Tools(ToolPlan.Planned planned, SourcedNumber accountPortfolio, SimulationSpec spec,
             boolean proposal, List<CoreResult> results, boolean ruleParameterError, boolean ruleForLaterYear,
             RecommendationFigures recommendation, ChatMessage.Recommendation statement, NeedsFigures needs,
-            ChatMessage.NeedsStatement needsStatement) {
+            ChatMessage.NeedsStatement needsStatement, ChatMessage.RangeChart range) {
 
         public static final Tools NONE = new Tools(null, null, null, false, List.of(), false);
 
         public Tools(ToolPlan.Planned planned, SourcedNumber accountPortfolio, SimulationSpec spec,
                 boolean proposal, List<CoreResult> results, boolean ruleParameterError) {
             this(planned, accountPortfolio, spec, proposal, results, ruleParameterError, false, null, null, null,
-                    null);
+                    null, null);
+        }
+
+        public Tools(ToolPlan.Planned planned, SourcedNumber accountPortfolio, SimulationSpec spec,
+                boolean proposal, List<CoreResult> results, boolean ruleParameterError, boolean ruleForLaterYear,
+                RecommendationFigures recommendation, ChatMessage.Recommendation statement, NeedsFigures needs,
+                ChatMessage.NeedsStatement needsStatement) {
+            this(planned, accountPortfolio, spec, proposal, results, ruleParameterError, ruleForLaterYear,
+                    recommendation, statement, needs, needsStatement, null);
+        }
+
+        /** A confirmed spec ran: its Core results in run order and, for a what-if, its range chart. */
+        public static Tools calculated(SimulationSpec spec, List<CoreResult> results, ChatMessage.RangeChart range) {
+            Objects.requireNonNull(spec, "spec");
+            return new Tools(null, null, spec, false, results, false, false, null, null, null, null, range);
         }
 
         /** No calculation: the subsidy rules for the later year the message asks about are not valid. */

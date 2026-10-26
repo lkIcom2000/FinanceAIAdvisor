@@ -10,6 +10,11 @@ export interface ChatProposal {
   parameters: Array<ChatProposalParameter>;
 
   /**
+   * Whether Calculate answers with a range chart (a what-if) instead of a written answer
+   */
+  range: boolean;
+
+  /**
    * OPEN: waiting for Calculate; CALCULATED: answered below; CANCELLED: a later question replaced it
    */
   status: 'OPEN' | 'CALCULATED' | 'CANCELLED';

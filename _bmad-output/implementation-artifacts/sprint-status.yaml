@@ -97,8 +97,8 @@ development_status:
   6-4-short-demands-and-needs-statement-idd: done  # end 2026-10-26; combined review + Blind Hunter, 7 fixes; live Ollama check pending
   epic-6-retrospective: optional
 
-  epic-7: backlog  # [critical-path]
-  7-1-what-if-from-chat-with-a-range-chart: backlog
+  epic-7: in-progress  # [critical-path] before the joint Epic 6/7 end tasks, Commc 2026-10-26
+  7-1-what-if-from-chat-with-a-range-chart: done
   epic-7-retrospective: optional
 
   epic-8: backlog  # [critical-path]

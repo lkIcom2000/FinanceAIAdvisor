@@ -52,6 +52,21 @@
           <p class="premise">{{ m.premise }}</p>
         }
         <p class="body">{{ m.text }}</p>
+        <!-- UX-DR17: a what-if's range from the Core; the sentence above is fixed text, not the model's. -->
+        @if (m.range; as range) {
+          <section class="why-fits range" [attr.aria-labelledby]="'range-' + m.id">
+            <h4 [id]="'range-' + m.id">
+              Range of possible outcomes <app-why-link [provId]="range.provId" />
+            </h4>
+            <app-range-chart [points]="range.points" caption="What-if by year" [height]="240" />
+            <h4>Assumptions</h4>
+            <ul>
+              @for (a of range.assumptions; track $index) {
+                <li>{{ a }}</li>
+              }
+            </ul>
+          </section>
+        }
         @if (m.proposal; as proposal) {
           <section
             class="proposal"
@@ -67,7 +82,7 @@
                 <div class="proposal-row">
                   <dt>{{ p.label }}</dt>&ngsp;
                   <dd>
-                    @if (isEditing(m) && proposal.status === 'OPEN') {
+                    @if (isEditing(m) && proposal.status === 'OPEN' && p.unit !== 'FLAG') {
                       <span class="field">
                         <input
                           type="text"
@@ -407,7 +422,7 @@
       <div class="card waiting">
         <span class="sr-only">Fine is checking the answer</span>
         <ol class="steps" aria-hidden="true">
-          @for (label of steps; track label; let i = $index) {
+          @for (label of steps(); track label; let i = $index) {
             <li
               class="step"
               [class.done]="i < step()"

@@ -22,7 +22,7 @@ export interface ChatProposalParameter {
    * QUESTION: from your question; ACCOUNT_DATA: from your account data; CHANGED: changed by you
    */
   source: 'QUESTION' | 'ACCOUNT_DATA' | 'CHANGED';
-  unit: 'EUR' | 'FRACTION' | 'PP' | 'MONTHS' | 'YEARS' | 'COUNT';
+  unit: 'EUR' | 'FRACTION' | 'PP' | 'MONTHS' | 'YEARS' | 'COUNT' | 'FLAG';
 
   /**
    * Decimal string

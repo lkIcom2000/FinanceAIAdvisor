@@ -23,7 +23,8 @@ public final class ToolPlan {
 
     /** The calculation tools a plan can name; the registry maps each to its Core function. */
     public enum Tool {
-        WITHDRAWAL_DURATION("withdrawalDuration");
+        WITHDRAWAL_DURATION("withdrawalDuration"),
+        SAVINGS_PROJECTION("savingsProjection");
 
         private final String function;
 
@@ -49,6 +50,12 @@ public final class ToolPlan {
     public static final String PORTFOLIO = "portfolio";
     public static final String MONTHLY_WITHDRAWAL = "monthlyWithdrawal";
     public static final String ANNUAL_RATE = "annualRate";
+    public static final String MONTHLY_AMOUNT = "monthlyAmount";
+    public static final String YEARS = "years";
+    public static final String INITIAL = "initial";
+    public static final String STATE_SUBSIDY = "subsidy";
+    /** The longest what-if horizon in years ({@code WhatIfProjection.MAX_YEARS}). */
+    static final int MAX_YEARS = 60;
 
     /** Bounds a changed value must keep; the extracted values must keep them too to be computable. */
     static final BigDecimal MAX_AMOUNT = new BigDecimal("1000000000");
@@ -74,12 +81,18 @@ public final class ToolPlan {
      *
      * @param stated the parameters stated in the message, by spec key
      * @param portfolioFromAccount whether the portfolio is the persona's investments today (Core investment totals)
+     * @param subsidyAsked whether a what-if asks for the state subsidy (eligibility from account data)
      */
-    public record Planned(Tool tool, Map<String, BigDecimal> stated, boolean portfolioFromAccount) {
+    public record Planned(Tool tool, Map<String, BigDecimal> stated, boolean portfolioFromAccount,
+            boolean subsidyAsked) {
 
         public Planned {
             Objects.requireNonNull(tool, "tool");
             stated = Map.copyOf(stated);
+        }
+
+        public Planned(Tool tool, Map<String, BigDecimal> stated, boolean portfolioFromAccount) {
+            this(tool, stated, portfolioFromAccount, false);
         }
     }
 
@@ -90,13 +103,21 @@ public final class ToolPlan {
      * The calculation the extraction asks for, if it has every parameter: withdrawal duration when the topic is
      * {@code withdrawal_duration} or portfolio and monthly withdrawal are extracted, and portfolio, withdrawal and
      * rate are known. A missing portfolio comes from the persona's investments if the message speaks of them.
+     * Otherwise a what-if savings projection when the topic is {@code savings_projection} or a monthly contribution
+     * and years are extracted, and both are known; a stated start above zero joins it, subsidy wording adds the
+     * subsidy.
      */
     public static Optional<Planned> plan(NluExtraction extraction, String message) {
         Map<String, Double> p = extraction.computationParams();
+        if (!p.values().stream().allMatch(Double::isFinite)) {
+            return Optional.empty();
+        }
         boolean withdrawal = extraction.topic().equals("withdrawal_duration")
                 || p.containsKey("portfolio") && p.containsKey("monthly_withdrawal");
-        if (!withdrawal || !p.containsKey("monthly_withdrawal") || !p.containsKey("annual_rate")
-                || !p.values().stream().allMatch(Double::isFinite)) {
+        if (!withdrawal) {
+            return savings(extraction, p, message);
+        }
+        if (!p.containsKey("monthly_withdrawal") || !p.containsKey("annual_rate")) {
             return Optional.empty();
         }
         BigDecimal monthly = money(p.get("monthly_withdrawal"));
@@ -113,6 +134,31 @@ public final class ToolPlan {
         }
         return Optional.of(new Planned(Tool.WITHDRAWAL_DURATION,
                 Map.of(MONTHLY_WITHDRAWAL, monthly, ANNUAL_RATE, rate), true));
+    }
+
+    private static Optional<Planned> savings(NluExtraction extraction, Map<String, Double> p, String message) {
+        boolean savings = extraction.topic().equals("savings_projection")
+                || p.containsKey("monthly_contribution") && p.containsKey("years");
+        if (!savings || !p.containsKey("monthly_contribution") || !p.containsKey("years")) {
+            return Optional.empty();
+        }
+        BigDecimal monthly = money(p.get("monthly_contribution"));
+        double years = p.get("years");
+        if (!amount(monthly) || years != Math.rint(years) || years < 1 || years > MAX_YEARS) {
+            return Optional.empty();
+        }
+        Map<String, BigDecimal> stated = new java.util.LinkedHashMap<>();
+        stated.put(MONTHLY_AMOUNT, monthly);
+        stated.put(YEARS, BigDecimal.valueOf((long) years));
+        // A start of zero is the model's placeholder for "not stated", as for the portfolio.
+        if (p.getOrDefault("initial", 0.0) > 0) {
+            BigDecimal initial = money(p.get("initial"));
+            if (!amount(initial)) {
+                return Optional.empty();
+            }
+            stated.put(INITIAL, initial);
+        }
+        return Optional.of(new Planned(Tool.SAVINGS_PROJECTION, stated, false, SUBSIDY.matcher(message).find()));
     }
 
     /**
@@ -143,7 +189,36 @@ public final class ToolPlan {
      *     account data
      */
     public static SimulationSpec spec(Planned planned, SourcedNumber accountPortfolio) {
+        return spec(planned, accountPortfolio, null);
+    }
+
+    /**
+     * The spec the proposal card shows.
+     *
+     * @param accountPortfolio the persona's investments today; required if the plan takes the portfolio from
+     *     account data
+     * @param netIncome the persona's average monthly net income (Core figure); required if a what-if asks for the
+     *     subsidy: above zero means eligible
+     */
+    public static SimulationSpec spec(Planned planned, SourcedNumber accountPortfolio, SourcedNumber netIncome) {
         List<SimulationSpec.Parameter> parameters = new ArrayList<>();
+        if (planned.tool() == Tool.SAVINGS_PROJECTION) {
+            parameters.add(stated(MONTHLY_AMOUNT, "Monthly amount", planned, Unit.EUR));
+            parameters.add(stated(YEARS, "Duration", planned, Unit.YEARS));
+            if (planned.stated().containsKey(INITIAL)) {
+                parameters.add(stated(INITIAL, "Amount at the start", planned, Unit.EUR));
+            }
+            if (planned.subsidyAsked()) {
+                Objects.requireNonNull(netIncome, "netIncome");
+                boolean eligible = netIncome.value().signum() > 0;
+                parameters.add(new SimulationSpec.Parameter(STATE_SUBSIDY,
+                        eligible ? "State subsidy (you receive a salary)"
+                                : "State subsidy (no salary income found, so not eligible)",
+                        eligible ? BigDecimal.ONE : BigDecimal.ZERO, Unit.FLAG, SimulationSpec.Source.ACCOUNT_DATA,
+                        netIncome.provId()));
+            }
+            return new SimulationSpec(planned.tool().function(), parameters);
+        }
         if (planned.portfolioFromAccount()) {
             Objects.requireNonNull(accountPortfolio, "accountPortfolio");
             parameters.add(new SimulationSpec.Parameter(PORTFOLIO, "Starting portfolio", accountPortfolio.value(),
@@ -161,10 +236,28 @@ public final class ToolPlan {
      * tool, a portfolio and a withdrawal above zero and at most 1,000,000,000 EUR, a return between -20 % and 20 %.
      */
     public static List<String> problems(SimulationSpec spec) {
-        if (Tool.ofFunction(spec.function()).isEmpty()) {
+        Optional<Tool> tool = Tool.ofFunction(spec.function());
+        if (tool.isEmpty()) {
             return List.of("This calculation is not available.");
         }
         List<String> problems = new ArrayList<>();
+        if (tool.get() == Tool.SAVINGS_PROJECTION) {
+            if (!amount(spec.parameter(MONTHLY_AMOUNT).value())) {
+                problems.add("The monthly amount must be more than 0 and at most 1,000,000,000 EUR.");
+            }
+            BigDecimal years = spec.parameter(YEARS).value();
+            if (years.stripTrailingZeros().scale() > 0 || years.compareTo(BigDecimal.ONE) < 0
+                    || years.compareTo(BigDecimal.valueOf(MAX_YEARS)) > 0) {
+                problems.add("The duration must be a whole number of years from 1 to " + MAX_YEARS + ".");
+            }
+            if (has(spec, INITIAL) && !amount(spec.parameter(INITIAL).value())) {
+                problems.add("The amount at the start must be more than 0 and at most 1,000,000,000 EUR.");
+            }
+            if (has(spec, STATE_SUBSIDY) && spec.parameter(STATE_SUBSIDY).source() == SimulationSpec.Source.CHANGED) {
+                problems.add("The state subsidy can't be changed here. Please ask a new question instead.");
+            }
+            return problems;
+        }
         BigDecimal portfolio = spec.parameter(PORTFOLIO).value();
         BigDecimal monthly = spec.parameter(MONTHLY_WITHDRAWAL).value();
         BigDecimal rate = spec.parameter(ANNUAL_RATE).value();
@@ -178,6 +271,11 @@ public final class ToolPlan {
             problems.add("The assumed annual return must be between -20 % and 20 %.");
         }
         return problems;
+    }
+
+    /** Whether the spec has the parameter {@code key}. */
+    public static boolean has(SimulationSpec spec, String key) {
+        return spec.parameters().stream().anyMatch(p -> p.key().equals(key));
     }
 
     private static boolean valid(BigDecimal portfolio, BigDecimal monthly, BigDecimal rate) {

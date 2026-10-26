@@ -17,7 +17,7 @@ export interface ProvenanceInput {
   /**
    * Absent for a text input
    */
-  unit?: 'EUR' | 'FRACTION' | 'PP' | 'MONTHS' | 'YEARS' | 'COUNT';
+  unit?: 'EUR' | 'FRACTION' | 'PP' | 'MONTHS' | 'YEARS' | 'COUNT' | 'FLAG';
 
   /**
    * Decimal string; absent for a text input

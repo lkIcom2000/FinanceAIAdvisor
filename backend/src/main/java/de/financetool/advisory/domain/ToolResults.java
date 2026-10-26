@@ -39,6 +39,7 @@ public final class ToolResults {
             case MONTHS -> "months";
             case YEARS -> "years";
             case COUNT -> "";
+            case FLAG -> "(one means yes, zero means no)";
         };
     }
 }

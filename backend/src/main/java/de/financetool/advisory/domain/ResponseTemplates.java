@@ -1,6 +1,11 @@
 package de.financetool.advisory.domain;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -35,6 +40,10 @@ public final class ResponseTemplates {
     public static final String PARAMETER_PROPOSAL = "Here's what I understood from your question. Please check the "
             + "values below, then choose Calculate, or change them first.";
 
+    /** The answer of a calculated what-if (Story 7.1, UX-DR17): fixed, no phrasing call; the card shows the chart. */
+    static final String RANGE = "Between {p10} and {p90} EUR after {years} years. The middle outcome is {p50} EUR. "
+            + "This is a range, not a promise.";
+
     public static final String NO_VALID_SOURCE = NoValidSource.TEXT;
 
     /** The in-scope next steps of every released refusal (UX-DR11), as suggestion chips. */
@@ -47,6 +56,18 @@ public final class ResponseTemplates {
     static final String ASSUMPTION_CALLOUT = "I couldn't confirm something your question assumes.";
 
     private ResponseTemplates() {
+    }
+
+    /** The answer of a calculated what-if: the Core's low end, high end and middle outcome at the horizon. */
+    public static String range(BigDecimal p10, BigDecimal p90, BigDecimal p50, int years) {
+        return RANGE.replace("{p10}", amount(p10)).replace("{p90}", amount(p90)).replace("{p50}", amount(p50))
+                .replace("{years}", Integer.toString(years));
+    }
+
+    /** An amount as the Core shows it, with thousands separators and cents ("12,345.67"). */
+    private static String amount(BigDecimal value) {
+        DecimalFormat format = new DecimalFormat("#,##0.00", DecimalFormatSymbols.getInstance(Locale.ENGLISH));
+        return format.format(value.setScale(2, RoundingMode.HALF_UP));
     }
 
     /**

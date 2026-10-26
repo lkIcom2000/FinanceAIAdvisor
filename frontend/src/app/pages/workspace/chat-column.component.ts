@@ -14,7 +14,13 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { FigureLinksService } from '../../shared/figure-links.service';
 import { FigurePipe, fractionToPercent, percentToFraction } from '../../shared/figure.pipe';
-import { openChecksDialog, openWhyDialog } from '../../shared/why-link.component';
+import { provideEchartsCore } from 'ngx-echarts';
+import { RangeChartComponent } from '../../shared/range-chart.component';
+import {
+  openChecksDialog,
+  openWhyDialog,
+  WhyLinkComponent,
+} from '../../shared/why-link.component';
 import { ChatAssessmentField } from '../../api/models/chat-assessment-field';
 import { ChatMessage } from '../../api/models/chat-message';
 import { ChatProposalParameter } from '../../api/models/chat-proposal-parameter';
@@ -78,6 +84,9 @@ export const WAITING_STEPS = [
   'Checking the rules',
 ] as const;
 
+/** A what-if's Calculate: the Core runs and the rules are checked; the answer is fixed text, nothing is written. */
+export const RANGE_STEPS = ['Getting your figures', 'Checking the rules'] as const;
+
 /** The waiting card advances one step per interval; it never confirms a step and never times out. */
 export const STEP_INTERVAL_MS = 3000;
 export const SLOW_AFTER_MS = 20_000;
@@ -105,7 +114,12 @@ interface AssessmentForm {
  */
 @Component({
   selector: 'app-chat-column',
-  imports: [ChatComposerComponent, MatButtonModule, FigurePipe],
+  imports: [ChatComposerComponent, MatButtonModule, FigurePipe, RangeChartComponent, WhyLinkComponent],
+  providers: [
+    provideEchartsCore({
+      echarts: () => import('../../shared/echarts-setup').then((m) => m.echarts),
+    }),
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './chat-column.component.html',
   styleUrl: './chat-column.component.scss',
@@ -117,7 +131,7 @@ export class ChatColumnComponent {
   protected readonly links = inject(FigureLinksService);
 
   protected readonly suggestions = SUGGESTIONS;
-  protected readonly steps = WAITING_STEPS;
+  protected readonly steps = signal<readonly string[]>(WAITING_STEPS);
   protected readonly outcomes = OUTCOME_LABELS;
   protected readonly icons = ICON_PATHS;
 
@@ -235,7 +249,8 @@ export class ChatColumnComponent {
 
   protected startEditing(message: ChatMessage): void {
     const values: Record<string, string> = {};
-    for (const p of message.proposal?.parameters ?? []) {
+    // A yes/no row (the subsidy) is not a field: a different choice is a new question.
+    for (const p of (message.proposal?.parameters ?? []).filter((p) => p.unit !== 'FLAG')) {
       values[p.key] = this.fieldText(p);
     }
     this.editing.set({ messageId: message.id, values });
@@ -269,7 +284,7 @@ export class ChatColumnComponent {
       parameters.push({ key: p.key, value: p.unit === 'FRACTION' ? percentToFraction(text) : text });
     }
     this.calculateError.set(null);
-    this.startWaiting(null);
+    this.startWaiting(null, message.proposal.range ? RANGE_STEPS : WAITING_STEPS);
     this.scrollToBottom();
     this.chat.calculate({ id: message.id, body: { parameters } }).subscribe({
       next: (answer) => {
@@ -516,14 +531,18 @@ export class ChatColumnComponent {
     }
   }
 
-  private startWaiting(messageId: string | null): void {
+  private startWaiting(
+    messageId: string | null,
+    steps: readonly string[] = WAITING_STEPS,
+  ): void {
     this.stopWaiting();
+    this.steps.set(steps);
     this.step.set(0);
     this.slow.set(false);
     this.pending.set({ status: 'waiting', messageId });
     this.timers.push(
       setInterval(
-        () => this.step.update((s) => Math.min(s + 1, WAITING_STEPS.length - 1)),
+        () => this.step.update((s) => Math.min(s + 1, steps.length - 1)),
         STEP_INTERVAL_MS,
       ),
       setTimeout(() => this.slow.set(true), SLOW_AFTER_MS),

@@ -27,6 +27,8 @@ export function formatFigure(value: string, unit: FigureUnit): string {
       return `${sign}${group(digits)} ${isOne(digits) ? 'year' : 'years'}`;
     case 'COUNT':
       return `${sign}${group(digits)}`;
+    case 'FLAG':
+      return /^0*1(\.0*)?$/.test(value) ? 'Yes' : 'No';
   }
 }
 

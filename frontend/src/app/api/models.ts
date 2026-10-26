@@ -13,6 +13,8 @@ export type { ChatHandover } from './models/chat-handover';
 export type { ChatMessage } from './models/chat-message';
 export type { ChatProposal } from './models/chat-proposal';
 export type { ChatProposalParameter } from './models/chat-proposal-parameter';
+export type { ChatRangeChart } from './models/chat-range-chart';
+export type { ChatRangePoint } from './models/chat-range-point';
 export type { ChatRecommendation } from './models/chat-recommendation';
 export type { ChatRecommendationFact } from './models/chat-recommendation-fact';
 export type { DatedFigure } from './models/dated-figure';

@@ -42,36 +42,7 @@
           {{ pr.years }} years. The middle outcome is {{ pr.wholeEuros.p50 }} EUR. This is a range,
           not a promise.
         </p>
-        <div
-          class="chart"
-          echarts
-          aria-hidden="true"
-          [options]="chartOptions()!"
-          [initOpts]="{ renderer: 'svg' }"
-        ></div>
-        <table class="visually-hidden">
-          <caption>
-            Goal projection by year
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Year</th>
-              <th scope="col">{{ legend.lower }}</th>
-              <th scope="col">{{ legend.middle }}</th>
-              <th scope="col">{{ legend.higher }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (p of pr.points; track p.year) {
-              <tr>
-                <th scope="row">{{ p.year }}</th>
-                <td>{{ p.p10 | figure: 'EUR' }}</td>
-                <td>{{ p.p50 | figure: 'EUR' }}</td>
-                <td>{{ p.p90 | figure: 'EUR' }}</td>
-              </tr>
-            }
-          </tbody>
-        </table>
+        <app-range-chart [points]="pr.points" caption="Goal projection by year" />
         <dl class="figures">
           @for (f of figureRows(); track f.figure.provId) {
             <div class="figure-row">

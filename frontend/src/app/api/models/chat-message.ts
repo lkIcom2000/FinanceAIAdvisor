@@ -5,6 +5,7 @@ import { ChatAssessment } from '../models/chat-assessment';
 import { ChatCheck } from '../models/chat-check';
 import { ChatHandover } from '../models/chat-handover';
 import { ChatProposal } from '../models/chat-proposal';
+import { ChatRangeChart } from '../models/chat-range-chart';
 import { ChatRecommendation } from '../models/chat-recommendation';
 import { Figure } from '../models/figure';
 import { NeedsStatement } from '../models/needs-statement';
@@ -55,6 +56,11 @@ export interface ChatMessage {
    * "Here's what I understood": the values a calculation will run with; only on COMPUTE answers that ask before calculating
    */
   proposal?: ChatProposal;
+
+  /**
+   * The range chart of a calculated what-if; only on COMPUTE answers to a what-if
+   */
+  range?: ChatRangeChart;
 
   /**
    * "Why this fits you": the Suitability Statement; only on RECOMMEND_CATEGORY answers

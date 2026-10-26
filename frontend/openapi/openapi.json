@@ -754,6 +754,10 @@
             "$ref" : "#/components/schemas/ChatProposal",
             "description" : "\"Here's what I understood\": the values a calculation will run with; only on COMPUTE answers that ask before calculating"
           },
+          "range" : {
+            "$ref" : "#/components/schemas/ChatRangeChart",
+            "description" : "The range chart of a calculated what-if; only on COMPUTE answers to a what-if"
+          },
           "recommendation" : {
             "$ref" : "#/components/schemas/ChatRecommendation",
             "description" : "\"Why this fits you\": the Suitability Statement; only on RECOMMEND_CATEGORY answers"
@@ -787,13 +791,17 @@
               "$ref" : "#/components/schemas/ChatProposalParameter"
             }
           },
+          "range" : {
+            "type" : "boolean",
+            "description" : "Whether Calculate answers with a range chart (a what-if) instead of a written answer"
+          },
           "status" : {
             "type" : "string",
             "description" : "OPEN: waiting for Calculate; CALCULATED: answered below; CANCELLED: a later question replaced it",
             "enum" : [ "OPEN", "CALCULATED", "CANCELLED" ]
           }
         },
-        "required" : [ "parameters", "status" ]
+        "required" : [ "parameters", "range", "status" ]
       },
       "ChatProposalParameter" : {
         "type" : "object",
@@ -818,7 +826,7 @@
           },
           "unit" : {
             "type" : "string",
-            "enum" : [ "EUR", "FRACTION", "PP", "MONTHS", "YEARS", "COUNT" ]
+            "enum" : [ "EUR", "FRACTION", "PP", "MONTHS", "YEARS", "COUNT", "FLAG" ]
           },
           "value" : {
             "type" : "string",
@@ -827,6 +835,56 @@
           }
         },
         "required" : [ "key", "label", "source", "unit", "value" ]
+      },
+      "ChatRangeChart" : {
+        "type" : "object",
+        "description" : "Where a what-if may lead, from Fine's calculation engine: a range, not a promise",
+        "properties" : {
+          "assumptions" : {
+            "type" : "array",
+            "description" : "Return model, costs, inflation, horizon and subsidy rule",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "points" : {
+            "type" : "array",
+            "description" : "The percentiles at the end of each year",
+            "items" : {
+              "$ref" : "#/components/schemas/ChatRangePoint"
+            }
+          },
+          "provId" : {
+            "type" : "string",
+            "description" : "Key of the projection's provenance (its middle outcome), for \"Why?\"",
+            "pattern" : "^[0-9a-f]{16}$"
+          }
+        },
+        "required" : [ "assumptions", "points", "provId" ]
+      },
+      "ChatRangePoint" : {
+        "type" : "object",
+        "description" : "A what-if's percentiles at the end of one year (EUR)",
+        "properties" : {
+          "p10" : {
+            "type" : "string",
+            "pattern" : "^-?\\d+(\\.\\d+)?$"
+          },
+          "p50" : {
+            "type" : "string",
+            "pattern" : "^-?\\d+(\\.\\d+)?$"
+          },
+          "p90" : {
+            "type" : "string",
+            "pattern" : "^-?\\d+(\\.\\d+)?$"
+          },
+          "year" : {
+            "type" : "integer",
+            "format" : "int32",
+            "minimum" : 1
+          }
+        },
+        "required" : [ "p10", "p50", "p90", "year" ]
       },
       "ChatRecommendation" : {
         "type" : "object",
@@ -944,7 +1002,7 @@
           },
           "unit" : {
             "type" : "string",
-            "enum" : [ "EUR", "FRACTION", "PP", "MONTHS", "YEARS", "COUNT" ]
+            "enum" : [ "EUR", "FRACTION", "PP", "MONTHS", "YEARS", "COUNT", "FLAG" ]
           },
           "value" : {
             "type" : "string",
@@ -1416,7 +1474,7 @@
           "unit" : {
             "type" : "string",
             "description" : "Absent for a text input",
-            "enum" : [ "EUR", "FRACTION", "PP", "MONTHS", "YEARS", "COUNT" ]
+            "enum" : [ "EUR", "FRACTION", "PP", "MONTHS", "YEARS", "COUNT", "FLAG" ]
           },
           "value" : {
             "type" : "string",
@@ -1469,7 +1527,7 @@
           },
           "unit" : {
             "type" : "string",
-            "enum" : [ "EUR", "FRACTION", "PP", "MONTHS", "YEARS", "COUNT" ]
+            "enum" : [ "EUR", "FRACTION", "PP", "MONTHS", "YEARS", "COUNT", "FLAG" ]
           },
           "value" : {
             "type" : "string",

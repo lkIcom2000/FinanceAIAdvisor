@@ -128,4 +128,101 @@ class ToolPlanTest {
         assertThat(ToolPlan.laterSubsidyYear(nlu(topic, Map.of()), message, AS_OF))
                 .isEqualTo(java.util.Optional.ofNullable(expected).map(java.time.LocalDate::parse));
     }
+
+    static final String JONAS = "What if I save 150 EUR a month for 30 years, with the state subsidy?";
+
+    static Stream<Arguments> whatIfs() {
+        return Stream.of(
+                Arguments.of("topic, amount and years", nlu("savings_projection",
+                        Map.of("monthly_contribution", 150.0, "years", 30.0)), "q", true),
+                Arguments.of("amount and years under another topic", nlu("subsidy_eligibility",
+                        Map.of("monthly_contribution", 150.0, "years", 30.0)), JONAS, true),
+                Arguments.of("topic without years", nlu("savings_projection",
+                        Map.of("monthly_contribution", 150.0)), "q", false),
+                Arguments.of("topic without an amount", nlu("savings_projection", Map.of("years", 30.0)), "q",
+                        false),
+                Arguments.of("years that are no whole number", nlu("savings_projection",
+                        Map.of("monthly_contribution", 150.0, "years", 2.5)), "q", false),
+                Arguments.of("more than sixty years", nlu("savings_projection",
+                        Map.of("monthly_contribution", 150.0, "years", 61.0)), "q", false),
+                Arguments.of("an amount of zero", nlu("savings_projection",
+                        Map.of("monthly_contribution", 0.0, "years", 30.0)), "q", false),
+                Arguments.of("withdrawal parameters keep the withdrawal plan", nlu("withdrawal_duration",
+                        Map.of("monthly_contribution", 150.0, "years", 30.0)), "q", false));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("whatIfs")
+    void plansAWhatIfWithAnAmountAndWholeYears(String name, NluExtraction extraction, String message,
+            boolean planned) {
+        Optional<ToolPlan.Planned> plan = ToolPlan.plan(extraction, message);
+
+        assertThat(plan.isPresent()).isEqualTo(planned);
+        plan.ifPresent(p -> assertThat(p.tool()).isEqualTo(ToolPlan.Tool.SAVINGS_PROJECTION));
+    }
+
+    static final SourcedNumber NET_INCOME = new SourcedNumber("00000000000000aa", new BigDecimal("2150.00"),
+            Unit.EUR, "Average monthly net income");
+
+    @Test
+    void jonasWhatIfShowsAmountDurationAndTheSubsidyFromAccountData() {
+        ToolPlan.Planned plan = ToolPlan.plan(nlu("savings_projection",
+                Map.of("monthly_contribution", 150.0, "years", 30.0, "initial", 0.0)), JONAS).orElseThrow();
+        SimulationSpec spec = ToolPlan.spec(plan, null, NET_INCOME);
+
+        assertThat(spec.function()).isEqualTo("savingsProjection");
+        assertThat(spec.parameters()).containsExactly(
+                new SimulationSpec.Parameter("monthlyAmount", "Monthly amount", new BigDecimal("150.00"), Unit.EUR,
+                        SimulationSpec.Source.QUESTION, null),
+                new SimulationSpec.Parameter("years", "Duration", new BigDecimal("30"), Unit.YEARS,
+                        SimulationSpec.Source.QUESTION, null),
+                new SimulationSpec.Parameter("subsidy", "State subsidy (you receive a salary)", BigDecimal.ONE,
+                        Unit.FLAG, SimulationSpec.Source.ACCOUNT_DATA, "00000000000000aa"));
+        assertThat(ToolPlan.problems(spec)).isEmpty();
+    }
+
+    @Test
+    void aWhatIfWithoutSubsidyWordsHasNoSubsidyRowAndAStatedStartIsARow() {
+        ToolPlan.Planned plan = ToolPlan.plan(nlu("savings_projection",
+                Map.of("monthly_contribution", 200.0, "years", 10.0, "initial", 5000.0)),
+                "What if I start with 5,000 EUR and save 200 EUR a month for 10 years?").orElseThrow();
+        SimulationSpec spec = ToolPlan.spec(plan, null, null);
+
+        assertThat(spec.parameters()).extracting(SimulationSpec.Parameter::key)
+                .containsExactly("monthlyAmount", "years", "initial");
+        assertThat(spec.parameter("initial").value()).isEqualByComparingTo("5000");
+    }
+
+    @Test
+    void withoutSalaryIncomeTheSubsidyRowSaysNo() {
+        ToolPlan.Planned plan = ToolPlan.plan(nlu("savings_projection",
+                Map.of("monthly_contribution", 150.0, "years", 30.0)), JONAS).orElseThrow();
+        SourcedNumber none = new SourcedNumber("00000000000000ab", new BigDecimal("0.00"), Unit.EUR, "income");
+
+        SimulationSpec.Parameter subsidy = ToolPlan.spec(plan, null, none).parameter("subsidy");
+
+        assertThat(subsidy.value()).isEqualByComparingTo("0");
+        assertThat(subsidy.label()).contains("not eligible");
+    }
+
+    @Test
+    void thePlanAndTheCoreAgreeOnTheLongestHorizon() {
+        assertThat(ToolPlan.MAX_YEARS).isEqualTo(de.financetool.core.domain.WhatIfProjection.MAX_YEARS);
+    }
+
+    @Test
+    void whatIfProblemsNameValuesOutOfBoundsAndAChangedSubsidy() {
+        ToolPlan.Planned plan = ToolPlan.plan(nlu("savings_projection",
+                Map.of("monthly_contribution", 150.0, "years", 30.0)), JONAS).orElseThrow();
+        SimulationSpec spec = ToolPlan.spec(plan, null, NET_INCOME);
+        SimulationSpec changed = new SimulationSpec(spec.function(), List.of(
+                spec.parameter("monthlyAmount").changedTo(BigDecimal.ZERO),
+                spec.parameter("years").changedTo(new BigDecimal("2.5")),
+                spec.parameter("subsidy").changedTo(BigDecimal.ZERO)));
+
+        assertThat(ToolPlan.problems(changed)).containsExactly(
+                "The monthly amount must be more than 0 and at most 1,000,000,000 EUR.",
+                "The duration must be a whole number of years from 1 to 60.",
+                "The state subsidy can't be changed here. Please ask a new question instead.");
+    }
 }

@@ -39,6 +39,8 @@ import de.financetool.core.domain.RuleParameterValue;
 import de.financetool.core.domain.ShortfallDetection;
 import de.financetool.core.domain.VariableSpending;
 import de.financetool.core.domain.WealthFigures;
+import de.financetool.core.domain.WhatIfFigures;
+import de.financetool.core.domain.WhatIfProjection;
 import de.financetool.core.domain.WithdrawalDuration;
 import de.financetool.knowledge.NoValidRuleParameterException;
 import de.financetool.knowledge.RuleParamPort;
@@ -174,18 +176,7 @@ class CoreGatewayService implements CoreGateway {
         RuleParameterValue inflation = parameter(MonteCarloProjection.INFLATION, asOf);
         Map<String, RuleParameterValue> parameters = new HashMap<>(Map.of(horizon.key(), horizon,
                 ter.key(), ter, inflation.key(), inflation));
-        MonteCarloProjection.ReturnModel model;
-        Optional<IndexReturns.Series> series = indexReturns.series()
-                .filter(s -> s.monthlyReturns().size() > MonteCarloProjection.MIN_BOOTSTRAP_MONTHS);
-        if (series.isPresent()) {
-            model = new MonteCarloProjection.Bootstrap(series.get().source(), series.get().monthlyReturns());
-        } else {
-            RuleParameterValue mean = parameter(MonteCarloProjection.MEAN_RETURN, asOf);
-            RuleParameterValue volatility = parameter(MonteCarloProjection.VOLATILITY, asOf);
-            parameters.put(mean.key(), mean);
-            parameters.put(volatility.key(), volatility);
-            model = new MonteCarloProjection.Parametric(mean, volatility);
-        }
+        MonteCarloProjection.ReturnModel model = returnModel(asOf, parameters);
         MonteCarloProjection projection = MonteCarloProjection.project(totals.number(Investments.OUTPUT_INITIAL),
                 totals.number(Investments.OUTPUT_MONTHLY), horizon, MonteCarloProjection.DEFAULT_PATHS,
                 context.seeds().core(), model, ter, inflation);
@@ -277,6 +268,59 @@ class CoreGatewayService implements CoreGateway {
                     costParameters.get(CostCalculation.FRONT_LOAD)), List.of(), costParameters);
         }
         return new RecommendationFigures(selection, selected.selection(), costs);
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public CoreResult netIncome(RequestContext context, EvidenceOrigin origin) {
+        BankSnapshot snapshot = bank.snapshot(context.personaId(), context.asOf());
+        BankSnapshot.Account current = currentAccount(snapshot, context);
+        return record(context, origin, MonthlyNetIncome.of(BankMapping.entries(snapshot, current.id()),
+                context.asOf()), List.of(), Map.of());
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY, noRollbackFor = NoValidRuleParameterException.class)
+    public WhatIfFigures whatIf(RequestContext context, EvidenceOrigin origin, BigDecimal monthly, int years,
+            BigDecimal initial, Boolean subsidy, SourcedNumber netIncomeFigure) {
+        LocalDate asOf = context.asOf();
+        // every Rule Parameter first, so a missing one stores nothing
+        RuleParameterValue ter = parameter(MonteCarloProjection.TER, asOf);
+        RuleParameterValue inflation = parameter(MonteCarloProjection.INFLATION, asOf);
+        Map<String, RuleParameterValue> parameters = new HashMap<>(Map.of(ter.key(), ter,
+                inflation.key(), inflation));
+        MonteCarloProjection.ReturnModel model = returnModel(asOf, parameters);
+        WhatIfProjection.Subsidy asked = null;
+        if (Boolean.TRUE.equals(subsidy)) {
+            RuleParameterValue basic = parameter(RiesterSubsidy.BASIC, asOf);
+            RuleParameterValue floor = parameter(RiesterSubsidy.FLOOR, asOf);
+            parameters.put(basic.key(), basic);
+            parameters.put(floor.key(), floor);
+            asked = new WhatIfProjection.Subsidy(true, netIncomeFigure, basic, floor);
+        } else if (subsidy != null) {
+            asked = new WhatIfProjection.Subsidy(false, netIncomeFigure, null, null);
+        }
+        WhatIfProjection projection = WhatIfProjection.project(monthly, years, initial, asked,
+                MonteCarloProjection.DEFAULT_PATHS, context.seeds().core(), model, ter, inflation);
+        return new WhatIfFigures(record(context, origin, projection.computation(), List.of(), parameters),
+                projection.points(), projection.assumptions());
+    }
+
+    /**
+     * The return model of a projection: a bootstrap of the historical index series if it is long enough, else normal
+     * returns from the Rule Parameters, which join {@code parameters}.
+     */
+    private MonteCarloProjection.ReturnModel returnModel(LocalDate asOf, Map<String, RuleParameterValue> parameters) {
+        Optional<IndexReturns.Series> series = indexReturns.series()
+                .filter(s -> s.monthlyReturns().size() > MonteCarloProjection.MIN_BOOTSTRAP_MONTHS);
+        if (series.isPresent()) {
+            return new MonteCarloProjection.Bootstrap(series.get().source(), series.get().monthlyReturns());
+        }
+        RuleParameterValue mean = parameter(MonteCarloProjection.MEAN_RETURN, asOf);
+        RuleParameterValue volatility = parameter(MonteCarloProjection.VOLATILITY, asOf);
+        parameters.put(mean.key(), mean);
+        parameters.put(volatility.key(), volatility);
+        return new MonteCarloProjection.Parametric(mean, volatility);
     }
 
     @Override

@@ -8,7 +8,7 @@
 export interface Figure {
   label: string;
   provId: string;
-  unit: 'EUR' | 'FRACTION' | 'PP' | 'MONTHS' | 'YEARS' | 'COUNT';
+  unit: 'EUR' | 'FRACTION' | 'PP' | 'MONTHS' | 'YEARS' | 'COUNT' | 'FLAG';
 
   /**
    * Decimal string

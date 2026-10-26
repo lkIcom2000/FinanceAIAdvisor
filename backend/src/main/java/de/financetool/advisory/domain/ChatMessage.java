@@ -2,6 +2,7 @@ package de.financetool.advisory.domain;
 
 import de.financetool.shared.domain.SimulationSpec;
 import de.financetool.shared.domain.SourcedNumber;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -24,11 +25,12 @@ import java.util.UUID;
  *     otherwise
  * @param needsStatement the demands-and-needs statement of a {@code RECOMMEND_CATEGORY} answer on a protection topic
  *     (FR-18, UX-DR44); {@code null} otherwise
+ * @param range the range chart of a calculated what-if answer (UX-DR17); {@code null} otherwise
  */
 public record ChatMessage(UUID id, Author author, String text, ResponseOutcome outcome, UUID replyTo,
         List<String> suggestions, List<Check> checks, Handover handover, Proposal proposal,
         List<SourcedNumber> figures, String premise, Assessment assessment, Recommendation recommendation,
-        NeedsStatement needsStatement) {
+        NeedsStatement needsStatement, RangeChart range) {
 
     /** At most three chips per card (UX). */
     public static final int MAX_SUGGESTIONS = 3;
@@ -193,6 +195,31 @@ public record ChatMessage(UUID id, Author author, String text, ResponseOutcome o
         }
     }
 
+    /**
+     * The range chart of a what-if (UX-DR17): the yearly percentiles from the Core, its assumptions and the figure
+     * "Why?" opens.
+     *
+     * @param provId the key of the middle outcome at the horizon
+     */
+    public record RangeChart(List<Point> points, List<String> assumptions, String provId) {
+
+        /** The 10th, 50th and 90th percentile at the end of a year, in EUR. */
+        public record Point(int year, BigDecimal p10, BigDecimal p50, BigDecimal p90) {
+
+            public Point {
+                Objects.requireNonNull(p10, "p10");
+                Objects.requireNonNull(p50, "p50");
+                Objects.requireNonNull(p90, "p90");
+            }
+        }
+
+        public RangeChart {
+            points = points == null ? List.of() : List.copyOf(points);
+            assumptions = assumptions == null ? List.of() : List.copyOf(assumptions);
+            Objects.requireNonNull(provId, "provId");
+        }
+    }
+
     public ChatMessage {
         Objects.requireNonNull(id, "id");
         Objects.requireNonNull(author, "author");
@@ -203,6 +230,15 @@ public record ChatMessage(UUID id, Author author, String text, ResponseOutcome o
         if (suggestions.size() > MAX_SUGGESTIONS) {
             throw new IllegalArgumentException("At most " + MAX_SUGGESTIONS + " suggestions per message");
         }
+    }
+
+    /** A message without a range chart. */
+    public ChatMessage(UUID id, Author author, String text, ResponseOutcome outcome, UUID replyTo,
+            List<String> suggestions, List<Check> checks, Handover handover, Proposal proposal,
+            List<SourcedNumber> figures, String premise, Assessment assessment, Recommendation recommendation,
+            NeedsStatement needsStatement) {
+        this(id, author, text, outcome, replyTo, suggestions, checks, handover, proposal, figures, premise,
+                assessment, recommendation, needsStatement, null);
     }
 
     /** A message without a demands-and-needs statement. */
@@ -250,21 +286,22 @@ public record ChatMessage(UUID id, Author author, String text, ResponseOutcome o
     /** This message with the handover of its case. */
     public ChatMessage withHandover(Handover value) {
         return new ChatMessage(id, author, text, outcome, replyTo, suggestions, checks, value, proposal, figures,
-                premise, assessment, recommendation, needsStatement);
+                premise, assessment, recommendation, needsStatement, range);
     }
 
     /** This proposal message with a new status. */
     public ChatMessage withProposalStatus(Proposal.Status value) {
         Objects.requireNonNull(proposal, "proposal");
         return new ChatMessage(id, author, text, outcome, replyTo, suggestions, checks, handover,
-                new Proposal(proposal.spec(), value), figures, premise, assessment, recommendation, needsStatement);
+                new Proposal(proposal.spec(), value), figures, premise, assessment, recommendation, needsStatement,
+                range);
     }
 
     /** This assessment message with a new status. */
     public ChatMessage withAssessmentStatus(Assessment.Status value) {
         Objects.requireNonNull(assessment, "assessment");
         return new ChatMessage(id, author, text, outcome, replyTo, suggestions, checks, handover, proposal, figures,
-                premise, new Assessment(assessment.fields(), value), recommendation, needsStatement);
+                premise, new Assessment(assessment.fields(), value), recommendation, needsStatement, range);
     }
 
     /** A message without checks. */

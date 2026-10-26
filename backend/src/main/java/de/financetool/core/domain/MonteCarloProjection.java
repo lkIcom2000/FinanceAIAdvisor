@@ -131,55 +131,12 @@ public record MonteCarloProjection(List<Point> points, List<String> assumptions,
             throw new IllegalArgumentException("a projection needs at least 10 paths");
         }
         int months = years * 12;
-        double start = initial.value().doubleValue();
-        double contribution = monthlyContribution.value().doubleValue();
-        double monthlyCost = ter.value().doubleValue() / 12;
-
-        RandomGenerator random = RandomGeneratorFactory.of(ALGORITHM).create(seed);
-        double[][] byYear = new double[years][paths];
-        switch (returnModel) {
-            case Parametric p -> {
-                double mu = StrictMath.pow(1 + p.meanReturn().value().doubleValue(), 1.0 / 12) - 1;
-                double sigma = p.volatility().value().doubleValue() / StrictMath.sqrt(12);
-                for (int path = 0; path < paths; path++) {
-                    double wealth = start;
-                    for (int month = 1; month <= months; month++) {
-                        double r = mu + sigma * random.nextGaussian() - monthlyCost;
-                        wealth = wealth * (1 + r) + contribution;
-                        if (month % 12 == 0) {
-                            byYear[month / 12 - 1][path] = wealth;
-                        }
-                    }
-                }
-            }
-            case Bootstrap b -> {
-                double[] returns = b.monthlyReturns().stream().mapToDouble(BigDecimal::doubleValue).toArray();
-                for (int path = 0; path < paths; path++) {
-                    double wealth = start;
-                    for (int month = 1; month <= months; month++) {
-                        double r = returns[random.nextInt(returns.length)] - monthlyCost;
-                        wealth = wealth * (1 + r) + contribution;
-                        if (month % 12 == 0) {
-                            byYear[month / 12 - 1][path] = wealth;
-                        }
-                    }
-                }
-            }
-        }
-
-        List<Point> points = new ArrayList<>();
-        double[] last = null;
-        for (int year = 1; year <= years; year++) {
-            double[] sorted = byYear[year - 1];
-            Arrays.sort(sorted);
-            points.add(new Point(year, money(percentile(sorted, 0.10)), money(percentile(sorted, 0.50)),
-                    money(percentile(sorted, 0.90))));
-            last = sorted;
-        }
+        Simulation simulation = simulate(initial.value().doubleValue(), monthlyContribution.value().doubleValue(),
+                0, years, paths, seed, returnModel, ter.value().doubleValue());
+        List<Point> points = simulation.points();
         Point end = points.getLast();
         BigDecimal paidIn = money(initial.value().add(monthlyContribution.value().multiply(BigDecimal.valueOf(months))));
-        BigDecimal deflator = BigDecimal.ONE.add(inflation.value()).pow(years, MathContext.DECIMAL128);
-        BigDecimal p50Real = money(BigDecimal.valueOf(percentile(last, 0.50)).divide(deflator, MathContext.DECIMAL128));
+        BigDecimal p50Real = inTodaysMoney(simulation.endMedian(), inflation.value(), years);
 
         Map<String, Object> keyInputs = new LinkedHashMap<>();
         keyInputs.put("initial", initial.value());
@@ -201,47 +158,19 @@ public record MonteCarloProjection(List<Point> points, List<String> assumptions,
         inputs.add(FigureInput.figure("Value of your investments today", initial));
         inputs.add(FigureInput.figure("Monthly savings plan contributions", monthlyContribution));
         inputs.add(FigureInput.number("Horizon", horizon.value(), Unit.YEARS));
-        String modelAssumption;
-        switch (returnModel) {
-            case Parametric p -> {
-                keyInputs.put("returnModel", Map.of("kind", "normal", "mean", p.meanReturn().value(),
-                        "meanVersion", p.meanReturn().version(), "volatility", p.volatility().value(),
-                        "volatilityVersion", p.volatility().version()));
-                versions.put(p.meanReturn().key(), p.meanReturn().version());
-                versions.put(p.volatility().key(), p.volatility().version());
-                inputs.add(FigureInput.number("Average yearly return (assumption)", p.meanReturn().value(),
-                        Unit.FRACTION));
-                inputs.add(FigureInput.number("Yearly volatility (assumption)", p.volatility().value(),
-                        Unit.FRACTION));
-                modelAssumption = "Returns: normally distributed monthly returns with an average of "
-                        + Wording.percent(p.meanReturn().value()) + " a year and a volatility of "
-                        + Wording.percent(p.volatility().value()) + " a year. This is an assumption, not historical"
-                        + " data.";
-            }
-            case Bootstrap b -> {
-                keyInputs.put("returnModel", Map.of("kind", "bootstrap", "source", b.source(),
-                        "returns", List.copyOf(b.monthlyReturns())));
-                inputs.add(FigureInput.text("Historical index returns",
-                        b.monthlyReturns().size() + " monthly returns from " + b.source()));
-                modelAssumption = "Returns: each month's return is drawn at random from "
-                        + b.monthlyReturns().size() + " historical monthly index returns (" + b.source() + ").";
-            }
-        }
+        String modelAssumption = describeModel(returnModel, keyInputs, versions, inputs);
         inputs.add(FigureInput.number("Fund costs per year (TER)", ter.value(), Unit.FRACTION));
         inputs.add(FigureInput.number("Inflation per year (assumption)", inflation.value(), Unit.FRACTION));
         inputs.add(FigureInput.number("Simulated paths", BigDecimal.valueOf(paths), Unit.COUNT));
 
         List<String> assumptions = List.of(
                 modelAssumption,
-                "Costs: fund costs of " + Wording.percent(ter.value()) + " a year are deducted every month.",
-                "Inflation: " + Wording.percent(inflation.value()) + " a year. The amounts are in future euros"
-                        + " before taxes; in today's money the middle outcome is " + Wording.eur(p50Real) + ".",
+                costsAssumption(ter),
+                inflationAssumption(inflation, p50Real),
                 "Horizon: " + years + " years, starting from " + Wording.eur(initial.value()) + " with "
                         + Wording.eur(monthlyContribution.value()) + " paid in each month ("
                         + Wording.eur(paidIn) + " in total).",
-                "The range comes from " + String.format(Locale.ENGLISH, "%,d", paths)
-                        + " simulated paths: 1 in 10 ends lower than the low end and 1 in 10 ends higher than the"
-                        + " high end.");
+                rangeAssumption(paths));
 
         CoreComputation computation = new CoreComputation(FUNCTION, "goal projection",
                 "Based on your holdings and savings plans and the assumptions below.", keyInputs, inputs,
@@ -254,6 +183,119 @@ public record MonteCarloProjection(List<Point> points, List<String> assumptions,
                         new Figure(OUTPUT_P50_REAL, "Middle outcome in today's money", p50Real, Unit.EUR)),
                 assumptions, versions);
         return new MonteCarloProjection(points, assumptions, computation);
+    }
+
+    /**
+     * The yearly percentiles of the simulated paths and the unrounded median at the horizon.
+     *
+     * @param endMedian the 50th percentile after the last year, before rounding to cents
+     */
+    record Simulation(List<Point> points, double endMedian) {
+    }
+
+    /**
+     * The seeded simulation shared by the goal projection and the what-if ({@link WhatIfProjection}): per path and
+     * month, wealth = wealth × (1 + r − TER / 12) + contribution; {@code yearEndCredit} is added after every twelfth
+     * month (adding zero leaves every path unchanged).
+     */
+    static Simulation simulate(double start, double contribution, double yearEndCredit, int years, int paths,
+            long seed, ReturnModel returnModel, double ter) {
+        int months = years * 12;
+        double monthlyCost = ter / 12;
+        RandomGenerator random = RandomGeneratorFactory.of(ALGORITHM).create(seed);
+        double[][] byYear = new double[years][paths];
+        switch (returnModel) {
+            case Parametric p -> {
+                double mu = StrictMath.pow(1 + p.meanReturn().value().doubleValue(), 1.0 / 12) - 1;
+                double sigma = p.volatility().value().doubleValue() / StrictMath.sqrt(12);
+                for (int path = 0; path < paths; path++) {
+                    double wealth = start;
+                    for (int month = 1; month <= months; month++) {
+                        double r = mu + sigma * random.nextGaussian() - monthlyCost;
+                        wealth = wealth * (1 + r) + contribution;
+                        if (month % 12 == 0) {
+                            wealth += yearEndCredit;
+                            byYear[month / 12 - 1][path] = wealth;
+                        }
+                    }
+                }
+            }
+            case Bootstrap b -> {
+                double[] returns = b.monthlyReturns().stream().mapToDouble(BigDecimal::doubleValue).toArray();
+                for (int path = 0; path < paths; path++) {
+                    double wealth = start;
+                    for (int month = 1; month <= months; month++) {
+                        double r = returns[random.nextInt(returns.length)] - monthlyCost;
+                        wealth = wealth * (1 + r) + contribution;
+                        if (month % 12 == 0) {
+                            wealth += yearEndCredit;
+                            byYear[month / 12 - 1][path] = wealth;
+                        }
+                    }
+                }
+            }
+        }
+
+        List<Point> points = new ArrayList<>();
+        double[] last = null;
+        for (int year = 1; year <= years; year++) {
+            double[] sorted = byYear[year - 1];
+            Arrays.sort(sorted);
+            points.add(new Point(year, money(percentile(sorted, 0.10)), money(percentile(sorted, 0.50)),
+                    money(percentile(sorted, 0.90))));
+            last = sorted;
+        }
+        return new Simulation(points, percentile(last, 0.50));
+    }
+
+    /** The median at the horizon in today's money, deflated by the yearly inflation. */
+    static BigDecimal inTodaysMoney(double median, BigDecimal inflation, int years) {
+        BigDecimal deflator = BigDecimal.ONE.add(inflation).pow(years, MathContext.DECIMAL128);
+        return money(BigDecimal.valueOf(median).divide(deflator, MathContext.DECIMAL128));
+    }
+
+    /** Adds the return model to the key inputs, versions and "Why?" inputs; returns its assumption sentence. */
+    static String describeModel(ReturnModel returnModel, Map<String, Object> keyInputs, Map<String, String> versions,
+            List<FigureInput> inputs) {
+        return switch (returnModel) {
+            case Parametric p -> {
+                keyInputs.put("returnModel", Map.of("kind", "normal", "mean", p.meanReturn().value(),
+                        "meanVersion", p.meanReturn().version(), "volatility", p.volatility().value(),
+                        "volatilityVersion", p.volatility().version()));
+                versions.put(p.meanReturn().key(), p.meanReturn().version());
+                versions.put(p.volatility().key(), p.volatility().version());
+                inputs.add(FigureInput.number("Average yearly return (assumption)", p.meanReturn().value(),
+                        Unit.FRACTION));
+                inputs.add(FigureInput.number("Yearly volatility (assumption)", p.volatility().value(),
+                        Unit.FRACTION));
+                yield "Returns: normally distributed monthly returns with an average of "
+                        + Wording.percent(p.meanReturn().value()) + " a year and a volatility of "
+                        + Wording.percent(p.volatility().value()) + " a year. This is an assumption, not historical"
+                        + " data.";
+            }
+            case Bootstrap b -> {
+                keyInputs.put("returnModel", Map.of("kind", "bootstrap", "source", b.source(),
+                        "returns", List.copyOf(b.monthlyReturns())));
+                inputs.add(FigureInput.text("Historical index returns",
+                        b.monthlyReturns().size() + " monthly returns from " + b.source()));
+                yield "Returns: each month's return is drawn at random from "
+                        + b.monthlyReturns().size() + " historical monthly index returns (" + b.source() + ").";
+            }
+        };
+    }
+
+    static String costsAssumption(RuleParameterValue ter) {
+        return "Costs: fund costs of " + Wording.percent(ter.value()) + " a year are deducted every month.";
+    }
+
+    static String inflationAssumption(RuleParameterValue inflation, BigDecimal p50Real) {
+        return "Inflation: " + Wording.percent(inflation.value()) + " a year. The amounts are in future euros"
+                + " before taxes; in today's money the middle outcome is " + Wording.eur(p50Real) + ".";
+    }
+
+    static String rangeAssumption(int paths) {
+        return "The range comes from " + String.format(Locale.ENGLISH, "%,d", paths)
+                + " simulated paths: 1 in 10 ends lower than the low end and 1 in 10 ends higher than the high end.";
     }
 
     /** Linear interpolation between the closest ranks of a sorted array (numpy's default). */
@@ -269,11 +311,11 @@ public record MonteCarloProjection(List<Point> points, List<String> assumptions,
         return money(BigDecimal.valueOf(value));
     }
 
-    private static BigDecimal money(BigDecimal value) {
+    static BigDecimal money(BigDecimal value) {
         return value.setScale(2, RoundingMode.HALF_UP);
     }
 
-    private static void requireKey(RuleParameterValue parameter, String key) {
+    static void requireKey(RuleParameterValue parameter, String key) {
         Objects.requireNonNull(parameter, key);
         if (!key.equals(parameter.key())) {
             throw new IllegalArgumentException("expected Rule Parameter " + key + ", got " + parameter.key());

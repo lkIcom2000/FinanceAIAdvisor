@@ -1,6 +1,7 @@
 import { HttpTestingController } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
+import { provideEchartsCore } from 'ngx-echarts';
 import { ChatMessage } from '../../api/models/chat-message';
 import { httpTestingProviders } from '../../testing/session-testing';
 import {
@@ -19,6 +20,20 @@ const FAILED =
   "Something went wrong on our side, so I couldn't finish the answer. Your question is saved.";
 const SLOW =
   'This is taking longer than usual. Fine runs on a local model and checks every answer.';
+
+/** Stands in for the chart ngx-echarts would draw. */
+class FakeChart {
+  setOption(): void {}
+  on(): void {}
+  off(): void {}
+  resize(): void {}
+  dispose(): void {}
+  isDisposed(): boolean {
+    return false;
+  }
+  showLoading(): void {}
+  hideLoading(): void {}
+}
 
 function text(element: Element | null | undefined): string {
   return (element?.textContent ?? '').replace(/\s+/g, ' ').trim();
@@ -55,13 +70,25 @@ describe('ChatColumnComponent', () => {
 
   beforeEach(async () => {
     vi.useFakeTimers();
+    if (!('ResizeObserver' in window)) {
+      (window as unknown as { ResizeObserver: unknown }).ResizeObserver = class {
+        observe(): void {}
+        unobserve(): void {}
+        disconnect(): void {}
+      };
+    }
     await TestBed.configureTestingModule({
       imports: [ChatColumnComponent],
       providers: [
         ...httpTestingProviders(),
         { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
       ],
-    }).compileComponents();
+    })
+      // jsdom has no layout to draw a chart in; the range card's table carries the points.
+      .overrideComponent(ChatColumnComponent, {
+        set: { providers: [provideEchartsCore({ echarts: { init: () => new FakeChart() } })] },
+      })
+      .compileComponents();
     http = TestBed.inject(HttpTestingController);
   });
 
@@ -540,6 +567,7 @@ describe('ChatColumnComponent', () => {
         { key: 'monthlyWithdrawal', label: 'Monthly withdrawal', value: '2000.00', unit: 'EUR', source: 'QUESTION' },
         { key: 'annualRate', label: 'Assumed annual return', value: '0.04', unit: 'FRACTION', source: 'QUESTION' },
       ],
+      range: false,
     },
   };
   const calculated: ChatMessage = {
@@ -615,6 +643,81 @@ describe('ChatColumnComponent', () => {
     expect(http.expectOne('/api/chat/messages/p40/calculate').request.body).toEqual({
       parameters: [{ key: 'annualRate', value: '0.03' }],
     });
+  });
+
+  const whatIfQuestion: ChatMessage = { ...item40, id: 'qw', text: 'What if I save 150 EUR a month for 30 years?' };
+  const whatIf: ChatMessage = {
+    ...proposal,
+    id: 'pw',
+    replyTo: 'qw',
+    proposal: {
+      status: 'OPEN',
+      parameters: [
+        { key: 'monthlyAmount', label: 'Monthly amount', value: '150.00', unit: 'EUR', source: 'QUESTION' },
+        { key: 'years', label: 'Duration', value: '30', unit: 'YEARS', source: 'QUESTION' },
+        { key: 'subsidy', label: 'State subsidy (you receive a salary)', value: '1', unit: 'FLAG', source: 'ACCOUNT_DATA', provId: 'inc0000000000001' },
+      ],
+      range: true,
+    },
+  };
+  const range: ChatMessage = {
+    ...calculated,
+    id: 'cw',
+    replyTo: 'pw',
+    text: 'Between 61,234.56 and 154,321.99 EUR after 2 years. The middle outcome is 98,765.43 EUR. This is a range, not a promise.',
+    figures: [{ provId: 'wif0000000000p50', label: 'Middle outcome after 2 years', value: '98765.43', unit: 'EUR' }],
+    range: {
+      points: [
+        { year: 1, p10: '2900.00', p50: '3300.00', p90: '3700.00' },
+        { year: 2, p10: '61234.56', p50: '98765.43', p90: '154321.99' },
+      ],
+      assumptions: ['Costs: fund costs of 0.2 % a year are deducted every month.', 'State subsidy: the basic allowance …'],
+      provId: 'wif0000000000p50',
+    },
+  };
+
+  it('shows a what-if with the subsidy as Yes from account data and keeps that row out of Change values', () => {
+    render([whatIfQuestion, whatIf]);
+
+    expect(Array.from(element.querySelectorAll('.proposal-row')).map(text)).toEqual([
+      'Monthly amount 150.00 EUR From your question',
+      'Duration 30 years From your question',
+      'State subsidy (you receive a salary) Yes From your account data',
+    ]);
+    element.querySelector<HTMLButtonElement>('.change-values')!.click();
+    fixture.detectChanges();
+    expect(element.querySelectorAll('.proposal input').length).toBe(2);
+    element.querySelector<HTMLButtonElement>('.calculate')!.click();
+    fixture.detectChanges();
+    expect(http.expectOne('/api/chat/messages/pw/calculate').request.body).toEqual({ parameters: [] });
+  });
+
+  it('waits on a what-if with only the figures and the rules, then shows the range card', () => {
+    render([whatIfQuestion, whatIf]);
+    element.querySelector<HTMLButtonElement>('.calculate')!.click();
+    fixture.detectChanges();
+
+    expect(Array.from(element.querySelectorAll('.waiting .step-label')).map(text)).toEqual([
+      'Getting your figures',
+      'Checking the rules',
+    ]);
+    advance(STEP_INTERVAL_MS * 3);
+    expect(activeStep()).toBe('Checking the rules');
+    http.expectOne('/api/chat/messages/pw/calculate').flush(range);
+    fixture.detectChanges();
+    flushOverviewIndex();
+
+    const card = element.querySelector('.response .range')!;
+    expect(text(element.querySelectorAll('.response .body')[1])).toBe(range.text);
+    expect(card.querySelector('app-range-chart')).not.toBeNull();
+    const rows = Array.from(card.querySelectorAll('table.visually-hidden tbody tr'));
+    expect(rows.map((r) => Array.from(r.children).map(text))).toEqual([
+      ['1', '2,900.00 EUR', '3,300.00 EUR', '3,700.00 EUR'],
+      ['2', '61,234.56 EUR', '98,765.43 EUR', '154,321.99 EUR'],
+    ]);
+    expect(Array.from(card.querySelectorAll('ul li')).map(text)).toEqual(range.range!.assumptions);
+    card.querySelector<HTMLButtonElement>('app-why-link button')!.click();
+    http.expectOne('/api/provenance/wif0000000000p50');
   });
 
   it('refuses a field that is not a number before calling the backend', () => {

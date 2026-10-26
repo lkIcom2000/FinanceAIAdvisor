@@ -25,6 +25,9 @@ describe('formatFigure', () => {
     expect(formatFigure('1.5', 'MONTHS')).toBe('1.5 months');
     expect(formatFigure('-1', 'MONTHS')).toBe('−1 month');
     expect(formatFigure('1250', 'COUNT')).toBe('1,250');
+    expect(formatFigure('1', 'FLAG')).toBe('Yes');
+    expect(formatFigure('1.00', 'FLAG')).toBe('Yes');
+    expect(formatFigure('0', 'FLAG')).toBe('No');
   });
 });
 

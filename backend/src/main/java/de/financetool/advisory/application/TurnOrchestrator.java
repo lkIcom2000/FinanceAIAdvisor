@@ -31,6 +31,8 @@ import de.financetool.advisory.domain.TurnState;
 import de.financetool.audit.AuditEntry;
 import de.financetool.audit.AuditKind;
 import de.financetool.audit.AuditWriter;
+import de.financetool.core.domain.CoreResult;
+import de.financetool.core.domain.WhatIfProjection;
 import de.financetool.escalation.EscalationCases;
 import de.financetool.knowledge.NoValidRuleParameterException;
 import de.financetool.knowledge.RuleParamPort;
@@ -269,13 +271,16 @@ public class TurnOrchestrator {
             return turn.passedThrough(TurnStage.TOOL_PLAN);
         }
         if (planned.spec() == null) {
-            SimulationSpec spec = ToolPlan.spec(planned.planned(), planned.accountPortfolio());
+            // A what-if's subsidy eligibility is account data, read for the card like the 3.7 portfolio.
+            SourcedNumber netIncome = planned.planned().subsidyAsked() ? tools.netIncome(context) : null;
+            SimulationSpec spec = ToolPlan.spec(planned.planned(), planned.accountPortfolio(), netIncome);
             return turn.withTools(new TurnState.Tools(planned.planned(), planned.accountPortfolio(), spec, true,
                     List.of(), false)).ran(TurnStage.TOOL_PLAN);
         }
         try {
-            return turn.withTools(new TurnState.Tools(null, null, planned.spec(), false,
-                    tools.run(context, planned.spec()), false)).ran(TurnStage.TOOL_PLAN);
+            ToolRegistry.Ran ran = tools.run(context, planned.spec());
+            return turn.withTools(TurnState.Tools.calculated(planned.spec(), ran.results(), ran.range()))
+                    .ran(TurnStage.TOOL_PLAN);
         } catch (NoValidRuleParameterException e) {
             return turn.withTools(new TurnState.Tools(null, null, planned.spec(), false, List.of(), true))
                     .ran(TurnStage.TOOL_PLAN);
@@ -342,6 +347,10 @@ public class TurnOrchestrator {
             return turn.withDraft(new TurnState.Draft(ResponseTemplates.PARAMETER_PROPOSAL, null, null, false))
                     .passedThrough(TurnStage.LLM_DRAFT);
         }
+        if (turn.tools().range() != null) {
+            return turn.withDraft(new TurnState.Draft(rangeText(turn.tools().results()), null, null, false))
+                    .passedThrough(TurnStage.LLM_DRAFT);
+        }
         PhrasingPrompt phrasing = turn.prompt().phrasing();
         LlmResult result = llm.generate(LlmRole.PHRASING,
                 List.of(LlmMessage.system(phrasing.system()), LlmMessage.user(phrasing.user())),
@@ -349,6 +358,14 @@ public class TurnOrchestrator {
         String text = withFixedSentences(turn, result.text() == null ? "" : result.text());
         return turn.withDraft(new TurnState.Draft(text, result.modelTag(), result.digest(), result.truncated()))
                 .ran(TurnStage.LLM_DRAFT);
+    }
+
+    /** The fixed answer of a calculated what-if, from the what-if projection's outputs (the last result). */
+    static String rangeText(List<CoreResult> results) {
+        CoreResult whatIf = results.getLast();
+        return ResponseTemplates.range(whatIf.number(WhatIfProjection.OUTPUT_P10).value(),
+                whatIf.number(WhatIfProjection.OUTPUT_P90).value(), whatIf.number(WhatIfProjection.OUTPUT_P50).value(),
+                whatIf.number(WhatIfProjection.OUTPUT_YEARS).value().intValueExact());
     }
 
     /** The class's fixed sentences around a model text (first draft and regeneration alike); blank stays blank. */
@@ -394,7 +411,8 @@ public class TurnOrchestrator {
      */
     TurnState ruleEngine(RequestContext context, TurnState turn) {
         TurnState.Checks checks = turn.checks();
-        if (checks.flags().shadowMode() || turn.tools().ruleParameterError()) {
+        // A what-if's fixed range text (no model call) is never regenerated: block routing decides on it as it is.
+        if (checks.flags().shadowMode() || turn.tools().ruleParameterError() || turn.tools().range() != null) {
             return turn.ran(TurnStage.RULE_ENGINE);
         }
         Optional<String> fix = RegenerationFix.of(checks.shadow().failed(), passagesInPrompt(turn),
@@ -538,7 +556,8 @@ public class TurnOrchestrator {
                 figures, released.outcome() == ResponseOutcome.DETECT_TRAP
                         ? ResponseTemplates.premiseCallout(released.classification().unverifiedPremises(),
                                 released.userText()) : null, assessment,
-                recommended ? turnTools.statement() : null, needsStated ? turnTools.needsStatement() : null);
+                recommended ? turnTools.statement() : null, needsStated ? turnTools.needsStatement() : null,
+                draftReleased ? turnTools.range() : null);
         UUID conversation = chats.conversation(scope);
         chats.insert(scope, conversation, answer);
         if (proposal) {

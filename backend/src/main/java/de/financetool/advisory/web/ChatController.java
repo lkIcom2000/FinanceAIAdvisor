@@ -9,6 +9,7 @@ import de.financetool.advisory.domain.ChatMessage;
 import de.financetool.advisory.domain.CheckId;
 import de.financetool.advisory.domain.ResponseOutcome;
 import de.financetool.advisory.domain.ResponseTemplates;
+import de.financetool.advisory.domain.ToolPlan;
 import de.financetool.profile.AssessmentFields;
 import de.financetool.shared.PersonaScope;
 import de.financetool.shared.ProblemCode;
@@ -97,7 +98,9 @@ class ChatController {
             @Schema(description = "\"Why this fits you\": the Suitability Statement; only on RECOMMEND_CATEGORY "
                     + "answers") RecommendationView recommendation,
             @Schema(description = "The demands-and-needs statement; only on RECOMMEND_CATEGORY answers to an "
-                    + "insurance question") NeedsStatementView needsStatement) {
+                    + "insurance question") NeedsStatementView needsStatement,
+            @Schema(description = "The range chart of a calculated what-if; only on COMPUTE answers to a what-if")
+            RangeChartView range) {
 
         static MessageView of(ChatMessage message) {
             return new MessageView(message.id(), Author.valueOf(message.author().name()), message.text(),
@@ -108,8 +111,38 @@ class ChatController {
                     message.figures().stream().map(FigureView::of).toList(), message.premise(),
                     message.assessment() == null ? null : AssessmentView.of(message.assessment()),
                     message.recommendation() == null ? null : RecommendationView.of(message.recommendation()),
-                    message.needsStatement() == null ? null : NeedsStatementView.of(message.needsStatement()));
+                    message.needsStatement() == null ? null : NeedsStatementView.of(message.needsStatement()),
+                    message.range() == null ? null : RangeChartView.of(message.range()));
         }
+    }
+
+    @Schema(name = "ChatRangeChart", description = "Where a what-if may lead, from Fine's calculation engine: a "
+            + "range, not a promise")
+    record RangeChartView(
+            @ArraySchema(arraySchema = @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "The percentiles at the end of each year"))
+            List<RangePointView> points,
+            @ArraySchema(arraySchema = @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "Return model, costs, inflation, horizon and subsidy rule"))
+            List<String> assumptions,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, pattern = SourcedNumber.PROV_ID_SCHEMA_PATTERN,
+                    description = "Key of the projection's provenance (its middle outcome), for \"Why?\"")
+            String provId) {
+
+        static RangeChartView of(ChatMessage.RangeChart range) {
+            return new RangeChartView(range.points().stream()
+                    .map(p -> new RangePointView(p.year(), p.p10().toPlainString(), p.p50().toPlainString(),
+                            p.p90().toPlainString()))
+                    .toList(), range.assumptions(), range.provId());
+        }
+    }
+
+    @Schema(name = "ChatRangePoint", description = "A what-if's percentiles at the end of one year (EUR)")
+    record RangePointView(
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "1") int year,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, pattern = FigureView.DECIMAL) String p10,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, pattern = FigureView.DECIMAL) String p50,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, pattern = FigureView.DECIMAL) String p90) {
     }
 
     @Schema(name = "NeedsStatement", description = "The demands-and-needs statement for your insurance, from Fine's "
@@ -237,11 +270,15 @@ class ChatController {
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "OPEN: waiting for Calculate; "
                     + "CALCULATED: answered below; CANCELLED: a later question replaced it")
             ChatMessage.Proposal.Status status,
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ProposalParameterView> parameters) {
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ProposalParameterView> parameters,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "Whether Calculate answers with a "
+                    + "range chart (a what-if) instead of a written answer") boolean range) {
 
         static ProposalView of(ChatMessage.Proposal proposal) {
             return new ProposalView(proposal.status(),
-                    proposal.spec().parameters().stream().map(ProposalParameterView::of).toList());
+                    proposal.spec().parameters().stream().map(ProposalParameterView::of).toList(),
+                    ToolPlan.Tool.ofFunction(proposal.spec().function())
+                            .filter(t -> t == ToolPlan.Tool.SAVINGS_PROJECTION).isPresent());
         }
     }
 

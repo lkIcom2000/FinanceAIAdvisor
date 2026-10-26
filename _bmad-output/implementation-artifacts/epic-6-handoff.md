@@ -1,6 +1,6 @@
 # Epic 6 Handoff
 
-## State (2026-10-26)
+## State (2026-10-26, after Story 7.1)
 
 - Epic 5 skipped (non-blocking, Commc 2026-10-26); Epic 6 started. Epic 4 retro inputs still in `epic-4-handoff.md` (folded into the Epic 6 retro).
 - Story 6.1 done (spec `spec-6-1-…`, context `epic-6-context.md`): `profile` module (`Profiles.stored/confirm`, `ProfileCompleteness`, `ProfileFields`, V13 tables, `ProfileResetter`); the classifier and the prompt's profile context read the stored profile; `ASK_PROFILE` drafts start with `ResponseTemplates.WHY_ASK_PROFILE`; `RECOMMEND_CATEGORY` with strict fields unknown ends with the limitations sentence.
@@ -9,8 +9,8 @@
 - Live check of 6.3 done (spec 6.3 Implementation Notes): two app additions — NLU grounding moves "invest X per month" from `monthly_expenses` to `requested_monthly_amount`; `SUITABILITY`/`COST_TRANSPARENCY` failures on a recommendation get the one regeneration. Marco's AC question now releases `RECOMMEND_CATEGORY` with 9 checks passed.
 - Story 6.4 done (spec `spec-6-4-…`): pure Core `DemandsAndNeeds` via `CoreGateway.needs` (Needs Profile + bank contracts, no provider names); `advisory.application.NeedsStatements` replaces the category selection for protection topics; `ChatMessage.NeedsStatement` (V16), `GET /api/chat/needs-statement` (204 without), Home "Your demands and needs" card; `IDD_NEEDS` fails `needs_facts_missing`; both protection topics need household/dependants/occupation (`profile-minimums.yaml`); own prompt `class-RECOMMEND_CATEGORY-needs.txt`.
 - Plan (Commc 2026-10-26): Epic 7 (only Story 7.1) is done before the Epic 6 epic-end tasks, which then cover Epics 6 and 7 together.
-- Next: Story 7.1 (what-if from chat with a range chart, `planning-artifacts/epics.md` §Epic 7) in the lean loop; create `epic-7-context.md` first; set `epic-7: in-progress` in sprint-status.
-- Then, as one block: (1) a single live Ollama check for 6.4 (Jonas: "Am I paying twice for my liability insurance?") and 7.1 (local `spring-boot:run`); (2) a batched epic-end review of Epics 6 and 7; (3) a compose image rebuild with the full compose check (incl. research profile); (4) a joint retro for Epics 6 and 7 (Epic 4 inputs folded in).
+- Story 7.1 done (spec `spec-7-1-…`, context `epic-7-context.md`): `ToolPlan` tool `savingsProjection` (monthly amount, years, optional start, subsidy row `Unit.FLAG` from `monthlyNetIncome`); pure Core `WhatIfProjection` (shares `MonteCarloProjection.simulate`, Riester basic allowance per year) via `CoreGateway.whatIf`/`netIncome`; fixed answer `ResponseTemplates.range`, no LLM, no regeneration; `ChatMessage.RangeChart` (V17); shared frontend `RangeChartComponent` (Wealth tab + chat card), two-step waiting card on `ChatProposal.range`.
+- Next, as one block: (1) a single live Ollama check for 6.4 (Jonas: "Am I paying twice for my liability insurance?") and 7.1 (Jonas: "What if I save 150 EUR a month for 30 years, with the state subsidy?" — check the NLU extracts `monthly_contribution` and `years`; else add grounding) (local `spring-boot:run`); (2) a batched epic-end review of Epics 6 and 7; (3) a compose image rebuild with the full compose check (incl. research profile); (4) a joint retro for Epics 6 and 7 (Epic 4 inputs folded in).
 
 ## Checklist per story (lean loop, memory build-loop-economy)
 
@@ -28,4 +28,6 @@
 - Frontend component-style warning budget raised to 7 kB (chat column stylesheet 6.5 kB).
 - Epic-end review: include the 6.4 diff follow-ups and the 6.3 live-check fixes (`NluExtraction.ground` invest rule, `RegenerationFix` recommendation fix).
 - 6.3 residual: the selection's category for Marco is only `build_emergency_fund_first`, so the text never adds "then a small savings plan in a broad world equity fund"; decide at the retro whether the AC wording needs a follow-up category.
+- Epic-end review: add the 7.1 deferral (orchestrator unit test for a blocked range answer); the Riester rules end 2026-12-31, so a what-if after that date escalates until 2027 rules exist.
+- Compose rebuild must also cover V17.
 - Verify ECB rates against the ECB before moving the reference date (`data/rules/README.md`).

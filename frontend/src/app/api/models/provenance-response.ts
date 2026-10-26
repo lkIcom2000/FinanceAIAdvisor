@@ -14,7 +14,7 @@ export interface ProvenanceResponse {
   provId: string;
   ruleParameters: Array<ProvenanceRuleParameter>;
   source: ProvenanceSource;
-  unit: 'EUR' | 'FRACTION' | 'PP' | 'MONTHS' | 'YEARS' | 'COUNT';
+  unit: 'EUR' | 'FRACTION' | 'PP' | 'MONTHS' | 'YEARS' | 'COUNT' | 'FLAG';
 
   /**
    * Decimal string

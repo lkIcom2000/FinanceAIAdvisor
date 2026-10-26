@@ -8,6 +8,7 @@ import de.financetool.core.domain.NeedsFigures;
 import de.financetool.core.domain.ProfileFigures;
 import de.financetool.core.domain.RecommendationFigures;
 import de.financetool.core.domain.WealthFigures;
+import de.financetool.core.domain.WhatIfFigures;
 import de.financetool.shared.RequestContext;
 import de.financetool.shared.domain.SourcedNumber;
 import java.math.BigDecimal;
@@ -110,6 +111,25 @@ public interface CoreGateway {
      */
     CoreResult withdrawalDuration(RequestContext context, EvidenceOrigin origin, BigDecimal portfolio,
             SourcedNumber portfolioFigure, BigDecimal monthlyWithdrawal, BigDecimal annualRate);
+
+    /**
+     * The average monthly net income at the end of {@code asOf} (function {@code monthlyNetIncome}, same key as in
+     * {@link #profileFigures}): the account data a what-if's subsidy eligibility rests on.
+     */
+    CoreResult netIncome(RequestContext context, EvidenceOrigin origin);
+
+    /**
+     * The what-if projection of a monthly amount over whole years (function {@code whatIfProjection}, seed
+     * {@code context.seeds().core()}), with the Riester basic allowance if a subsidy was asked and the persona is
+     * eligible.
+     *
+     * @param subsidy {@code null} if the question did not ask for the subsidy, else whether the persona is eligible
+     * @param netIncomeFigure the Core figure the eligibility rests on, or {@code null}
+     * @throws de.financetool.knowledge.NoValidRuleParameterException if a Rule Parameter has no version valid at
+     *     {@code asOf}; nothing is stored
+     */
+    WhatIfFigures whatIf(RequestContext context, EvidenceOrigin origin, BigDecimal monthly, int years,
+            BigDecimal initial, Boolean subsidy, SourcedNumber netIncomeFigure);
 
     /**
      * The Riester allowances at the as-of date for the income and children given (Core function {@code
