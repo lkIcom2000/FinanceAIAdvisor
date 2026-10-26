@@ -17,8 +17,15 @@ public final class ResponseTemplates {
             + "can do is look at your emergency fund, your savings goals and a diversified, low-cost ETF savings plan "
             + "with you.";
 
-    static final String ASK_PROFILE = "Before I can give you a personal recommendation, I need some more information "
-            + "about you: {missing}. Could you tell me these? Then I'll tell you what fits your situation and why.";
+    /** Why an {@code ASK_PROFILE} answer asks (Story 6.1): every such answer starts with it. */
+    public static final String WHY_ASK_PROFILE = "Before I can say whether this fits you, I need to know a bit more "
+            + "about your situation. It takes about three minutes.";
+
+    static final String ASK_PROFILE = WHY_ASK_PROFILE + " I need: {missing}. Could you tell me these? Then I'll tell "
+            + "you what fits your situation and why.";
+
+    /** The disclosed limitations of a recommendation on a profile with strict FR-17 fields still unknown (AD-23). */
+    static final String LIMITATIONS = "This is based only on what I know so far. Not known yet: {fields}.";
 
     /** The default missing-fields text of {@code _route}. */
     static final String DEFAULT_MISSING = "your goals, horizon, income and expenses, emergency fund and risk tolerance";
@@ -75,9 +82,28 @@ public final class ResponseTemplates {
         return REFUSE_OUT_OF_SCOPE.replace("{oos}", oos.isEmpty() ? "these products" : oos);
     }
 
+    /** An {@code ASK_PROFILE} draft that starts with {@link #WHY_ASK_PROFILE}. */
+    public static String withProfileReason(String draft) {
+        String text = draft.strip();
+        return text.startsWith(WHY_ASK_PROFILE) ? text : (WHY_ASK_PROFILE + " " + text).strip();
+    }
+
+    /**
+     * A recommendation draft that ends with the limitations sentence; unchanged without limitations or when it
+     * already ends with it (a regeneration may repeat the previous answer).
+     */
+    public static String withLimitations(String draft, List<String> limitations) {
+        if (limitations.isEmpty()) {
+            return draft;
+        }
+        String sentence = LIMITATIONS.replace("{fields}", String.join(", ", limitations).replace('_', ' '));
+        String text = draft.strip();
+        return text.endsWith(sentence) ? text : text + "\n\n" + sentence;
+    }
+
     /** The profile question for the missing fields, with the default text when none are known. */
     public static String askProfile(List<String> missingFields) {
-        String missing = String.join(", ", missingFields);
+        String missing = String.join(", ", missingFields).replace('_', ' ');
         return ASK_PROFILE.replace("{missing}", missing.isEmpty() ? DEFAULT_MISSING : missing);
     }
 }

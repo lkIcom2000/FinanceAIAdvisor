@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import de.financetool.PostgresIntegrationTest;
+import de.financetool.advisory.domain.ResponseTemplates;
 import de.financetool.llm.LlmMessage;
 import de.financetool.llm.LlmRole;
 import de.financetool.shared.config.ConfigFingerprint;
@@ -210,7 +211,8 @@ class ChatEndToEndTest extends PostgresIntegrationTest {
         String user = lastUserPart();
         assertThat(user).contains("EARLIER CONVERSATION (oldest first):")
                 .contains("Customer: I'm 30s and have 10,000\u201315,000 EUR saved.\n"
-                        + "Assistant: Thanks, noted your savings. What are your goals?\n"
+                        + "Assistant: " + ResponseTemplates.WHY_ASK_PROFILE
+                        + " Thanks, noted your savings. What are your goals?\n"
                         + "Customer: What is an ETF?\nAssistant: An ETF is a fund traded on an exchange.\n\n"
                         + "<user_message>\nShould I start a savings plan?\n</user_message>")
                 .doesNotContain("12,400").doesNotContain("Lena").doesNotContain("p-lena");

@@ -90,8 +90,8 @@ development_status:
   5-1-advisor-handles-a-case-end-to-end-through-the-advisor-endpoi: backlog
   epic-5-retrospective: optional
 
-  epic-6: backlog  # [critical-path]
-  6-1-profile-module-and-the-completeness-gate: backlog
+  epic-6: in-progress  # [critical-path] Epic 5 skipped (non-blocking), Commc 2026-10-26
+  6-1-profile-module-and-the-completeness-gate: done  # end 2026-10-26; combined review + Blind Hunter, 8 fixes, 2 deferred to 6.2
   6-2-suitability-assessment-in-one-form-card: backlog
   6-3-category-recommendation-with-a-suitability-statement: backlog
   6-4-short-demands-and-needs-statement-idd: backlog

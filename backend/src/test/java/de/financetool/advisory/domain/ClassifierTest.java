@@ -231,6 +231,22 @@ class ClassifierTest {
     }
 
     @Test
+    void theLimitationsPlaceholderNamesTheUnknownFieldsOrStaysEmpty() {
+        Classification limited = new Classification(MessageClass.RECOMMEND_CATEGORY, List.of(), List.of(), List.of(),
+                List.of(), "savings_plan", List.of("goal", "risk_tolerance"));
+        assertThat(ClassInstruction.fill("Recommend. {limitations}", limited, null, ""))
+                .isEqualTo("Recommend. Not known yet: goal, risk tolerance. A fixed note listing these follows your "
+                        + "answer; do not repeat it.");
+        Classification known = new Classification(MessageClass.RECOMMEND_CATEGORY, List.of(), List.of(), List.of(),
+                List.of(), "savings_plan");
+        assertThat(ClassInstruction.fill("Recommend. {limitations}", known, null, "")).isEqualTo("Recommend. ");
+        Classification ask = new Classification(MessageClass.ASK_PROFILE, List.of(),
+                List.of("monthly_surplus or net_income"), List.of(), List.of(), "savings_plan");
+        assertThat(ClassInstruction.fill("ask for: {missing}.", ask, null, ""))
+                .isEqualTo("ask for: monthly surplus or net income.");
+    }
+
+    @Test
     void theClassInstructionIsFilledAsTheExperimentFillsIt() {
         Classification ask = new Classification(MessageClass.ASK_PROFILE, List.of(), List.of(), List.of(), List.of(),
                 "other");

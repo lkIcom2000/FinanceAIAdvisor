@@ -62,12 +62,13 @@ class BlockRoutingTest {
         assertThat(r.outcome()).isEqualTo(ResponseOutcome.ASK_PROFILE);
         assertThat(r.route()).isEqualTo("block_profile");
         assertThat(r.fired()).containsExactly(CheckId.PROFILE_COMPLETE);
-        assertThat(r.text()).isEqualTo("Before I can give you a personal recommendation, I need some more information "
-                + "about you: your goals, horizon, income and expenses, emergency fund and risk tolerance. Could you "
-                + "tell me these? Then I'll tell you what fits your situation and why.");
+        assertThat(r.text()).isEqualTo("Before I can say whether this fits you, I need to know a bit more about your "
+                + "situation. It takes about three minutes. I need: your goals, horizon, income and expenses, "
+                + "emergency fund and risk tolerance. Could you tell me these? Then I'll tell you what fits your "
+                + "situation and why.");
         Classification withMissing = classification(MessageClass.ASK_PROFILE, List.of("horizon", "risk"), List.of());
         assertThat(BlockRouting.route(List.of(failed(CheckId.PROFILE_COMPLETE, "x")), withMissing, false).text())
-                .contains("about you: horizon, risk. Could");
+                .contains("I need: horizon, risk. Could");
     }
 
     @Test

@@ -1,1 +1,1 @@
-Answer type: category recommendation. Recommend the product category '{category}'. Add a short suitability statement that refers to the customer's stated figures, the main risks and the ex-ante costs from TOOL RESULTS. {conflicts}
+Answer type: category recommendation. Recommend the product category '{category}'. Add a short suitability statement that refers to the customer's stated figures, the main risks and the ex-ante costs from TOOL RESULTS. {conflicts} {limitations}

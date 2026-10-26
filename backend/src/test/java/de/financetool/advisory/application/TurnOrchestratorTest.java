@@ -46,6 +46,7 @@ import de.financetool.llm.LlmMessage;
 import de.financetool.llm.LlmPort;
 import de.financetool.llm.LlmResult;
 import de.financetool.llm.LlmRole;
+import de.financetool.profile.Profiles;
 import de.financetool.shared.PersonaScope;
 import de.financetool.shared.RequestContext;
 import de.financetool.shared.config.AgentConfiguration;
@@ -93,10 +94,11 @@ class TurnOrchestratorTest {
     final EscalationCases escalations = mock(EscalationCases.class);
     final RuleParamPort ruleParameters = mock(RuleParamPort.class);
     final ToolRegistry tools = mock(ToolRegistry.class);
+    final Profiles profiles = mock(Profiles.class);
     ProfileCompleteness profile = ProfileCompleteness.INCOMPLETE;
     final TurnOrchestrator orchestrator = new TurnOrchestrator(chats, prompts, llm, audit, nluExtractor,
             registry, (stored, stated, topic) -> profile.check(stored, stated, topic), escalations,
-            ruleParameters, tools);
+            ruleParameters, tools, profiles);
 
     final PersonaScope scope = new PersonaScope(TestContexts.LENA);
     final RequestContext context = TestContexts.context();
@@ -736,6 +738,58 @@ class TurnOrchestratorTest {
     }
 
     @Test
+    void theStoredProfileReachesTheClassifierAndTheProfileContext() {
+        when(profiles.stored(scope)).thenReturn(Map.of("risk_tolerance", "medium", "net_income", 3200));
+        var seen = new java.util.concurrent.atomic.AtomicReference<Map<String, Object>>();
+        profile = (stored, stated, topic) -> {
+            seen.set(stored);
+            return new ProfileCompleteness.Result(false, List.of("investment_horizon_years"));
+        };
+        run(question, "Could you tell me your horizon?", context, false,
+                nlu("personal_recommendation", "savings_plan", List.of("etf"), List.of()));
+
+        assertThat(seen.get()).isEqualTo(Map.of("risk_tolerance", "medium", "net_income", 3200));
+        assertThat(sentMessages().get(1).content()).contains("risk_tolerance").doesNotContain("3200");
+    }
+
+    @Test
+    void anAskProfileAnswerStartsWithWhyFineAsks() {
+        ChatMessage answer = run(question, "An emergency fund comes first. Could you tell me your horizon?", context,
+                false, nlu("personal_recommendation", "savings_plan", List.of("etf"), List.of()));
+
+        assertThat(answer.outcome()).isEqualTo(ResponseOutcome.ASK_PROFILE);
+        assertThat(answer.text()).isEqualTo(ResponseTemplates.WHY_ASK_PROFILE
+                + " An emergency fund comes first. Could you tell me your horizon?");
+        assertThat(auditBody().finalChecks()).filteredOn(c -> c.checkId() == CheckId.PROFILE_COMPLETE)
+                .allMatch(CheckResult::passed);
+    }
+
+    @Test
+    void aVerdictOnAnIncompleteProfileIsRoutedToAskProfile() {
+        ChatMessage answer = run(question, "Yes. You should invest in a savings plan.", context, false,
+                nlu("personal_recommendation", "savings_plan", List.of("etf"), List.of()));
+
+        assertThat(answer.outcome()).isEqualTo(ResponseOutcome.ASK_PROFILE);
+        assertThat(answer.text()).startsWith(ResponseTemplates.WHY_ASK_PROFILE)
+                .doesNotContain("You should invest");
+    }
+
+    @Test
+    void aRecommendationOnTheStatedMinimumDisclosesTheUnknownFields() {
+        profile = (stored, stated, topic) -> new ProfileCompleteness.Result(true, List.of(),
+                List.of("goal", "risk_tolerance"));
+        ChatMessage answer = run(question, "A savings plan in a broad equity fund fits; losses are possible.",
+                with(ComplianceLevel.A, false), false,
+                nlu("personal_recommendation", "savings_plan", List.of("etf"), List.of()));
+
+        assertThat(answer.outcome()).isEqualTo(ResponseOutcome.RECOMMEND_CATEGORY);
+        assertThat(answer.text()).endsWith("\n\nThis is based only on what I know so far. Not known yet: goal, "
+                + "risk tolerance.");
+        assertThat(auditBody().classReasons())
+                .contains("not known yet (limitations): goal, risk_tolerance");
+    }
+
+    @Test
     void anEscalatedTurnOpensOneCaseWithTheSnapshotBeforeTheAuditRecord() {
         UUID caseId = UUID.randomUUID();
         when(escalations.openForTurn(eq(scope), any())).thenReturn(caseId);
@@ -753,7 +807,8 @@ class TurnOrchestratorTest {
         order.verify(escalations).openForTurn(eq(scope), snapshot.capture());
         order.verify(audit).write(any(), any());
         assertThat(snapshot.getValue()).isEqualTo(new EscalationCases.TurnSnapshot(answer.id(), question.text(),
-                "iShares Core MSCI World is a good fit. Could you tell me your horizon?",
+                ResponseTemplates.WHY_ASK_PROFILE + " iShares Core MSCI World is a good fit. Could you tell me your "
+                        + "horizon?",
                 List.of("block_no_product_naming", "NO_PRODUCT_NAMING:product_named"), null));
         assertThat(auditBody().escalationCaseId()).isEqualTo(caseId);
     }

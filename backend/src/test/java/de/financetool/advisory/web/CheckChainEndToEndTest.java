@@ -140,7 +140,8 @@ class CheckChainEndToEndTest extends PostgresIntegrationTest {
         Turn t = turn(PERSONAL);
 
         assertThat(t.answer()).containsEntry("outcome", "ASK_PROFILE")
-                .containsEntry("text", ResponseTemplates.askProfile(List.of()));
+                .containsEntry("text", ResponseTemplates.askProfile(List.of("monthly_surplus or net_income",
+                        "risk_tolerance or loss_aversion")));
         assertThat(t.body()).containsEntry("route", "block_profile")
                 .containsEntry("firedChecks", List.of("PROFILE_COMPLETE"));
         assertThat(t.shadow(CheckId.PROFILE_COMPLETE)).containsEntry("reasonCode", "verdict_without_profile");
@@ -200,7 +201,8 @@ class CheckChainEndToEndTest extends PostgresIntegrationTest {
                 (String) t.answer().get("id"));
         assertThat(row).containsEntry("persona_id", "p-lena").containsEntry("origin", "TURN")
                 .containsEntry("question", PERSONAL)
-                .containsEntry("draft", "iShares Core MSCI World is a good fit. Could you tell me your horizon?")
+                .containsEntry("draft", ResponseTemplates.WHY_ASK_PROFILE
+                        + " iShares Core MSCI World is a good fit. Could you tell me your horizon?")
                 .containsEntry("reasons", "[\"block_no_product_naming\", \"NO_PRODUCT_NAMING:product_named\"]")
                 .containsEntry("status", "OPEN");
         assertThat(row.get("reason_class")).isNull();
@@ -251,7 +253,8 @@ class CheckChainEndToEndTest extends PostgresIntegrationTest {
         llm.answer(draft);
         Turn t = turn(PERSONAL);
 
-        assertThat(t.answer()).containsEntry("outcome", "ASK_PROFILE").containsEntry("text", draft);
+        assertThat(t.answer()).containsEntry("outcome", "ASK_PROFILE")
+                .containsEntry("text", ResponseTemplates.WHY_ASK_PROFILE + " " + draft);
         assertThat(t.checks()).extracting(c -> c.get("id")).containsExactly("SCOPE", "PROFILE_COMPLETE",
                 "NO_PRODUCT_NAMING", "NO_GUARANTEE_OR_TIMING", "NUMBER_MATCH");
         assertThat(t.checks()).allSatisfy(c -> assertThat(c).containsEntry("passed", true));

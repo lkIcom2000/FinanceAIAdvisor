@@ -38,6 +38,7 @@ import de.financetool.llm.LlmMessage;
 import de.financetool.llm.LlmPort;
 import de.financetool.llm.LlmResult;
 import de.financetool.llm.LlmRole;
+import de.financetool.profile.Profiles;
 import de.financetool.shared.PersonaScope;
 import de.financetool.shared.RequestContext;
 import de.financetool.shared.config.AgentConfiguration;
@@ -92,11 +93,12 @@ public class TurnOrchestrator {
     private final EscalationCases escalations;
     private final RuleParamPort ruleParameters;
     private final ToolRegistry tools;
+    private final Profiles profiles;
 
     TurnOrchestrator(ChatRepository chats, PromptFiles prompts, LlmPort llm, AuditWriter audit,
             NluExtractor nluExtractor, EntityRegistry registry,
             ProfileCompleteness completeness, EscalationCases escalations, RuleParamPort ruleParameters,
-            ToolRegistry tools) {
+            ToolRegistry tools, Profiles profiles) {
         this.chats = chats;
         this.prompts = prompts;
         this.llm = llm;
@@ -107,6 +109,7 @@ public class TurnOrchestrator {
         this.escalations = escalations;
         this.ruleParameters = ruleParameters;
         this.tools = tools;
+        this.profiles = profiles;
     }
 
     /** Runs the turn for the saved user message {@code question} and releases the agent message. */
@@ -130,7 +133,7 @@ public class TurnOrchestrator {
         TurnState turn = TurnState.start(question.text());
         turn = dialogState(scope, turn, confirmation);
         turn = nlu(context, scope, turn);
-        turn = classify(context, turn, confirmation);
+        turn = classify(context, scope, turn, confirmation);
         turn = toolPlan(context, turn);
         turn = kbRetrieve(turn);
         turn = exposureFilter(context, scope, question, turn);
@@ -177,11 +180,12 @@ public class TurnOrchestrator {
     }
 
     /**
-     * Pure rules pick exactly one class (FR-9); no stored profile until Epic 6. A message is computable if the pure
+     * Pure rules pick exactly one class (FR-9) on the persona's stored profile and the facts the message states
+     * (AD-23; the stated facts are never stored). A message is computable if the pure
      * {@link ToolPlan} has every parameter (the experiment plans before it classifies); a portfolio from account
      * data needs investments above zero, so their value is read here. A confirmed proposal is {@code COMPUTE}.
      */
-    TurnState classify(RequestContext context, TurnState turn, Confirmation confirmation) {
+    TurnState classify(RequestContext context, PersonaScope scope, TurnState turn, Confirmation confirmation) {
         if (confirmation != null) {
             Classification confirmed = new Classification(MessageClass.COMPUTE,
                     List.of("parameter proposal confirmed"), List.of(), List.of(), List.of(),
@@ -198,8 +202,8 @@ public class TurnOrchestrator {
                 planned = Optional.empty();
             }
         }
-        Classification classification = Classifier.classify(turn.nlu().extraction(), Map.of(), completeness,
-                registry, planned.isPresent(), turn.userText());
+        Classification classification = Classifier.classify(turn.nlu().extraction(), profiles.stored(scope),
+                completeness, registry, planned.isPresent(), turn.userText());
         return turn.withClassification(classification)
                 .withTools(new TurnState.Tools(planned.orElse(null), accountPortfolio, null, false, List.of(), false))
                 .ran(TurnStage.CLASSIFY);
@@ -250,7 +254,8 @@ public class TurnOrchestrator {
     /**
      * Applies the Data Exposure Level to the message, the last released turns, the profile context and the Core
      * results, and fits the phrasing prompt into the context budget (FR-43, FR-45, AD-5); the system part ends with
-     * the class instruction. The Core results go in as {@code TOOL RESULTS}; no passages or profile exist yet. The
+     * the class instruction. The Core results go in as {@code TOOL RESULTS}, the stored profile as profile context
+     * (as {@code pipeline.py}); no passages exist yet. The
      * turn's {@link NumberLedger} is built from the same inputs plus the Rule Parameters valid at the as-of date, with
      * every Core number first (label: its {@code provId}).
      */
@@ -259,7 +264,7 @@ public class TurnOrchestrator {
         List<PromptPayload.HistoryTurn> history =
                 chats.releasedTurnsBefore(scope, question.id(), ExposureFilter.HISTORY_TURNS);
         PromptPayload payload = ExposureFilter.apply(level(agent.dataExposure()), turn.userText(),
-                turn.nlu().extraction().depersonalizedQuestion(), history, Map.of(),
+                turn.nlu().extraction().depersonalizedQuestion(), history, profiles.stored(scope),
                 ToolResults.format(turn.tools().results()), turn.passages());
         PromptFiles.Prompt rolePrompt = prompts.rolePrompt(agent.rolePrompt());
         PromptFiles.Prompt rules = prompts.complianceRules();
@@ -288,7 +293,9 @@ public class TurnOrchestrator {
     /**
      * The phrasing role drafts the answer: prompt files as system message, everything else in the user part. A blank
      * draft fails the turn only if block routing would release it. A parameter proposal is not phrased: its draft is
-     * the fixed proposal text.
+     * the fixed proposal text. An {@code ASK_PROFILE} draft starts with why Fine asks; a recommendation with strict
+     * profile fields still unknown ends with them (AD-23). Both sentences are fixed and run through the checks; a blank
+     * draft stays blank.
      */
     TurnState llmDraft(RequestContext context, TurnState turn) {
         if (turn.tools().proposal()) {
@@ -299,8 +306,21 @@ public class TurnOrchestrator {
         LlmResult result = llm.generate(LlmRole.PHRASING,
                 List.of(LlmMessage.system(phrasing.system()), LlmMessage.user(phrasing.user())),
                 context.agentConfig().decoding(), null);
-        return turn.withDraft(new TurnState.Draft(result.text() == null ? "" : result.text(), result.modelTag(), result.digest(),
-                result.truncated())).ran(TurnStage.LLM_DRAFT);
+        String text = withFixedSentences(turn, result.text() == null ? "" : result.text());
+        return turn.withDraft(new TurnState.Draft(text, result.modelTag(), result.digest(), result.truncated()))
+                .ran(TurnStage.LLM_DRAFT);
+    }
+
+    /** The class's fixed sentences around a model text (first draft and regeneration alike); blank stays blank. */
+    static String withFixedSentences(TurnState turn, String text) {
+        if (text.isBlank()) {
+            return text;
+        }
+        return switch (turn.messageClass()) {
+            case ASK_PROFILE -> ResponseTemplates.withProfileReason(text);
+            case RECOMMEND_CATEGORY -> ResponseTemplates.withLimitations(text, turn.classification().limitations());
+            default -> text;
+        };
     }
 
     /**
@@ -342,7 +362,7 @@ public class TurnOrchestrator {
                 context.agentConfig().decoding(), null);
         boolean retrieval = context.agentConfig().retrieval();
         String raw = result.text() == null ? "" : result.text();
-        String text = retrieval ? raw : CitationMarkers.strip(raw).text();
+        String text = withFixedSentences(turn, retrieval ? raw : CitationMarkers.strip(raw).text());
         TurnState.Regeneration regeneration = new TurnState.Regeneration(fix.get(), text, result.truncated());
         ChainResult results = text.isBlank() ? checks.shadow() : CheckChain.run(text, facts(turn, retrieval));
         return turn.withChecks(checks.withRegeneration(regeneration, results)).ran(TurnStage.RULE_ENGINE);

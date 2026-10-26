@@ -20,7 +20,8 @@ public final class ClassInstruction {
     public static final String DEFAULT_MISSING =
             "your goals, horizon, income and expenses, emergency fund, risk tolerance";
 
-    private static final Pattern PLACEHOLDER = Pattern.compile("\\{(missing|category|conflicts|oos|premises)}");
+    private static final Pattern PLACEHOLDER =
+            Pattern.compile("\\{(missing|category|conflicts|oos|premises|limitations)}");
     private static final Pattern BRACES = Pattern.compile("[{}]");
 
     private ClassInstruction() {
@@ -38,7 +39,7 @@ public final class ClassInstruction {
      */
     public static String fill(String template, Classification classification, String category, String conflicts) {
         String missing = classification.missingFields().isEmpty() ? DEFAULT_MISSING
-                : String.join(", ", classification.missingFields());
+                : String.join(", ", classification.missingFields()).replace("_", " ");
         String oos = classification.outOfScope().isEmpty() ? "this product"
                 : String.join(", ", classification.outOfScope()).replace("_", " ");
         String premises = classification.unverifiedPremises().stream()
@@ -47,7 +48,11 @@ public final class ClassInstruction {
         String conflictText = conflicts == null || conflicts.isEmpty() ? ""
                 : "The request conflicts with the profile (" + conflicts
                         + "): recommend against it and state the conflicting figures.";
+        String limitations = classification.limitations().isEmpty() ? ""
+                : "Not known yet: " + String.join(", ", classification.limitations()).replace("_", " ")
+                        + ". A fixed note listing these follows your answer; do not repeat it.";
         Map<String, String> values = Map.of(
+                "limitations", limitations,
                 "missing", missing,
                 "category", category == null ? "" : category.replace("_", " "),
                 "conflicts", conflictText,

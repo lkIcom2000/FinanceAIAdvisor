@@ -10,11 +10,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import de.financetool.PostgresIntegrationTest;
 import de.financetool.advisory.domain.NoValidSource;
+import de.financetool.advisory.domain.ResponseTemplates;
 import de.financetool.llm.LlmRole;
+import de.financetool.profile.Profiles;
+import de.financetool.shared.PersonaScope;
 import de.financetool.testing.ComplianceLevelSwitch;
 import de.financetool.testing.PilotNlu;
 import de.financetool.testing.StubLlmConfiguration.StubLlm;
+import de.financetool.testing.TestContexts;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
@@ -26,6 +31,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Story 3.3 end to end, one test per row of the I/O matrix: the stubbed NLU answers the crafted extraction, the
@@ -61,6 +67,12 @@ class ClassificationEndToEndTest extends PostgresIntegrationTest {
 
     @Autowired
     ComplianceLevelSwitch.Switch config;
+
+    @Autowired
+    Profiles profiles;
+
+    @Autowired
+    TransactionTemplate tx;
 
     @BeforeEach
     void programTheNlu() {
@@ -187,16 +199,44 @@ class ClassificationEndToEndTest extends PostgresIntegrationTest {
     }
 
     @Test
-    void aPersonalRequestAsksForTheProfileWhileTheStubSaysIncomplete() throws Exception {
-        llm.answer("Before I can recommend anything, I need to know more about you.");
+    void aPersonalRequestAsksForTheMissingProfileFieldsAndStoresNoStatedFact() throws Exception {
+        llm.answer("Could you tell me your income and your risk tolerance?");
         Turn t = turn(PERSONAL);
 
         assertThat(t.answer()).containsEntry("outcome", "ASK_PROFILE")
-                .containsEntry("text", "Before I can recommend anything, I need to know more about you.");
-        assertThat(t.body()).containsEntry("class", "ASK_PROFILE").containsEntry("missingFields", List.of())
+                .containsEntry("text", ResponseTemplates.WHY_ASK_PROFILE
+                        + " Could you tell me your income and your risk tolerance?");
+        assertThat(t.body()).containsEntry("class", "ASK_PROFILE")
+                .containsEntry("missingFields", List.of("monthly_surplus or net_income",
+                        "risk_tolerance or loss_aversion"))
                 .containsEntry("classReasons", List.of("profile minimum not met for topic 'savings_plan'"));
-        assertThat(lastSystemPart()).contains("then ask for: your goals, horizon, income and expenses, emergency "
-                + "fund, risk tolerance.");
+        assertThat(lastSystemPart()).contains("then ask for: monthly surplus or net income, risk tolerance or "
+                + "loss aversion.");
+        assertThat(jdbc.queryForObject("SELECT (SELECT count(*) FROM suitability_profiles) "
+                + "+ (SELECT count(*) FROM needs_profiles)", Long.class))
+                .as("the stated requested_monthly_amount is never persisted (AD-23)").isZero();
+    }
+
+    @Test
+    void aConfirmedStoredProfileMeetsTheMinimumAndTheUnknownStrictFieldsAreDisclosed() throws Exception {
+        tx.executeWithoutResult(status -> profiles.confirm(new PersonaScope(TestContexts.LENA),
+                Map.of("net_income", 3200, "risk_tolerance", "medium"), Instant.parse("2026-10-26T10:00:00Z")));
+        try {
+            llm.answer("A savings plan in a broad equity fund can fit your situation; losses are possible and "
+                    + "ongoing costs apply.");
+            Turn t = turn(PERSONAL);
+
+            assertThat(t.answer()).containsEntry("outcome", "RECOMMEND_CATEGORY");
+            assertThat((String) t.answer().get("text")).endsWith("Not known yet: goal, investment horizon years, "
+                    + "monthly expenses, emergency fund, loss bearing capacity, knowledge experience, sustainability "
+                    + "preference.");
+            assertThat(t.body()).containsEntry("class", "RECOMMEND_CATEGORY");
+            assertThat(lastSystemPart()).contains("Not known yet: goal,");
+            assertThat(llm.calls(LlmRole.PHRASING).getLast().messages().get(1).content()).contains("risk_tolerance")
+                    .doesNotContain("3200");
+        } finally {
+            jdbc.update("DELETE FROM suitability_profiles");
+        }
     }
 
     @Test

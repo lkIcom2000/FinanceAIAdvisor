@@ -42,7 +42,7 @@ public final class Classifier {
 
     /**
      * @param nlu the grounded NLU extraction
-     * @param storedProfile the stored profile (empty until Epic 6)
+     * @param storedProfile the persona's stored profile
      * @param computable whether the tool plan has the parameters for a calculation (false until Story 3.7)
      * @param message the user's message
      */
@@ -89,8 +89,11 @@ public final class Classifier {
             ProfileCompleteness.Result result = completeness.check(storedProfile, nlu.statedProfile(), topic);
             if (result.complete()) {
                 reasons.add("profile minimum met for topic '" + topic + "'");
+                if (!result.limitations().isEmpty()) {
+                    reasons.add("not known yet (limitations): " + String.join(", ", result.limitations()));
+                }
                 return new Classification(MessageClass.RECOMMEND_CATEGORY, reasons, List.of(), List.of(), List.of(),
-                        topic);
+                        topic, result.limitations());
             }
             reasons.add("profile minimum not met for topic '" + topic + "'");
             return new Classification(MessageClass.ASK_PROFILE, reasons, result.missingFields(), List.of(), List.of(),

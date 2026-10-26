@@ -32,10 +32,18 @@ public class ClassificationConfiguration {
         return new EntityRegistry(load(appHome.data().resolve(KNOWN_ENTITIES)), List.of(), List.of());
     }
 
-    /** The stub until Story 6.1: every profile is incomplete, no missing fields known. */
+    /**
+     * The classifier's port, served by the profile module's single completeness implementation (AD-23). The
+     * unsupported-topic marker is no field the user could give, so it never reaches the missing fields.
+     */
     @Bean
-    ProfileCompleteness profileCompleteness() {
-        return ProfileCompleteness.INCOMPLETE;
+    ProfileCompleteness classifierProfileCompleteness(de.financetool.profile.ProfileCompleteness evaluator) {
+        return (stored, stated, topic) -> {
+            de.financetool.profile.ProfileCompleteness.Result result = evaluator.evaluate(stored, stated, topic);
+            return new ProfileCompleteness.Result(result.complete(), result.missingFields().stream()
+                    .filter(f -> !f.equals(de.financetool.profile.ProfileCompleteness.TOPIC_NOT_SUPPORTED)).toList(),
+                    result.limitations());
+        };
     }
 
     /**
