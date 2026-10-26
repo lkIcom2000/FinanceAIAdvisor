@@ -86,11 +86,6 @@ class CheckChainTest {
                 continue;
             }
             CheckResult actual = result.get(id);
-            if (id == CheckId.DOCUMENTATION && c.category() == null) {
-                // deviation: not applicable without a Core category selection (see CheckChain)
-                assertThat(actual).isEqualTo(CheckResult.notApplicable(CheckId.DOCUMENTATION));
-                continue;
-            }
             assertThat(actual.applicable()).as(id + " applicable").isEqualTo(expected.get("applicable"));
             assertThat(actual.passed()).as(id + " passed").isEqualTo(expected.get("passed"));
             assertThat(actual.reasonCode()).as(id + " reason").isEqualTo(expected.get("reason_code"));
@@ -169,10 +164,17 @@ class CheckChainTest {
     }
 
     @Test
-    void documentationIsNotApplicableWithoutACoreCategorySelectionAndPassesWithOne() {
-        assertThat(documentation(null)).isEqualTo(CheckResult.notApplicable(CheckId.DOCUMENTATION));
+    void documentationFailsWithoutACoreSelectionOrWithAnIncompleteStatement() {
+        assertThat(documentation(null)).satisfies(r -> assertThat(r.applicable()).isTrue())
+                .satisfies(r -> assertThat(r.passed()).isFalse())
+                .satisfies(r -> assertThat(r.reasonCode()).isEqualTo("no_core_selection_recorded"));
         assertThat(documentation(Map.of("category", "equity_etf_broad")))
                 .satisfies(r -> assertThat(r.applicable()).isTrue()).satisfies(r -> assertThat(r.passed()).isTrue());
+        assertThat(documentation(Map.of("category", "equity_etf_broad", CheckChain.STATEMENT_COMPLETE, true))
+                .passed()).isTrue();
+        assertThat(documentation(Map.of("category", "equity_etf_broad", CheckChain.STATEMENT_COMPLETE, false)))
+                .satisfies(r -> assertThat(r.passed()).isFalse())
+                .satisfies(r -> assertThat(r.reasonCode()).isEqualTo("statement_incomplete"));
         assertThat(CheckChain.run("An ETF is a fund.", new CheckChain.Facts(MessageClass.INFORM, "", false,
                 Map.of("category", "x"), "other", List.of(), false, 0, List.of())).get(CheckId.DOCUMENTATION).applicable())
                 .as("only recommendations").isFalse();

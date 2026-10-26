@@ -5,12 +5,14 @@ import de.financetool.core.domain.CoreResult;
 import de.financetool.core.domain.InsuranceFigures;
 import de.financetool.core.domain.LiquidityFigures;
 import de.financetool.core.domain.ProfileFigures;
+import de.financetool.core.domain.RecommendationFigures;
 import de.financetool.core.domain.WealthFigures;
 import de.financetool.shared.RequestContext;
 import de.financetool.shared.domain.SourcedNumber;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -59,6 +61,21 @@ public interface CoreGateway {
      * @throws IllegalStateException if a Rule Parameter has no version valid at {@code asOf}
      */
     ProfileFigures profileFigures(RequestContext context, EvidenceOrigin origin);
+
+    /**
+     * The Category Recommendation at {@code asOf} (FR-20, FR-27): the rule-based category selection (function
+     * {@code categorySelection}) on the profile and Rule Parameters only, and for an investment topic the ex-ante cost
+     * calculation (function {@code costCalculation}) on the profile's amount, else its requested monthly amount times
+     * 12, else {@link de.financetool.core.domain.CostCalculation#DEFAULT_AMOUNT}, over
+     * {@link de.financetool.core.domain.CostCalculation#YEARS} years.
+     *
+     * @param profile the effective profile, field → value (stored plus the facts the message states)
+     * @param withCosts whether the topic is an investment topic
+     * @throws de.financetool.knowledge.NoValidRuleParameterException if a Rule Parameter has no version valid at
+     *     {@code asOf}; nothing is stored
+     */
+    RecommendationFigures recommendation(RequestContext context, EvidenceOrigin origin, Map<String, ?> profile,
+            String topic, boolean withCosts);
 
     /**
      * The insurance figures at the end of {@code asOf}: each contract started by then with its keyed premium and next

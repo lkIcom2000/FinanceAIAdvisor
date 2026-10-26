@@ -120,11 +120,13 @@ public class TurnOrchestrator {
     private final Profiles profiles;
     private final DialogStates dialogStates;
     private final AssessmentCards assessments;
+    private final Recommendations recommendations;
 
     TurnOrchestrator(ChatRepository chats, PromptFiles prompts, LlmPort llm, AuditWriter audit,
             NluExtractor nluExtractor, EntityRegistry registry,
             ProfileCompleteness completeness, EscalationCases escalations, RuleParamPort ruleParameters,
-            ToolRegistry tools, Profiles profiles, DialogStates dialogStates, AssessmentCards assessments) {
+            ToolRegistry tools, Profiles profiles, DialogStates dialogStates, AssessmentCards assessments,
+            Recommendations recommendations) {
         this.chats = chats;
         this.prompts = prompts;
         this.llm = llm;
@@ -138,6 +140,7 @@ public class TurnOrchestrator {
         this.profiles = profiles;
         this.dialogStates = dialogStates;
         this.assessments = assessments;
+        this.recommendations = recommendations;
     }
 
     /** Runs the turn for the saved user message {@code question} and releases the agent message. */
@@ -172,7 +175,7 @@ public class TurnOrchestrator {
         turn = dialogState(scope, turn, continuation);
         turn = nlu(context, scope, turn);
         turn = classify(context, scope, turn, continuation instanceof Confirmation c ? c : null);
-        turn = toolPlan(context, turn);
+        turn = toolPlan(context, scope, turn);
         turn = kbRetrieve(turn);
         turn = exposureFilter(context, scope, question, turn);
         turn = llmDraft(context, turn);
@@ -233,9 +236,10 @@ public class TurnOrchestrator {
      * (AD-24); a confirmed spec runs its whitelisted tool through the {@link ToolRegistry}. A tool missing a valid
      * Rule Parameter version marks the turn for {@code ESCALATE}. Before that, for every class but refusals and
      * traps, a subsidy question about a later year needs the Core's subsidy rules for that year (UJ-5); without them
-     * the turn escalates too.
+     * the turn escalates too. A {@code RECOMMEND_CATEGORY} turn runs the Core's category selection and cost
+     * calculation on the effective profile ({@link Recommendations}).
      */
-    TurnState toolPlan(RequestContext context, TurnState turn) {
+    TurnState toolPlan(RequestContext context, PersonaScope scope, TurnState turn) {
         TurnState.Tools planned = turn.tools();
         MessageClass messageClass = turn.messageClass();
         Optional<LocalDate> laterYear = messageClass == MessageClass.REFUSE_OUT_OF_SCOPE
@@ -247,6 +251,11 @@ public class TurnOrchestrator {
             } catch (NoValidRuleParameterException e) {
                 return turn.withTools(TurnState.Tools.laterYearRuleMissing()).ran(TurnStage.TOOL_PLAN);
             }
+        }
+        if (messageClass == MessageClass.RECOMMEND_CATEGORY) {
+            return turn.withTools(recommendations.run(context, profiles.stored(scope),
+                    turn.nlu().extraction().statedProfile(), turn.nlu().extraction().topic()))
+                    .ran(TurnStage.TOOL_PLAN);
         }
         if (turn.messageClass() != MessageClass.COMPUTE) {
             return turn.passedThrough(TurnStage.TOOL_PLAN);
@@ -288,7 +297,10 @@ public class TurnOrchestrator {
         PromptFiles.Prompt rolePrompt = prompts.rolePrompt(agent.rolePrompt());
         PromptFiles.Prompt rules = prompts.complianceRules();
         PromptFiles.Prompt instruction = prompts.classInstruction(turn.messageClass());
-        String classInstruction = ClassInstruction.fill(instruction.text(), turn.classification(), null, "");
+        ChatMessage.Recommendation statement = turn.tools().statement();
+        String classInstruction = ClassInstruction.fill(instruction.text(), turn.classification(),
+                statement == null ? null : statement.category(),
+                statement == null ? "" : String.join("; ", statement.conflicts()));
         PhrasingPrompt phrasing = PhrasingPrompt.build(rolePrompt.text(), rules.text(), classInstruction, payload,
                 agent.decoding().numCtx(), agent.decoding().numPredict());
         Map<String, String> hashes = Map.of(rolePrompt.fileName(), rolePrompt.hash(), rules.fileName(), rules.hash(),
@@ -337,7 +349,12 @@ public class TurnOrchestrator {
         }
         return switch (turn.messageClass()) {
             case ASK_PROFILE -> ResponseTemplates.withProfileReason(text);
-            case RECOMMEND_CATEGORY -> ResponseTemplates.withLimitations(text, turn.classification().limitations());
+            case RECOMMEND_CATEGORY -> {
+                ChatMessage.Recommendation statement = turn.tools().statement();
+                String led = statement == null ? text : ResponseTemplates.withRecommendationLead(text,
+                        ResponseTemplates.recommendationLead(statement.label(), statement.conflicts()));
+                yield ResponseTemplates.withLimitations(led, turn.classification().limitations());
+            }
             default -> text;
         };
     }
@@ -445,13 +462,13 @@ public class TurnOrchestrator {
     }
 
     /**
-     * What the Check Chain needs besides the text, with the turn's ledger for the Number Check; no Core category
-     * selection exists yet (Epic 6).
-     * {@code SOURCE_VALIDITY} applies only with retrieval on, as in the experiment.
+     * What the Check Chain needs besides the text, with the turn's ledger for the Number Check and the Core's category
+     * selection of a recommendation. {@code SOURCE_VALIDITY} applies only with retrieval on, as in the experiment.
      */
     private static CheckChain.Facts facts(TurnState turn, boolean retrievalOn) {
-        return CheckChain.Facts.of(turn.classification(), turn.userText(), null, retrievalOn, passagesInPrompt(turn),
-                turn.prompt().ledger());
+        return CheckChain.Facts.of(turn.classification(), turn.userText(),
+                Recommendations.facts(turn.tools().statement(), turn.nlu().extraction().topic()), retrievalOn,
+                passagesInPrompt(turn), turn.prompt().ledger());
     }
 
     /**
@@ -493,8 +510,11 @@ public class TurnOrchestrator {
         List<ChatMessage.Check> shownChecks = released.checks().flags().shadowMode() || proposal ? List.of()
                 : released.checks().finalResults().applicable().stream().map(ChatMessage.Check::of).toList();
         boolean draftReleased = released.checks().route() == null || released.checks().route().released();
+        boolean recommended = released.outcome() == ResponseOutcome.RECOMMEND_CATEGORY && draftReleased
+                && turnTools.recommendation() != null;
         List<SourcedNumber> figures = turnTools.spec() != null && !turnTools.proposal() && draftReleased
-                ? ToolRegistry.figures(turnTools.spec(), turnTools.results()) : List.of();
+                ? ToolRegistry.figures(turnTools.spec(), turnTools.results())
+                : recommended ? recommendations.chips(context, turnTools.recommendation()) : List.of();
         ChatMessage.Assessment assessment = released.outcome() == ResponseOutcome.ASK_PROFILE
                 ? assessments.open(context, released.classification().missingFields()).orElse(null) : null;
         ChatMessage answer = new ChatMessage(turnId, ChatMessage.Author.AGENT, released.finalText(),
@@ -503,7 +523,8 @@ public class TurnOrchestrator {
                 proposal ? new ChatMessage.Proposal(turnTools.spec(), ChatMessage.Proposal.Status.OPEN) : null,
                 figures, released.outcome() == ResponseOutcome.DETECT_TRAP
                         ? ResponseTemplates.premiseCallout(released.classification().unverifiedPremises(),
-                                released.userText()) : null, assessment);
+                                released.userText()) : null, assessment,
+                recommended ? turnTools.statement() : null);
         UUID conversation = chats.conversation(scope);
         chats.insert(scope, conversation, answer);
         if (proposal) {
@@ -545,7 +566,9 @@ public class TurnOrchestrator {
                         released.finalText(), regeneration != null, regeneration == null ? null : regeneration.fix(),
                         regeneration == null ? null : regeneration.text(), context.agentConfig().compliance().value(),
                         released.passThroughStages(), prompt.ledger().entries(), released.dialogState(),
-                        turnTools.spec(), proposal, turnTools.ruleParameterError())));
+                        turnTools.spec(), proposal, turnTools.ruleParameterError(),
+                        ResponseAuditBody.categorySelection(turnTools.recommendation() == null ? null
+                                : turnTools.recommendation().details()))));
         return answer;
     }
 

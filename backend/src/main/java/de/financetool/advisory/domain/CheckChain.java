@@ -19,8 +19,8 @@ import java.util.regex.Pattern;
  * <p>Differences to the experiment, by the spec: {@code FALSE_PREMISE} is not part of the closed {@link CheckId}
  * set (the trap card's premise callout names the premise); {@code ROLE_INTEGRITY} is folded into {@code SCOPE},
  * which also fails a draft that repeats its instructions (Story 3.8); {@code IDD_NEEDS} uses the word boundaries
- * the experiment meant (see {@link #TARIFF}); {@code DOCUMENTATION} is not applicable without a Core category
- * selection; {@code SOURCE_VALIDITY} applies only with retrieval on, as in the experiment.
+ * the experiment meant (see {@link #TARIFF}); {@code DOCUMENTATION} also fails a recommendation whose Suitability
+ * Statement is incomplete (Story 6.3); {@code SOURCE_VALIDITY} applies only with retrieval on, as in the experiment.
  */
 public final class CheckChain {
 
@@ -117,6 +117,8 @@ public final class CheckChain {
             "diversification", "fund_selection", "sustainability_fit", "product_variant_tax", "retirement_strategy",
             "short_term_investment");
     static final Set<String> PROTECTION_TOPICS = Set.of("protection_needs", "protection_duplicate");
+    /** The key of the category selection that says whether its Suitability Statement is complete. */
+    public static final String STATEMENT_COMPLETE = "statement_complete";
     private static final Set<MessageClass> NAMING_CLASSES =
             Set.of(MessageClass.RECOMMEND_CATEGORY, MessageClass.ASK_PROFILE, MessageClass.COMPUTE);
 
@@ -126,7 +128,8 @@ public final class CheckChain {
      * @param messageClass the turn's class ({@code expected_class})
      * @param userMessage the user's message as written
      * @param profileOk whether the profile minimum is met (the experiment passes {@code class == RECOMMEND_CATEGORY})
-     * @param category the Core's category selection, {@code null} without one (no Core selection until Epic 6)
+     * @param category the Core's category selection ({@code category}, {@code conflicts},
+     *     {@link #STATEMENT_COMPLETE}), {@code null} without one
      * @param topic the NLU topic
      * @param outOfScope the out-of-scope categories of the classification
      * @param retrievalOn whether the configuration turns retrieval on; {@code SOURCE_VALIDITY} applies only then
@@ -158,6 +161,11 @@ public final class CheckChain {
     }
 
     private CheckChain() {
+    }
+
+    /** Whether a recommendation on {@code topic} must mention costs ({@code COST_TRANSPARENCY}). */
+    public static boolean investTopic(String topic) {
+        return topic != null && INVEST_TOPICS.contains(topic);
     }
 
     /** Runs every check on {@code text}; one result per {@link CheckId}, in declaration order. */
@@ -280,12 +288,11 @@ public final class CheckChain {
         res.add(new CheckResult(CheckId.IDD_NEEDS, protection, iddOk, iddOk ? "" : "insurer_or_tariff_named",
                 Map.of()));
 
-        // DOCUMENTATION: structural, the pipeline writes the record; recommendations need a Core selection.
-        // Deviation: not applicable while no Core category selection exists (category null, until Epic 6) -- the
-        // experiment fails it then, which would escalate every recommendation for a missing component, not for the
-        // draft. With a selection it passes (the pipeline records it).
-        boolean docApplies = rec && facts.category() != null;
-        res.add(new CheckResult(CheckId.DOCUMENTATION, docApplies, true, "", Map.of()));
+        // DOCUMENTATION: structural, the pipeline writes the record; recommendations need a Core selection and, beyond
+        // the experiment (Story 6.3), a complete Suitability Statement (profile facts, risks, costs for investments).
+        String docCode = !rec ? "" : facts.category() == null ? "no_core_selection_recorded"
+                : Boolean.FALSE.equals(facts.category().get(STATEMENT_COMPLETE)) ? "statement_incomplete" : "";
+        res.add(new CheckResult(CheckId.DOCUMENTATION, rec, docCode.isEmpty(), docCode, Map.of()));
 
         // NUMBER_MATCH: every number in the text is in the turn's ledger
         res.add(NumberCheck.check(text, facts.sourced()));

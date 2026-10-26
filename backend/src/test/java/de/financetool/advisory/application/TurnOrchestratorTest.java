@@ -99,9 +99,13 @@ class TurnOrchestratorTest {
     final Profiles profiles = mock(Profiles.class);
     ProfileCompleteness profile = ProfileCompleteness.INCOMPLETE;
     final AssessmentCards assessments = mock(AssessmentCards.class);
+    /** No Core selection unless a test stubs one: recommendations run without a statement. */
+    final Recommendations recommendations = mock(Recommendations.class,
+            inv -> inv.getMethod().getName().equals("run")
+                    ? new TurnState.Tools(null, null, null, false, List.of(), false) : List.of());
     final TurnOrchestrator orchestrator = new TurnOrchestrator(chats, prompts, llm, audit, nluExtractor,
             registry, (stored, stated, topic) -> profile.check(stored, stated, topic), escalations,
-            ruleParameters, tools, profiles, new DialogStates(chats), assessments);
+            ruleParameters, tools, profiles, new DialogStates(chats), assessments, recommendations);
 
     final PersonaScope scope = new PersonaScope(TestContexts.LENA);
     final RequestContext context = TestContexts.context();

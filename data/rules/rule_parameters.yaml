@@ -66,6 +66,100 @@ parameters:
     source: "Design parameter (Story 2.4): default horizon of the goal projection"
     version: "1"
 
+  # --- Category selection and cost calculation (Story 6.3, FR-20, FR-27). Values from
+  # experiments/data/rules/rule_parameters.yaml and experiments/data/rules/category_rules.yaml (equity_share_by_risk).
+  - key: short_horizon_years_max
+    value: 3
+    unit: YEARS
+    valid_from: 2020-01-01
+    valid_to: null
+    source: "Design parameter: money needed within this horizon is not invested in equities"
+    version: "1"
+  - key: reference_ter_active_fund
+    value: 0.015
+    unit: FRACTION
+    valid_from: 2020-01-01
+    valid_to: null
+    source: "Design parameter: typical ongoing charge of an active equity fund"
+    version: "1"
+  - key: reference_front_load_active_fund
+    value: 0.05
+    unit: FRACTION
+    valid_from: 2020-01-01
+    valid_to: null
+    source: "Design parameter: typical front-end load of an active fund"
+    version: "1"
+  - key: equity_share_very_low_min
+    value: 0.0
+    unit: FRACTION
+    valid_from: 2020-01-01
+    valid_to: null
+    source: "Design parameter: equity share range for a very low risk tolerance"
+    version: "1"
+  - key: equity_share_very_low_max
+    value: 0.1
+    unit: FRACTION
+    valid_from: 2020-01-01
+    valid_to: null
+    source: "Design parameter: equity share range for a very low risk tolerance"
+    version: "1"
+  - key: equity_share_low_min
+    value: 0.1
+    unit: FRACTION
+    valid_from: 2020-01-01
+    valid_to: null
+    source: "Design parameter: equity share range for a low risk tolerance"
+    version: "1"
+  - key: equity_share_low_max
+    value: 0.3
+    unit: FRACTION
+    valid_from: 2020-01-01
+    valid_to: null
+    source: "Design parameter: equity share range for a low risk tolerance"
+    version: "1"
+  - key: equity_share_medium_min
+    value: 0.4
+    unit: FRACTION
+    valid_from: 2020-01-01
+    valid_to: null
+    source: "Design parameter: equity share range for a medium risk tolerance"
+    version: "1"
+  - key: equity_share_medium_max
+    value: 0.6
+    unit: FRACTION
+    valid_from: 2020-01-01
+    valid_to: null
+    source: "Design parameter: equity share range for a medium risk tolerance"
+    version: "1"
+  - key: equity_share_high_min
+    value: 0.7
+    unit: FRACTION
+    valid_from: 2020-01-01
+    valid_to: null
+    source: "Design parameter: equity share range for a high risk tolerance"
+    version: "1"
+  - key: equity_share_high_max
+    value: 0.9
+    unit: FRACTION
+    valid_from: 2020-01-01
+    valid_to: null
+    source: "Design parameter: equity share range for a high risk tolerance"
+    version: "1"
+  - key: equity_share_very_high_min
+    value: 0.8
+    unit: FRACTION
+    valid_from: 2020-01-01
+    valid_to: null
+    source: "Design parameter: equity share range for a very high risk tolerance"
+    version: "1"
+  - key: equity_share_very_high_max
+    value: 1.0
+    unit: FRACTION
+    valid_from: 2020-01-01
+    valid_to: null
+    source: "Design parameter: equity share range for a very high risk tolerance"
+    version: "1"
+
   # --- Riester subsidy (Story 4.1). Values from experiments/data/rules/rule_parameters.yaml; valid to the end of 2026
   # because the reform announced from 2027 is not confirmed yet (data/rules/README.md). A question about 2027 or the
   # new subsidised product finds no valid version and escalates (UJ-5).

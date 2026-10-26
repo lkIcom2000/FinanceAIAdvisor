@@ -26,6 +26,53 @@
   font: var(--fine-body);
 }
 
+// UX-DR43: a Category Recommendation carries a light-cyan left bar.
+.card.recommendation {
+  border-left: 4px solid color-mix(in srgb, var(--fine-highlight-ring) 45%, white);
+}
+
+.why-fits {
+  margin-top: 12px;
+  font: var(--fine-body-sm);
+
+  summary {
+    cursor: pointer;
+    font: var(--fine-label);
+    color: var(--fine-navy);
+  }
+
+  h4 {
+    margin: 12px 0 4px;
+    font: var(--fine-label);
+  }
+
+  ul {
+    margin: 0;
+    padding-left: 20px;
+  }
+
+  .statement-figures {
+    padding-left: 0;
+    list-style: none;
+  }
+}
+
+.statement-figure {
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: underline dotted;
+  cursor: pointer;
+}
+
+.statement-basis {
+  margin: 12px 0 0;
+  color: var(--mat-sys-on-surface-variant);
+}
+
 .body {
   margin: 0;
   white-space: pre-wrap;

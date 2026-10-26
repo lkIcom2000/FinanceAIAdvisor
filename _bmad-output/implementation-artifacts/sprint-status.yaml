@@ -93,7 +93,7 @@ development_status:
   epic-6: in-progress  # [critical-path] Epic 5 skipped (non-blocking), Commc 2026-10-26
   6-1-profile-module-and-the-completeness-gate: done  # end 2026-10-26; combined review + Blind Hunter, 8 fixes, 2 deferred to 6.2
   6-2-suitability-assessment-in-one-form-card: done  # end 2026-10-26; combined review + Blind Hunter, 8 fixes; live Ollama check done
-  6-3-category-recommendation-with-a-suitability-statement: backlog
+  6-3-category-recommendation-with-a-suitability-statement: done  # end 2026-10-26; combined review, 6 fixes; live Ollama check pending
   6-4-short-demands-and-needs-statement-idd: backlog
   epic-6-retrospective: optional
 

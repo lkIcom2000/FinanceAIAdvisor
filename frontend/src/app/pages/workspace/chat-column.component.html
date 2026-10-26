@@ -38,7 +38,7 @@
     @if (m.author === 'USER') {
       <p class="user-message">{{ m.text }}</p>
     } @else {
-      <article class="card response">
+      <article class="card response" [class.recommendation]="m.outcome === 'RECOMMEND_CATEGORY'">
         <!-- The outcome label row comes first, so screen readers read it before the body. -->
         @if (m.outcome; as outcome) {
           <div class="outcome-label">
@@ -272,6 +272,59 @@
               </li>
             }
           </ul>
+        }
+        <!-- UX-DR43: the Suitability Statement, collapsed; built by the Core from the profile, not by the model. -->
+        @if (m.recommendation; as rec) {
+          <details class="why-fits">
+            <summary>Why this fits you</summary>
+            @if (rec.conflicts.length) {
+              <h4>Where the plan conflicts with your situation</h4>
+              <ul>
+                @for (c of rec.conflicts; track c) {
+                  <li>{{ c }}</li>
+                }
+              </ul>
+            }
+            @if (rec.figures.length) {
+              <h4>Figures</h4>
+              <ul class="statement-figures">
+                @for (f of rec.figures; track f.provId) {
+                  <li>
+                    <button type="button" class="statement-figure" (click)="openWhy(f.provId)">
+                      {{ f.label }}: {{ f.value | figure: f.unit }}
+                    </button>
+                  </li>
+                }
+              </ul>
+            }
+            @if (rec.facts.length) {
+              <h4>What I used from your profile</h4>
+              <ul>
+                @for (fact of rec.facts; track fact.label) {
+                  <li>{{ fact.label }}: {{ fact.value }}</li>
+                }
+              </ul>
+            }
+            <h4>Main risks</h4>
+            <ul>
+              @for (r of rec.risks; track r) {
+                <li>{{ r }}</li>
+              }
+            </ul>
+            @if (rec.costs.length) {
+              <h4>Costs before you invest</h4>
+              <ul class="statement-figures">
+                @for (f of rec.costs; track f.provId) {
+                  <li>
+                    <button type="button" class="statement-figure" (click)="openWhy(f.provId)">
+                      {{ f.label }}: {{ f.value | figure: f.unit }}
+                    </button>
+                  </li>
+                }
+              </ul>
+            }
+            <p class="statement-basis">Category: {{ rec.category }}. Selected only from your profile and fixed rules.</p>
+          </details>
         }
         <!-- A handover shows at most a plain reason class, never the draft or a technical reason. -->
         @if (m.handover; as handover) {

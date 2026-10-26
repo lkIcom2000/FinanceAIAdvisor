@@ -720,6 +720,10 @@
             "$ref" : "#/components/schemas/ChatProposal",
             "description" : "\"Here's what I understood\": the values a calculation will run with; only on COMPUTE answers that ask before calculating"
           },
+          "recommendation" : {
+            "$ref" : "#/components/schemas/ChatRecommendation",
+            "description" : "\"Why this fits you\": the Suitability Statement; only on RECOMMEND_CATEGORY answers"
+          },
           "replyTo" : {
             "type" : "string",
             "format" : "uuid",
@@ -789,6 +793,65 @@
           }
         },
         "required" : [ "key", "label", "source", "unit", "value" ]
+      },
+      "ChatRecommendation" : {
+        "type" : "object",
+        "description" : "The Suitability Statement of a Category Recommendation, from Fine's calculation engine and your profile",
+        "properties" : {
+          "category" : {
+            "type" : "string",
+            "description" : "The category in plain words"
+          },
+          "conflicts" : {
+            "type" : "array",
+            "description" : "Where the plan conflicts with your profile; empty if it fits",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "costs" : {
+            "type" : "array",
+            "description" : "The ex-ante costs; empty for a recommendation without investment",
+            "items" : {
+              "$ref" : "#/components/schemas/Figure"
+            }
+          },
+          "facts" : {
+            "type" : "array",
+            "description" : "The profile facts the selection used",
+            "items" : {
+              "$ref" : "#/components/schemas/ChatRecommendationFact"
+            }
+          },
+          "figures" : {
+            "type" : "array",
+            "description" : "The figures behind the selection",
+            "items" : {
+              "$ref" : "#/components/schemas/Figure"
+            }
+          },
+          "risks" : {
+            "type" : "array",
+            "description" : "The main risks",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "category", "conflicts", "costs", "facts", "figures", "risks" ]
+      },
+      "ChatRecommendationFact" : {
+        "type" : "object",
+        "description" : "One profile fact a recommendation used",
+        "properties" : {
+          "label" : {
+            "type" : "string"
+          },
+          "value" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "label", "value" ]
       },
       "DatedFigure" : {
         "type" : "object",

@@ -1,6 +1,7 @@
 package de.financetool.advisory.domain;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * The fixed, pre-approved answers block routing releases instead of a draft: {@code TEMPLATES} of
@@ -99,6 +100,36 @@ public final class ResponseTemplates {
         String sentence = LIMITATIONS.replace("{fields}", String.join(", ", limitations).replace('_', ' '));
         String text = draft.strip();
         return text.endsWith(sentence) ? text : text + "\n\n" + sentence;
+    }
+
+    /**
+     * The fixed first line of a Category Recommendation (UX-DR43): the conflict when the plan does not fit, otherwise
+     * the category in plain words. It holds no figures (the chips carry them), no "your" and no risk wording, so the
+     * {@code SUITABILITY} check still needs the model's reasons.
+     */
+    public static String recommendationLead(String categoryLabel, List<String> conflicts) {
+        if (conflicts.isEmpty()) {
+            return "Recommended category: " + categoryLabel + ".";
+        }
+        return "This plan doesn't fit right now: " + String.join("; ", conflicts.stream()
+                .map(ResponseTemplates::plainConflict).toList()) + ".";
+    }
+
+    /** A conflict of the Core's category selection in plain words, as the first line and the panel show it. */
+    public static String plainConflict(String conflict) {
+        return CONFLICTS.getOrDefault(conflict, conflict);
+    }
+
+    /** The conflicts of the Core's category selection in plain words. */
+    static final Map<String, String> CONFLICTS = Map.of(
+            "emergency fund below target", "the emergency fund is below its target",
+            "requested monthly amount exceeds monthly surplus",
+            "the monthly amount is more than what is left each month");
+
+    /** A recommendation draft that starts with its fixed first line; unchanged when it already does. */
+    public static String withRecommendationLead(String draft, String lead) {
+        String text = draft.strip();
+        return text.startsWith(lead) ? text : (lead + "\n\n" + text).strip();
     }
 
     /** The profile question for the missing fields, with the default text when none are known. */

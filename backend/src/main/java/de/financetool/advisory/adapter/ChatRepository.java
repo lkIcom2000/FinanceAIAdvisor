@@ -27,7 +27,8 @@ import tools.jackson.databind.json.JsonMapper;
 public class ChatRepository {
 
     private static final String MESSAGE_COLUMNS = "id, author, text, outcome, reply_to, suggestions, checks::text AS checks, "
-            + "proposal::text AS proposal, figures::text AS figures, premise, assessment::text AS assessment";
+            + "proposal::text AS proposal, figures::text AS figures, premise, assessment::text AS assessment, "
+            + "recommendation::text AS recommendation";
 
     /** The dialog state while a parameter proposal is open (AD-24). */
     public static final String PARAMETER_PROPOSAL = "PARAMETER_PROPOSAL";
@@ -60,14 +61,15 @@ public class ChatRepository {
     public void insert(PersonaScope scope, UUID conversationId, ChatMessage message) {
         jdbc.sql("""
                 INSERT INTO messages (id, conversation_id, persona_id, author, text, outcome, reply_to, suggestions,
-                    checks, proposal, figures, premise, assessment)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?::jsonb, ?, ?::jsonb)""")
+                    checks, proposal, figures, premise, assessment, recommendation)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?::jsonb, ?, ?::jsonb, ?::jsonb)""")
                 .params(message.id(), conversationId, scope.id(), message.author().name(), message.text(),
                         message.outcome() == null ? null : message.outcome().name(), message.replyTo(),
                         message.suggestions().toArray(String[]::new), JSON.writeValueAsString(message.checks()),
                         message.proposal() == null ? null : JSON.writeValueAsString(message.proposal()),
                         JSON.writeValueAsString(message.figures()), message.premise(),
-                        message.assessment() == null ? null : JSON.writeValueAsString(message.assessment()))
+                        message.assessment() == null ? null : JSON.writeValueAsString(message.assessment()),
+                        message.recommendation() == null ? null : JSON.writeValueAsString(message.recommendation()))
                 .update();
     }
 
@@ -209,7 +211,9 @@ public class ChatRepository {
                         : JSON.readValue(rs.getString("proposal"), ChatMessage.Proposal.class),
                 JSON.readValue(rs.getString("figures"), FIGURES), rs.getString("premise"),
                 rs.getString("assessment") == null ? null
-                        : JSON.readValue(rs.getString("assessment"), ChatMessage.Assessment.class));
+                        : JSON.readValue(rs.getString("assessment"), ChatMessage.Assessment.class),
+                rs.getString("recommendation") == null ? null
+                        : JSON.readValue(rs.getString("recommendation"), ChatMessage.Recommendation.class));
     }
 
     private static List<String> suggestions(Array array) throws SQLException {

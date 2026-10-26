@@ -8,6 +8,7 @@ import de.financetool.advisory.application.ShowChatUseCase;
 import de.financetool.advisory.domain.ChatMessage;
 import de.financetool.advisory.domain.CheckId;
 import de.financetool.advisory.domain.ResponseOutcome;
+import de.financetool.advisory.domain.ResponseTemplates;
 import de.financetool.profile.AssessmentFields;
 import de.financetool.shared.PersonaScope;
 import de.financetool.shared.ProblemCode;
@@ -91,7 +92,9 @@ class ChatController {
             @Schema(description = "The false assumption a question makes, in one sentence; only on DETECT_TRAP "
                     + "answers") String premise,
             @Schema(description = "The form with every profile question still open; only on ASK_PROFILE answers")
-            AssessmentView assessment) {
+            AssessmentView assessment,
+            @Schema(description = "\"Why this fits you\": the Suitability Statement; only on RECOMMEND_CATEGORY "
+                    + "answers") RecommendationView recommendation) {
 
         static MessageView of(ChatMessage message) {
             return new MessageView(message.id(), Author.valueOf(message.author().name()), message.text(),
@@ -100,8 +103,46 @@ class ChatController {
                     message.handover() == null ? null : HandoverView.of(message.handover()),
                     message.proposal() == null ? null : ProposalView.of(message.proposal()),
                     message.figures().stream().map(FigureView::of).toList(), message.premise(),
-                    message.assessment() == null ? null : AssessmentView.of(message.assessment()));
+                    message.assessment() == null ? null : AssessmentView.of(message.assessment()),
+                    message.recommendation() == null ? null : RecommendationView.of(message.recommendation()));
         }
+    }
+
+    @Schema(name = "ChatRecommendation", description = "The Suitability Statement of a Category Recommendation, "
+            + "from Fine's calculation engine and your profile")
+    record RecommendationView(
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "The category in plain words")
+            String category,
+            @ArraySchema(arraySchema = @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "Where the plan conflicts with your profile; empty if it fits"))
+            List<String> conflicts,
+            @ArraySchema(arraySchema = @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "The profile facts the selection used"))
+            List<RecommendationFactView> facts,
+            @ArraySchema(arraySchema = @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "The figures behind the selection"))
+            List<FigureView> figures,
+            @ArraySchema(arraySchema = @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "The main risks"))
+            List<String> risks,
+            @ArraySchema(arraySchema = @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "The ex-ante costs; empty for a recommendation without investment"))
+            List<FigureView> costs) {
+
+        static RecommendationView of(ChatMessage.Recommendation recommendation) {
+            return new RecommendationView(recommendation.label(),
+                    recommendation.conflicts().stream().map(ResponseTemplates::plainConflict).toList(),
+                    recommendation.facts().stream().map(f -> new RecommendationFactView(f.label(), f.value()))
+                            .toList(),
+                    recommendation.figures().stream().map(FigureView::of).toList(), recommendation.risks(),
+                    recommendation.costs().stream().map(FigureView::of).toList());
+        }
+    }
+
+    @Schema(name = "ChatRecommendationFact", description = "One profile fact a recommendation used")
+    record RecommendationFactView(
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String label,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String value) {
     }
 
     @Schema(name = "ChatAssessment", description = "The assessment card: every open profile question in one form")

@@ -810,4 +810,58 @@ describe('ChatColumnComponent', () => {
     expect(element.querySelector('.save-answers')).toBeNull();
     http.expectOne('/api/chat/messages/q7/answer');
   });
+
+  const recommendation: ChatMessage = {
+    id: 'r1',
+    author: 'AGENT',
+    text: "This plan doesn't fit right now: the emergency fund is below its target.\n\nBuild it first.",
+    outcome: 'RECOMMEND_CATEGORY',
+    replyTo: 'q1',
+    suggestions: [],
+    checks: [
+      { id: 'SUITABILITY', passed: true, description: 'Refers to your situation' },
+      { id: 'DOCUMENTATION', passed: true, description: 'Documented' },
+    ],
+    figures: [
+      { provId: 'sel000000000001', label: 'Monthly surplus', value: '100.00', unit: 'EUR' },
+      { provId: 'liq000000000003', label: 'Emergency fund', value: '300.00', unit: 'EUR' },
+    ],
+    recommendation: {
+      category: 'build the emergency fund first',
+      conflicts: ['emergency fund below target'],
+      facts: [{ label: 'Monthly net income', value: '2,100.00 EUR' }],
+      figures: [{ provId: 'sel000000000002', label: 'Emergency fund target', value: '6000.00', unit: 'EUR' }],
+      risks: ['Equity investments can fall in value, also for several years.'],
+      costs: [{ provId: 'cost00000000001', label: 'ETF costs over 10 years', value: '96.00', unit: 'EUR' }],
+    },
+  };
+
+  it('shows a recommendation with a cyan bar, chips and a collapsed "Why this fits you" panel', () => {
+    render([question, recommendation]);
+    http.expectOne('/api/overview/home').flush({});
+    http.expectOne('/api/overview/liquidity').flush({ emergencyFund: { current: { provId: 'liq000000000003' } } });
+    http.expectOne('/api/overview/wealth').flush({});
+    fixture.detectChanges();
+
+    const card = element.querySelector('.card.response.recommendation')!;
+    expect(card).not.toBeNull();
+    expect(text(card.querySelector('.body'))).toContain("This plan doesn't fit right now");
+    expect(Array.from(card.querySelectorAll('.figure-chip')).map(text)).toEqual([
+      'Monthly surplus 100.00 EUR',
+      'Emergency fund 300.00 EUR',
+    ]);
+    expect(card.querySelectorAll('.show-in-overview').length).toBe(1);
+    const panel = card.querySelector<HTMLDetailsElement>('details.why-fits')!;
+    expect(panel.open).toBe(false);
+    expect(text(panel.querySelector('summary'))).toBe('Why this fits you');
+    expect(panel.textContent).toContain('emergency fund below target');
+    expect(panel.textContent).toContain('Monthly net income: 2,100.00 EUR');
+    expect(panel.textContent).toContain('Emergency fund target: 6,000.00 EUR');
+    expect(panel.textContent).toContain('Equity investments can fall in value');
+    expect(panel.textContent).toContain('ETF costs over 10 years: 96.00 EUR');
+    expect(text(card.querySelector('.check-footer'))).toBe('Checked · 2 checks passed');
+
+    panel.querySelector<HTMLButtonElement>('.statement-figure')!.click();
+    http.expectOne('/api/provenance/sel000000000002');
+  });
 });

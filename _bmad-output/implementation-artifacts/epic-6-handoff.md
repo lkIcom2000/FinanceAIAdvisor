@@ -5,7 +5,8 @@
 - Epic 5 skipped (non-blocking, Commc 2026-10-26); Epic 6 started. Epic 4 retro inputs still in `epic-4-handoff.md` (folded into the Epic 6 retro).
 - Story 6.1 done (spec `spec-6-1-…`, context `epic-6-context.md`): `profile` module (`Profiles.stored/confirm`, `ProfileCompleteness`, `ProfileFields`, V13 tables, `ProfileResetter`); the classifier and the prompt's profile context read the stored profile; `ASK_PROFILE` drafts start with `ResponseTemplates.WHY_ASK_PROFILE`; `RECOMMEND_CATEGORY` with strict fields unknown ends with the limitations sentence.
 - Story 6.2 done (spec `spec-6-2-…`): `ASK_PROFILE` answers carry the assessment card (`ChatMessage.Assessment`, V14, DialogState `ASSESSMENT`), pre-filled from `CoreGateway.profileFigures` (new `monthlyNetIncome`); `POST /api/chat/messages/{id}/assessment` → `SaveAssessmentUseCase` → `Profiles.confirm` (validates via `profile.AssessmentFields`) → `TurnOrchestrator.resume`; stage 1 lives in `DialogStates`. Workspace turns (no `runId`) follow the strict FR-17 rule (`Classifier.classify(..., strict)`, `ProfileCompleteness.strictMissing`).
-- Next: Story 6.3 (category selection + Suitability Statement). Live check showed a saved-profile recommendation escalating via `block_suitability` until 6.3 fills `CheckChain.Facts` category selection.
+- Story 6.3 done (spec `spec-6-3-…`): pure Core `CategorySelection` / `CostCalculation` via `CoreGateway.recommendation` (new Rule Parameters incl. `equity_share_<bucket>_min/max`); `advisory.application.Recommendations` runs them in stage 3, builds the deterministic Suitability Statement (`ChatMessage.Recommendation`, V15) and the chips (emergency fund carries the Liquidity `provId` when equal); fixed first line `ResponseTemplates.recommendationLead`; `DOCUMENTATION` fails `no_core_selection_recorded` / `statement_incomplete`; audit body `categorySelection`; frontend "Why this fits you" panel with cyan bar.
+- Next: live Ollama check of 6.3 (Marco: fill the card, then the AC question) — not run yet; then Story 6.4 (IDD demands-and-needs).
 
 ## Checklist per story (lean loop, memory build-loop-economy)
 
@@ -17,8 +18,8 @@
 
 ## Open
 
-- Retro A5: `TurnOrchestrator` ~545 lines after extracting stage 1; extract more stages if 6.3 grows it.
-- Whether Marco needs a seeded profile for the 6.3 scenario (fixtures hold none) is decided in 6.3; the card now lets him enter one live (stored values: amounts 2 decimals, read back as doubles; choices as option keys, risk tolerance `very low`…`very high`).
-- 6.3 category rules map risk tolerance keys with spaces (`very low`) to `category_rules.yaml` keys with underscores (`very_low`).
-- Compose image predates V14: rebuild at epic end (compose check).
+- Retro A5: `TurnOrchestrator` ~575 lines; 6.4 should put IDD logic in its own component like `Recommendations`.
+- Marco has no seeded profile (decided 6.3); tests store it via `Profiles.confirm`, live he fills the card.
+- Compose image predates V14/V15 and the new Rule Parameters: rebuild at epic end (compose check).
+- Frontend component-style warning budget raised to 7 kB (chat column stylesheet 6.5 kB).
 - Verify ECB rates against the ECB before moving the reference date (`data/rules/README.md`).

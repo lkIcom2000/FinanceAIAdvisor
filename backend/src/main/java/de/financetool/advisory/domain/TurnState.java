@@ -1,6 +1,7 @@
 package de.financetool.advisory.domain;
 
 import de.financetool.core.domain.CoreResult;
+import de.financetool.core.domain.RecommendationFigures;
 import de.financetool.shared.domain.SimulationSpec;
 import de.financetool.shared.domain.SourcedNumber;
 import java.util.ArrayList;
@@ -78,20 +79,37 @@ public record TurnState(
      * @param results the Core results of the tools run, in run order (none for a proposal)
      * @param ruleParameterError whether a tool needed a Rule Parameter without a version valid at the as-of date
      * @param ruleForLaterYear whether the invalid Rule Parameter is one for a later year the message asks about
+     * @param recommendation the Core's Category Recommendation of a {@code RECOMMEND_CATEGORY} turn; {@code null}
+     *     otherwise
+     * @param statement the Suitability Statement built from {@code recommendation} and the effective profile;
+     *     {@code null} without a recommendation
      */
     public record Tools(ToolPlan.Planned planned, SourcedNumber accountPortfolio, SimulationSpec spec,
-            boolean proposal, List<CoreResult> results, boolean ruleParameterError, boolean ruleForLaterYear) {
+            boolean proposal, List<CoreResult> results, boolean ruleParameterError, boolean ruleForLaterYear,
+            RecommendationFigures recommendation, ChatMessage.Recommendation statement) {
 
         public static final Tools NONE = new Tools(null, null, null, false, List.of(), false);
 
         public Tools(ToolPlan.Planned planned, SourcedNumber accountPortfolio, SimulationSpec spec,
                 boolean proposal, List<CoreResult> results, boolean ruleParameterError) {
-            this(planned, accountPortfolio, spec, proposal, results, ruleParameterError, false);
+            this(planned, accountPortfolio, spec, proposal, results, ruleParameterError, false, null, null);
         }
 
         /** No calculation: the subsidy rules for the later year the message asks about are not valid. */
         public static Tools laterYearRuleMissing() {
-            return new Tools(null, null, null, false, List.of(), true, true);
+            return new Tools(null, null, null, false, List.of(), true, true, null, null);
+        }
+
+        /** The Category Recommendation ran: its selection and cost results, in run order, and its statement. */
+        public static Tools recommended(RecommendationFigures recommendation, ChatMessage.Recommendation statement) {
+            Objects.requireNonNull(recommendation, "recommendation");
+            Objects.requireNonNull(statement, "statement");
+            List<CoreResult> results = new ArrayList<>();
+            results.add(recommendation.selection());
+            if (recommendation.costs() != null) {
+                results.add(recommendation.costs());
+            }
+            return new Tools(null, null, null, false, results, false, false, recommendation, statement);
         }
 
         public Tools {

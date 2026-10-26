@@ -5,6 +5,7 @@ import { ChatAssessment } from '../models/chat-assessment';
 import { ChatCheck } from '../models/chat-check';
 import { ChatHandover } from '../models/chat-handover';
 import { ChatProposal } from '../models/chat-proposal';
+import { ChatRecommendation } from '../models/chat-recommendation';
 import { Figure } from '../models/figure';
 
 /**
@@ -48,6 +49,11 @@ export interface ChatMessage {
    * "Here's what I understood": the values a calculation will run with; only on COMPUTE answers that ask before calculating
    */
   proposal?: ChatProposal;
+
+  /**
+   * "Why this fits you": the Suitability Statement; only on RECOMMEND_CATEGORY answers
+   */
+  recommendation?: ChatRecommendation;
 
   /**
    * The question an answer replies to; only on Fine's answers

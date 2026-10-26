@@ -8,8 +8,10 @@ import de.financetool.advisory.domain.MessageClass;
 import de.financetool.advisory.domain.NumberLedger;
 import de.financetool.advisory.domain.ResponseOutcome;
 import de.financetool.advisory.domain.TurnStage;
+import de.financetool.core.domain.CategorySelection;
 import de.financetool.shared.config.DataExposureLevel;
 import de.financetool.shared.domain.SimulationSpec;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
@@ -62,6 +64,8 @@ import java.util.UUID;
  * @param simulationSpec the spec the turn proposed or calculated; {@code null} without a calculation
  * @param parameterProposal whether the turn released a parameter proposal instead of calculating
  * @param ruleParameterError whether a tool needed a Rule Parameter without a valid version
+ * @param categorySelection the Core's category selection of a {@code RECOMMEND_CATEGORY} turn with its selection
+ *     inputs ({@link #categorySelection}); {@code null} otherwise
  */
 record ResponseAuditBody(
         @JsonProperty("class") MessageClass messageClass,
@@ -109,5 +113,26 @@ record ResponseAuditBody(
         String dialogState,
         SimulationSpec simulationSpec,
         boolean parameterProposal,
-        boolean ruleParameterError) {
+        boolean ruleParameterError,
+        Map<String, Object> categorySelection) {
+
+    /**
+     * The audit view of a Category Recommendation (FR-27): the category, its reasons and conflicts, and the selection
+     * inputs, which are only profile fields and Rule Parameters; {@code null} without a recommendation.
+     */
+    static Map<String, Object> categorySelection(CategorySelection.Selection selection) {
+        if (selection == null) {
+            return null;
+        }
+        Map<String, Object> inputs = new LinkedHashMap<>();
+        inputs.put("profileFields", selection.profileFields());
+        inputs.put("ruleParameters", selection.ruleParameters());
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("category", selection.category());
+        out.put("reasons", selection.reasons());
+        out.put("conflicts", selection.conflicts());
+        out.put("riskBucket", selection.riskBucket());
+        out.put("selectionInputs", inputs);
+        return out;
+    }
 }

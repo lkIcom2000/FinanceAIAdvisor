@@ -10,6 +10,9 @@ import de.financetool.bank.BankSnapshot;
 import de.financetool.core.CoreGateway;
 import de.financetool.core.domain.AccountBalance;
 import de.financetool.core.domain.CashFlowForecast;
+import de.financetool.core.domain.CategorySelection;
+import de.financetool.core.domain.CostCalculation;
+import de.financetool.core.domain.RecommendationFigures;
 import de.financetool.core.domain.CheckResult;
 import de.financetool.core.domain.CoreComputation;
 import de.financetool.core.domain.CoreResult;
@@ -239,6 +242,30 @@ class CoreGatewayService implements CoreGateway {
         Map<String, RuleParameterValue> parameters = subsidyRules(context.asOf());
         return record(context, origin, RiesterSubsidy.compute(priorYearGrossIncome, childrenBirthYears, parameters),
                 List.of(), parameters);
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY, noRollbackFor = NoValidRuleParameterException.class)
+    public RecommendationFigures recommendation(RequestContext context, EvidenceOrigin origin,
+            Map<String, ?> profile, String topic, boolean withCosts) {
+        LocalDate asOf = context.asOf();
+        // every Rule Parameter first, so a missing one stores nothing
+        Map<String, RuleParameterValue> parameters = new LinkedHashMap<>();
+        CategorySelection.parameterKeys().forEach(key -> parameters.put(key, parameter(key, asOf)));
+        Map<String, RuleParameterValue> costParameters = new LinkedHashMap<>();
+        if (withCosts) {
+            List.of(CostCalculation.ETF_TER, CostCalculation.ACTIVE_TER, CostCalculation.FRONT_LOAD)
+                    .forEach(key -> costParameters.put(key, parameter(key, asOf)));
+        }
+        CategorySelection.Selected selected = CategorySelection.of(profile, topic, asOf, parameters);
+        CoreResult selection = record(context, origin, selected.computation(), List.of(), parameters);
+        CoreResult costs = null;
+        if (withCosts) {
+            costs = record(context, origin, CostCalculation.of(CostCalculation.amount(profile), CostCalculation.YEARS,
+                    costParameters.get(CostCalculation.ETF_TER), costParameters.get(CostCalculation.ACTIVE_TER),
+                    costParameters.get(CostCalculation.FRONT_LOAD)), List.of(), costParameters);
+        }
+        return new RecommendationFigures(selection, selected.selection(), costs);
     }
 
     @Override
