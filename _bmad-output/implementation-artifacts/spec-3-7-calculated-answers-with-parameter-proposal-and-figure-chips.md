@@ -2,15 +2,16 @@
 title: 'Story 3.7: Calculated answers with parameter proposal and figure chips'
 type: 'feature'
 created: '2026-10-24'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '47fa19e'
-review_loop_iteration: 0
+review_loop_iteration: 1
 followup_review_recommended: false
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-3-context.md'
   - '{project-root}/_bmad-output/implementation-artifacts/spec-3-6-numbers-only-from-the-deterministic-core-the-number-check.md'
 warnings: []
-deferred: []
+deferred:
+  - 'E2E test for a failed Calculate (rollback, proposal stays open, retry) and Calculate ending in ESCALATE'
 ---
 
 <intent-contract>
@@ -65,4 +66,19 @@ deferred: []
 - 2026-10-26: AC2 corrected (calculated proposal returns the stored answer, only cancelled → 409); deviations from implementation added; live check: two fixes (zero portfolio, digit-free tool texts).
 
 ## Review Triage Log
+
+Block B review (3.5 + 3.7, one combined reviewer, sonnet, edge-case + verification-gap lenses), 2026-10-26:
+
+- FIXED (medium) A repeated Calculate on an escalated answer returned it without its handover: the stored reply now goes through `Handovers.attach`, as in `AnswerMessageUseCase`.
+- FIXED (medium) A Calculate racing a question or another Calculate returned 503: the orchestrator now throws `ProposalClosedException` (409). Not fixed: the losing Calculate gets 409, not the winner's stored answer (no per-persona lock; the answer path has the same race).
+- FIXED (medium) The client greyed an open card before the question was accepted: it now cancels only after the post succeeds (new spec test for a failed send).
+- FIXED (medium) A `NoValidRuleParameterException` thrown through a Core gateway method marked the turn's transaction rollback-only: the gateway's transactions use `noRollbackFor` for it. BY DESIGN: at level `A` routing is off, so a rule-parameter error is audited but does not escalate (level `A` is the no-compliance baseline).
+- FIXED (low) A missing question message raised an unmapped 500: the lookup now runs inside the turn-failure mapping.
+- FIXED (low) A non-finite parameter from the model failed the turn: `ToolPlan` treats it as not computable (table row added).
+- DEFERRED (low) E2E coverage for a failed Calculate and for Calculate → ESCALATE (frontmatter `deferred`).
+- BY DESIGN (low) A Calculate that escalates leaves the proposal `CALCULATED`: the turn is answered (by the advisor); the persona can ask again with new values.
+
+## Auto Run Result
+
+Done 2026-10-26: commits `ebc12df` (story) and the block B fix commit. Live check: item 40 as Lena (proposal → Calculate, 522/538 withdrawals) and Jonas's account-data question (proposal with the investments `provId` → clean calculated answer); two fixes from the live check are listed under deviations.
 

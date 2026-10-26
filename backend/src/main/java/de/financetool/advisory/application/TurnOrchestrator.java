@@ -145,7 +145,7 @@ public class TurnOrchestrator {
      * Consulted first (AD-24). An open parameter proposal ends here: a new question cancels it, Calculate marks it
      * calculated; either way the dialog state returns to {@code NONE}. Without an open proposal the state passes on.
      *
-     * @throws IllegalStateException if Calculate's proposal is no longer the open one
+     * @throws CalculateUseCase.ProposalClosedException if Calculate's proposal is no longer the open one
      */
     TurnState dialogState(PersonaScope scope, TurnState turn, Confirmation confirmation) {
         TurnState consulted = turn.withDialogState(chats.dialogState(scope).orElse(TurnState.NO_DIALOG_STATE));
@@ -154,7 +154,7 @@ public class TurnOrchestrator {
             UUID proposalId = confirmation.proposal().id();
             if (!open.equals(Optional.of(proposalId)) || !chats.updateProposalStatus(scope, proposalId,
                     ChatMessage.Proposal.Status.OPEN, ChatMessage.Proposal.Status.CALCULATED)) {
-                throw new IllegalStateException("The proposal is no longer open");
+                throw new CalculateUseCase.ProposalClosedException();
             }
         } else if (open.isPresent()) {
             chats.updateProposalStatus(scope, open.get(), ChatMessage.Proposal.Status.OPEN,

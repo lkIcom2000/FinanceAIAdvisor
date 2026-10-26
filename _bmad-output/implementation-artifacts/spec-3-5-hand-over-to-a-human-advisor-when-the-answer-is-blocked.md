@@ -2,9 +2,9 @@
 title: 'Story 3.5: Hand over to a human advisor when the answer is blocked'
 type: 'feature'
 created: '2026-10-24'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'c7cb65142d89b85ed2353f642404d46a077f1f12'
-review_loop_iteration: 0
+review_loop_iteration: 1
 followup_review_recommended: false
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-3-context.md'
@@ -53,7 +53,11 @@ deferred: []
 
 ## Review Triage Log
 
-Review runs jointly with Story 3.7 (block B).
+Review runs jointly with Story 3.7 (block B), 2026-10-26: no finding in this story's own code; the one handover finding (a repeated Calculate skipped `Handovers.attach`) is fixed and logged in spec 3.7.
+
+## Auto Run Result
+
+Done 2026-10-26: commit `aa8e640` plus the block B fix commit. Live check: a calculated answer that failed the Number Check twice released the handover template as `ESCALATE` with a case.
 
 ## Implementation Notes
 

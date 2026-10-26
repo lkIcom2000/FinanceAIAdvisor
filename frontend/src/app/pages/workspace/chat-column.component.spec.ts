@@ -581,11 +581,33 @@ describe('ChatColumnComponent', () => {
   it('greys an open proposal as Cancelled when a new question is sent', () => {
     render([item40, proposal]);
     typeAndSend('What is an ETF?');
+    expect(element.querySelector('.calculate')).not.toBeNull();
+    http.expectOne('/api/chat/messages').flush({
+      id: 'q2',
+      author: 'USER',
+      text: 'What is an ETF?',
+      suggestions: [],
+      checks: [],
+      figures: [],
+    });
+    fixture.detectChanges();
 
     expect(element.querySelector('.proposal')?.classList).toContain('cancelled');
     expect(text(element.querySelector('.proposal-status'))).toBe('Cancelled');
     expect(element.querySelector('.calculate')).toBeNull();
-    http.expectOne('/api/chat/messages');
+    http.expectOne('/api/chat/messages/q2/answer');
+  });
+
+  it('keeps a proposal open when the new question cannot be sent', () => {
+    render([item40, proposal]);
+    typeAndSend('What is an ETF?');
+    http
+      .expectOne('/api/chat/messages')
+      .flush(null, { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+
+    expect(element.querySelector('.proposal')?.classList).not.toContain('cancelled');
+    expect(element.querySelector('.calculate')).not.toBeNull();
   });
 
   it('shows a proposal the backend already cancelled as Cancelled after Calculate', () => {

@@ -48,6 +48,8 @@ class ToolPlanTest {
                         "How long does a portfolio last?", false, false),
                 Arguments.of("a withdrawal of zero", nlu("withdrawal_duration", Map.of("portfolio", 500000.0,
                         "monthly_withdrawal", 0.0, "annual_rate", 0.04)), "q", false, false),
+                Arguments.of("a return that is not a number", nlu("withdrawal_duration", Map.of("portfolio",
+                        500000.0, "monthly_withdrawal", 2000.0, "annual_rate", Double.NaN)), "q", false, false),
                 Arguments.of("a return above 20 %", nlu("withdrawal_duration", Map.of("portfolio", 500000.0,
                         "monthly_withdrawal", 2000.0, "annual_rate", 0.25)), "q", false, false),
                 Arguments.of("a negative return within bounds", nlu("withdrawal_duration", Map.of("portfolio",

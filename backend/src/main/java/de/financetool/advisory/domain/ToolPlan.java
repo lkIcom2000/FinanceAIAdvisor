@@ -83,7 +83,8 @@ public final class ToolPlan {
         Map<String, Double> p = extraction.computationParams();
         boolean withdrawal = extraction.topic().equals("withdrawal_duration")
                 || p.containsKey("portfolio") && p.containsKey("monthly_withdrawal");
-        if (!withdrawal || !p.containsKey("monthly_withdrawal") || !p.containsKey("annual_rate")) {
+        if (!withdrawal || !p.containsKey("monthly_withdrawal") || !p.containsKey("annual_rate")
+                || !p.values().stream().allMatch(Double::isFinite)) {
             return Optional.empty();
         }
         BigDecimal monthly = money(p.get("monthly_withdrawal"));

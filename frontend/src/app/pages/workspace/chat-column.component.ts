@@ -176,11 +176,12 @@ export class ChatColumnComponent {
       return;
     }
     this.sendFailed.set(false);
-    this.cancelOpenProposals();
     this.startWaiting(null);
     this.scrollToBottom();
     this.chat.postMessage({ body: { text } }).subscribe({
       next: (question) => {
+        // Only an accepted question cancels the open card; a failed send leaves it as the backend has it.
+        this.cancelOpenProposals();
         this.append(question, true);
         this.answer(question.id);
       },

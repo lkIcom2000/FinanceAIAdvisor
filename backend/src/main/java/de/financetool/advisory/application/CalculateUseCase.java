@@ -52,13 +52,15 @@ public class CalculateUseCase {
     private final PersonaDirectory personas;
     private final ChatRepository chats;
     private final TurnOrchestrator orchestrator;
+    private final Handovers handovers;
 
     CalculateUseCase(RequestContextFactory contexts, PersonaDirectory personas, ChatRepository chats,
-            TurnOrchestrator orchestrator) {
+            TurnOrchestrator orchestrator, Handovers handovers) {
         this.contexts = contexts;
         this.personas = personas;
         this.chats = chats;
         this.orchestrator = orchestrator;
+        this.handovers = handovers;
     }
 
     /**
@@ -76,18 +78,21 @@ public class CalculateUseCase {
         }
         Optional<ChatMessage> stored = chats.findReply(scope, proposalId);
         if (stored.isPresent()) {
-            return stored;
+            return Optional.of(handovers.attach(scope, stored.get()));
         }
         if (proposal.get().proposal().status() != ChatMessage.Proposal.Status.OPEN) {
             throw new ProposalClosedException();
         }
         SimulationSpec spec = changedSpec(proposal.get().proposal().spec(), changed);
-        ChatMessage question = chats.find(scope, proposal.get().replyTo()).orElseThrow();
         RequestContext context = contexts.forPersona(scope, null);
         String fixtureVersion = personas.fixtureVersion(scope);
         try {
+            ChatMessage question = chats.find(scope, proposal.get().replyTo()).orElseThrow();
             return Optional.of(orchestrator.calculate(context, scope, question,
                     new TurnOrchestrator.Confirmation(proposal.get(), spec), fixtureVersion));
+        } catch (ProposalClosedException e) {
+            // A concurrent question or Calculate closed it after the check above.
+            throw e;
         } catch (RuntimeException e) {
             throw new AnswerMessageUseCase.TurnFailedException(e);
         }

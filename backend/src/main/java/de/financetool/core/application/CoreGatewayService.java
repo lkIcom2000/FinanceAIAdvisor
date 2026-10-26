@@ -32,6 +32,7 @@ import de.financetool.core.domain.ShortfallDetection;
 import de.financetool.core.domain.VariableSpending;
 import de.financetool.core.domain.WealthFigures;
 import de.financetool.core.domain.WithdrawalDuration;
+import de.financetool.knowledge.NoValidRuleParameterException;
 import de.financetool.knowledge.RuleParamPort;
 import de.financetool.knowledge.RuleParameter;
 import de.financetool.shared.RequestContext;
@@ -66,14 +67,14 @@ class CoreGatewayService implements CoreGateway {
     }
 
     @Override
-    @Transactional(propagation = Propagation.MANDATORY)
+    @Transactional(propagation = Propagation.MANDATORY, noRollbackFor = NoValidRuleParameterException.class)
     public CoreResult currentAccountBalance(RequestContext context, EvidenceOrigin origin) {
         BankSnapshot snapshot = bank.snapshot(context.personaId(), context.asOf());
         return balance(context, origin, snapshot, currentAccount(snapshot, context), AccountBalance.Account.CURRENT);
     }
 
     @Override
-    @Transactional(propagation = Propagation.MANDATORY)
+    @Transactional(propagation = Propagation.MANDATORY, noRollbackFor = NoValidRuleParameterException.class)
     public LiquidityFigures liquidity(RequestContext context, EvidenceOrigin origin) {
         LocalDate asOf = context.asOf();
         BankSnapshot snapshot = bank.snapshot(context.personaId(), asOf);
@@ -124,7 +125,7 @@ class CoreGatewayService implements CoreGateway {
     }
 
     @Override
-    @Transactional(propagation = Propagation.MANDATORY)
+    @Transactional(propagation = Propagation.MANDATORY, noRollbackFor = NoValidRuleParameterException.class)
     public WealthFigures wealth(RequestContext context, EvidenceOrigin origin) {
         LocalDate asOf = context.asOf();
         BankSnapshot snapshot = bank.snapshot(context.personaId(), asOf);
@@ -162,7 +163,7 @@ class CoreGatewayService implements CoreGateway {
     }
 
     @Override
-    @Transactional(propagation = Propagation.MANDATORY)
+    @Transactional(propagation = Propagation.MANDATORY, noRollbackFor = NoValidRuleParameterException.class)
     public InsuranceFigures insurance(RequestContext context, EvidenceOrigin origin) {
         LocalDate asOf = context.asOf();
         BankSnapshot snapshot = bank.snapshot(context.personaId(), asOf);
@@ -186,7 +187,7 @@ class CoreGatewayService implements CoreGateway {
     }
 
     @Override
-    @Transactional(propagation = Propagation.MANDATORY)
+    @Transactional(propagation = Propagation.MANDATORY, noRollbackFor = NoValidRuleParameterException.class)
     public Optional<CoreResult> investmentTotals(RequestContext context, EvidenceOrigin origin) {
         BankSnapshot snapshot = bank.snapshot(context.personaId(), context.asOf());
         List<WealthFigures.Holding> holdings = holdings(context, origin, snapshot);
@@ -196,7 +197,7 @@ class CoreGatewayService implements CoreGateway {
     }
 
     @Override
-    @Transactional(propagation = Propagation.MANDATORY)
+    @Transactional(propagation = Propagation.MANDATORY, noRollbackFor = NoValidRuleParameterException.class)
     public CoreResult withdrawalDuration(RequestContext context, EvidenceOrigin origin, BigDecimal portfolio,
             SourcedNumber portfolioFigure, BigDecimal monthlyWithdrawal, BigDecimal annualRate) {
         return record(context, origin,

@@ -951,7 +951,8 @@ class TurnOrchestratorTest {
         when(chats.openProposal(scope)).thenReturn(Optional.empty());
 
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> orchestrator.calculate(context, scope, asked,
-                new TurnOrchestrator.Confirmation(proposal, spec), "fv-1")).isInstanceOf(IllegalStateException.class);
+                new TurnOrchestrator.Confirmation(proposal, spec), "fv-1"))
+                .isInstanceOf(CalculateUseCase.ProposalClosedException.class);
         org.mockito.Mockito.verifyNoInteractions(llm, tools, audit);
     }
 
