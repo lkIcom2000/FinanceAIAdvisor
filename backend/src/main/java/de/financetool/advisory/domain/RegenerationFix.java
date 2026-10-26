@@ -50,6 +50,15 @@ public final class RegenerationFix {
      * @return the fix sent as the user's next message, empty if no failure is repairable
      */
     public static Optional<String> of(List<CheckResult> failed, int passagesInPrompt, String toolResults) {
+        return of(failed, passagesInPrompt, toolResults, true);
+    }
+
+    /**
+     * @param costsApply whether {@code COST_TRANSPARENCY} applies to the turn (investment topics); a recommendation
+     *     without it, such as a demands-and-needs statement (Story 6.4), is not asked for costs
+     */
+    public static Optional<String> of(List<CheckResult> failed, int passagesInPrompt, String toolResults,
+            boolean costsApply) {
         List<String> fixes = new ArrayList<>();
         boolean restated = false;
         boolean statement = false;
@@ -64,8 +73,8 @@ public final class RegenerationFix {
                     && REPAIRABLE_COST_CODES.contains(f.reasonCode()))) {
                 // One fix for both: the chain runs again on the whole rewrite, which must keep all three elements.
                 fixes.add("Your draft did not explain the recommendation completely. Refer to the customer's "
-                        + "figures, name the main risks of the recommended category and state the ex-ante costs from "
-                        + "TOOL RESULTS.");
+                        + "figures, name the main risks of the recommended category"
+                        + (costsApply ? " and state the ex-ante costs from TOOL RESULTS." : "."));
                 statement = true;
                 restated = restate(fixes, restated, toolResults);
             } else if (f.checkId() == CheckId.SCOPE && REPAIRABLE_ROLE_CODES.contains(f.reasonCode())) {

@@ -33,4 +33,6 @@ profileMinimums:
     subsidy_eligibility: [[employment_status], [net_income, gross_income], [children]]
     contract_switch: [[existing_contract_details]]
     protection_needs: [[household], [dependants], [occupation]]
-    protection_duplicate: [[existing_contracts]]
+    # Story 6.4 (Commc 2026-10-26): the contracts come from the banking data; the demands-and-needs statement needs
+    # the same Needs Profile facts as protection_needs (experiment: [[existing_contracts]]).
+    protection_duplicate: [[household], [dependants], [occupation]]

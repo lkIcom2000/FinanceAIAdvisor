@@ -22,10 +22,13 @@ import java.util.UUID;
  * @param assessment the assessment card an {@code ASK_PROFILE} answer starts (AD-24); {@code null} otherwise
  * @param recommendation the Suitability Statement of a {@code RECOMMEND_CATEGORY} answer (UX-DR43); {@code null}
  *     otherwise
+ * @param needsStatement the demands-and-needs statement of a {@code RECOMMEND_CATEGORY} answer on a protection topic
+ *     (FR-18, UX-DR44); {@code null} otherwise
  */
 public record ChatMessage(UUID id, Author author, String text, ResponseOutcome outcome, UUID replyTo,
         List<String> suggestions, List<Check> checks, Handover handover, Proposal proposal,
-        List<SourcedNumber> figures, String premise, Assessment assessment, Recommendation recommendation) {
+        List<SourcedNumber> figures, String premise, Assessment assessment, Recommendation recommendation,
+        NeedsStatement needsStatement) {
 
     /** At most three chips per card (UX). */
     public static final int MAX_SUGGESTIONS = 3;
@@ -162,6 +165,34 @@ public record ChatMessage(UUID id, Author author, String text, ResponseOutcome o
         }
     }
 
+    /**
+     * The demands-and-needs statement (IDD), built by the Core from the Needs Profile and the contracts in the banking
+     * data; the card and the "Your insurance" section on Home show it.
+     *
+     * @param areas liability, occupational disability and cover held twice, each with need, cover held and check
+     * @param facts the Needs Profile facts the statement used
+     * @param figures the statement's figures: contracts per cover and risks covered more than once
+     */
+    public record NeedsStatement(List<Area> areas, List<Recommendation.Fact> facts, List<SourcedNumber> figures) {
+
+        /** One area: its name, why the cover matters, what the banking data shows and what to check. */
+        public record Area(String area, String need, String have, String check) {
+
+            public Area {
+                Objects.requireNonNull(area, "area");
+                Objects.requireNonNull(need, "need");
+                Objects.requireNonNull(have, "have");
+                Objects.requireNonNull(check, "check");
+            }
+        }
+
+        public NeedsStatement {
+            areas = areas == null ? List.of() : List.copyOf(areas);
+            facts = facts == null ? List.of() : List.copyOf(facts);
+            figures = figures == null ? List.of() : List.copyOf(figures);
+        }
+    }
+
     public ChatMessage {
         Objects.requireNonNull(id, "id");
         Objects.requireNonNull(author, "author");
@@ -172,6 +203,14 @@ public record ChatMessage(UUID id, Author author, String text, ResponseOutcome o
         if (suggestions.size() > MAX_SUGGESTIONS) {
             throw new IllegalArgumentException("At most " + MAX_SUGGESTIONS + " suggestions per message");
         }
+    }
+
+    /** A message without a demands-and-needs statement. */
+    public ChatMessage(UUID id, Author author, String text, ResponseOutcome outcome, UUID replyTo,
+            List<String> suggestions, List<Check> checks, Handover handover, Proposal proposal,
+            List<SourcedNumber> figures, String premise, Assessment assessment, Recommendation recommendation) {
+        this(id, author, text, outcome, replyTo, suggestions, checks, handover, proposal, figures, premise,
+                assessment, recommendation, null);
     }
 
     /** A message without a Suitability Statement. */
@@ -211,21 +250,21 @@ public record ChatMessage(UUID id, Author author, String text, ResponseOutcome o
     /** This message with the handover of its case. */
     public ChatMessage withHandover(Handover value) {
         return new ChatMessage(id, author, text, outcome, replyTo, suggestions, checks, value, proposal, figures,
-                premise, assessment, recommendation);
+                premise, assessment, recommendation, needsStatement);
     }
 
     /** This proposal message with a new status. */
     public ChatMessage withProposalStatus(Proposal.Status value) {
         Objects.requireNonNull(proposal, "proposal");
         return new ChatMessage(id, author, text, outcome, replyTo, suggestions, checks, handover,
-                new Proposal(proposal.spec(), value), figures, premise, assessment, recommendation);
+                new Proposal(proposal.spec(), value), figures, premise, assessment, recommendation, needsStatement);
     }
 
     /** This assessment message with a new status. */
     public ChatMessage withAssessmentStatus(Assessment.Status value) {
         Objects.requireNonNull(assessment, "assessment");
         return new ChatMessage(id, author, text, outcome, replyTo, suggestions, checks, handover, proposal, figures,
-                premise, new Assessment(assessment.fields(), value), recommendation);
+                premise, new Assessment(assessment.fields(), value), recommendation, needsStatement);
     }
 
     /** A message without checks. */

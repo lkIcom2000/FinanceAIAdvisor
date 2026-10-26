@@ -37,6 +37,7 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.ErrorResponseException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -94,7 +95,9 @@ class ChatController {
             @Schema(description = "The form with every profile question still open; only on ASK_PROFILE answers")
             AssessmentView assessment,
             @Schema(description = "\"Why this fits you\": the Suitability Statement; only on RECOMMEND_CATEGORY "
-                    + "answers") RecommendationView recommendation) {
+                    + "answers") RecommendationView recommendation,
+            @Schema(description = "The demands-and-needs statement; only on RECOMMEND_CATEGORY answers to an "
+                    + "insurance question") NeedsStatementView needsStatement) {
 
         static MessageView of(ChatMessage message) {
             return new MessageView(message.id(), Author.valueOf(message.author().name()), message.text(),
@@ -104,8 +107,41 @@ class ChatController {
                     message.proposal() == null ? null : ProposalView.of(message.proposal()),
                     message.figures().stream().map(FigureView::of).toList(), message.premise(),
                     message.assessment() == null ? null : AssessmentView.of(message.assessment()),
-                    message.recommendation() == null ? null : RecommendationView.of(message.recommendation()));
+                    message.recommendation() == null ? null : RecommendationView.of(message.recommendation()),
+                    message.needsStatement() == null ? null : NeedsStatementView.of(message.needsStatement()));
         }
+    }
+
+    @Schema(name = "NeedsStatement", description = "The demands-and-needs statement for your insurance, from Fine's "
+            + "calculation engine, your answers and the contracts in your banking data; it recommends no product")
+    record NeedsStatementView(
+            @ArraySchema(arraySchema = @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "Liability, occupational disability and cover held twice, in this order"))
+            List<NeedsAreaView> areas,
+            @ArraySchema(arraySchema = @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "The facts about you the statement used"))
+            List<RecommendationFactView> facts,
+            @ArraySchema(arraySchema = @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "Contracts per cover and risks covered more than once"))
+            List<FigureView> figures) {
+
+        static NeedsStatementView of(ChatMessage.NeedsStatement statement) {
+            return new NeedsStatementView(statement.areas().stream()
+                    .map(a -> new NeedsAreaView(a.area(), a.need(), a.have(), a.check())).toList(),
+                    statement.facts().stream().map(f -> new RecommendationFactView(f.label(), f.value())).toList(),
+                    statement.figures().stream().map(FigureView::of).toList());
+        }
+    }
+
+    @Schema(name = "NeedsArea", description = "One area of the demands-and-needs statement")
+    record NeedsAreaView(
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "The area in plain words") String area,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "Why the cover matters for you")
+            String need,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "What your banking data shows")
+            String have,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "What to check, and with whom")
+            String check) {
     }
 
     @Schema(name = "ChatRecommendation", description = "The Suitability Statement of a Category Recommendation, "
@@ -327,6 +363,16 @@ class ChatController {
     ChatView chat(@Parameter(hidden = true) PersonaScope scope) {
         ShowChatUseCase.Chat chat = showChat.show(scope);
         return new ChatView(chat.personaName(), chat.messages().stream().map(MessageView::of).toList());
+    }
+
+    @Operation(summary = "The latest demands-and-needs statement Fine released in the chat",
+            description = "Shown in \"Your insurance\" on Home (UX-DR44).")
+    @ApiResponse(responseCode = "200", description = "The latest statement")
+    @ApiResponse(responseCode = "204", description = "No statement yet")
+    @GetMapping("/api/chat/needs-statement")
+    ResponseEntity<NeedsStatementView> needsStatement(@Parameter(hidden = true) PersonaScope scope) {
+        return showChat.needsStatement(scope).map(NeedsStatementView::of).map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @Operation(summary = "Save a question; answer it with the answer call")

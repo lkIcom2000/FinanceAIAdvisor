@@ -7,6 +7,7 @@ import { ChatHandover } from '../models/chat-handover';
 import { ChatProposal } from '../models/chat-proposal';
 import { ChatRecommendation } from '../models/chat-recommendation';
 import { Figure } from '../models/figure';
+import { NeedsStatement } from '../models/needs-statement';
 
 /**
  * One message of the conversation
@@ -34,6 +35,11 @@ export interface ChatMessage {
    */
   handover?: ChatHandover;
   id: string;
+
+  /**
+   * The demands-and-needs statement; only on RECOMMEND_CATEGORY answers to an insurance question
+   */
+  needsStatement?: NeedsStatement;
 
   /**
    * How the turn ended; only on Fine's answers

@@ -19,7 +19,8 @@ import java.util.regex.Pattern;
  * <p>Differences to the experiment, by the spec: {@code FALSE_PREMISE} is not part of the closed {@link CheckId}
  * set (the trap card's premise callout names the premise); {@code ROLE_INTEGRITY} is folded into {@code SCOPE},
  * which also fails a draft that repeats its instructions (Story 3.8); {@code IDD_NEEDS} uses the word boundaries
- * the experiment meant (see {@link #TARIFF}); {@code DOCUMENTATION} also fails a recommendation whose Suitability
+ * the experiment meant (see {@link #TARIFF}) and also fails a protection recommendation made before the Needs Profile
+ * facts were collected (Story 6.4); {@code DOCUMENTATION} also fails a recommendation whose Suitability
  * Statement is incomplete (Story 6.3); {@code SOURCE_VALIDITY} applies only with retrieval on, as in the experiment.
  */
 public final class CheckChain {
@@ -119,6 +120,10 @@ public final class CheckChain {
     static final Set<String> PROTECTION_TOPICS = Set.of("protection_needs", "protection_duplicate");
     /** The key of the category selection that says whether its Suitability Statement is complete. */
     public static final String STATEMENT_COMPLETE = "statement_complete";
+    /** The Core record of a recommendation on a protection topic: a demands-and-needs statement, no category. */
+    public static final String DEMANDS_AND_NEEDS = "demands_and_needs";
+    /** The key of a demands-and-needs record that says whether the Needs Profile facts were collected before it. */
+    public static final String NEEDS_FACTS_COLLECTED = "needs_facts_collected";
     private static final Set<MessageClass> NAMING_CLASSES =
             Set.of(MessageClass.RECOMMEND_CATEGORY, MessageClass.ASK_PROFILE, MessageClass.COMPUTE);
 
@@ -161,6 +166,11 @@ public final class CheckChain {
     }
 
     private CheckChain() {
+    }
+
+    /** Whether a recommendation on {@code topic} is a demands-and-needs statement ({@code IDD_NEEDS}). */
+    public static boolean protectionTopic(String topic) {
+        return topic != null && PROTECTION_TOPICS.contains(topic);
     }
 
     /** Whether a recommendation on {@code topic} must mention costs ({@code COST_TRANSPARENCY}). */
@@ -280,13 +290,16 @@ public final class CheckChain {
         res.add(new CheckResult(CheckId.CONFLICT_OF_INTEREST, rec, conflictOk,
                 conflictOk ? "" : "commission_or_inhouse_preference", conflictDetails));
 
-        // IDD_NEEDS: protection answers stay at needs level
+        // IDD_NEEDS: protection answers stay at needs level; beyond the experiment (Story 6.4), a recommendation on a
+        // protection topic is a demands-and-needs statement made only after the Needs Profile facts were collected.
         boolean protection = PROTECTION_TOPICS.contains(facts.topic());
         boolean namedInsurer = INSURERS.stream().anyMatch(n -> WORDS.get(n).matcher(low).find());
         boolean namesTariff = TARIFF.matcher(low).find();
-        boolean iddOk = !protection || !(namedInsurer || namesTariff);
-        res.add(new CheckResult(CheckId.IDD_NEEDS, protection, iddOk, iddOk ? "" : "insurer_or_tariff_named",
-                Map.of()));
+        String iddCode = !protection ? "" : namedInsurer || namesTariff ? "insurer_or_tariff_named"
+                : rec && (facts.category() == null
+                        || !Boolean.TRUE.equals(facts.category().get(NEEDS_FACTS_COLLECTED))) ? "needs_facts_missing"
+                : "";
+        res.add(new CheckResult(CheckId.IDD_NEEDS, protection, iddCode.isEmpty(), iddCode, Map.of()));
 
         // DOCUMENTATION: structural, the pipeline writes the record; recommendations need a Core selection and, beyond
         // the experiment (Story 6.3), a complete Suitability Statement (profile facts, risks, costs for investments).

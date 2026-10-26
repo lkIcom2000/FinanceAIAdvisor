@@ -19,6 +19,8 @@ export type { SaveAssessment$Params as SaveAssessment$Params } from './fn/chat/s
 export { saveAssessment as saveAssessment } from './fn/chat/save-assessment';
 export type { Calculate$Params as Calculate$Params } from './fn/chat/calculate';
 export { calculate as calculate } from './fn/chat/calculate';
+export type { NeedsStatement$Params as NeedsStatement$Params } from './fn/chat/needs-statement';
+export { needsStatement as needsStatement } from './fn/chat/needs-statement';
 export type { Home$Params as Home$Params } from './fn/overview/home';
 export { home as home } from './fn/overview/home';
 export type { Liquidity$Params as Liquidity$Params } from './fn/overview/liquidity';

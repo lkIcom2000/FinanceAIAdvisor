@@ -12,6 +12,8 @@ import de.financetool.core.domain.AccountBalance;
 import de.financetool.core.domain.CashFlowForecast;
 import de.financetool.core.domain.CategorySelection;
 import de.financetool.core.domain.CostCalculation;
+import de.financetool.core.domain.DemandsAndNeeds;
+import de.financetool.core.domain.NeedsFigures;
 import de.financetool.core.domain.RecommendationFigures;
 import de.financetool.core.domain.CheckResult;
 import de.financetool.core.domain.CoreComputation;
@@ -190,6 +192,15 @@ class CoreGatewayService implements CoreGateway {
         CoreResult projectionResult = record(context, origin, projection.computation(), List.of(), parameters);
         return new WealthFigures(holdings, plans, totals, projectionResult, projection.points(),
                 projection.assumptions());
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public NeedsFigures needs(RequestContext context, EvidenceOrigin origin, Map<String, ?> needsProfile) {
+        BankSnapshot snapshot = bank.snapshot(context.personaId(), context.asOf());
+        DemandsAndNeeds.Result needs = DemandsAndNeeds.of(needsProfile, BankMapping.contracts(snapshot),
+                context.personaId().value());
+        return new NeedsFigures(record(context, origin, needs.computation(), List.of(), Map.of()), needs.statement());
     }
 
     @Override

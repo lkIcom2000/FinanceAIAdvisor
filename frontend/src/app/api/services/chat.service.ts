@@ -18,6 +18,9 @@ import { chat } from '../fn/chat/chat';
 import { Chat } from '../models/chat';
 import { Chat$Params } from '../fn/chat/chat';
 import { ChatMessage } from '../models/chat-message';
+import { needsStatement } from '../fn/chat/needs-statement';
+import { NeedsStatement } from '../models/needs-statement';
+import { NeedsStatement$Params } from '../fn/chat/needs-statement';
 import { postMessage } from '../fn/chat/post-message';
 import { PostMessage$Params } from '../fn/chat/post-message';
 import { saveAssessment } from '../fn/chat/save-assessment';
@@ -205,6 +208,41 @@ export class ChatService extends BaseService {
     const resp = this.calculate$Response(params, context);
     return resp.pipe(
       map((r: StrictHttpResponse<ChatMessage>): ChatMessage => r.body)
+    );
+  }
+
+  /** Path part for operation `needsStatement()` */
+  static readonly NeedsStatementPath = '/api/chat/needs-statement';
+
+  /**
+   * The latest demands-and-needs statement Fine released in the chat.
+   *
+   * Shown in "Your insurance" on Home (UX-DR44).
+   *
+   * This method provides access to the full `HttpResponse`, allowing access to response headers.
+   * To access only the response body, use `needsStatement()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  needsStatement$Response(params?: NeedsStatement$Params, context?: HttpContext): Observable<StrictHttpResponse<NeedsStatement>> {
+    const obs = needsStatement(this.http, this.rootUrl, params, context);
+    return obs;
+  }
+
+  /**
+   * The latest demands-and-needs statement Fine released in the chat.
+   *
+   * Shown in "Your insurance" on Home (UX-DR44).
+   *
+   * This method provides access only to the response body.
+   * To access the full response (for headers, for example), `needsStatement$Response()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  needsStatement(params?: NeedsStatement$Params, context?: HttpContext): Observable<NeedsStatement> {
+    const resp = this.needsStatement$Response(params, context);
+    return resp.pipe(
+      map((r: StrictHttpResponse<NeedsStatement>): NeedsStatement => r.body)
     );
   }
 

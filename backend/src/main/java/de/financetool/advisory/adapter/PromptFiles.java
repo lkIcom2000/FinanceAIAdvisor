@@ -43,6 +43,7 @@ public class PromptFiles {
     public static final String COMPLIANCE_RULES = "compliance-rules.txt";
     /** The NLU role's system prompt ({@code SYSTEM} of {@code experiments/finlab/nlu.py}). */
     public static final String NLU_SYSTEM = "nlu-system.txt";
+    public static final String NEEDS_INSTRUCTION = "class-RECOMMEND_CATEGORY-needs.txt";
     /** The NLU role's few-shot examples: a JSON list of [message, extraction] pairs ({@code FEW_SHOT}). */
     public static final String NLU_FEW_SHOT = "nlu-few-shot.json";
 
@@ -64,6 +65,7 @@ public class PromptFiles {
         }
         // Fail fast: every file a turn needs exists, and the few-shot file parses.
         named(NLU_SYSTEM);
+        named(NEEDS_INSTRUCTION);
         for (MessageClass messageClass : MessageClass.values()) {
             classInstruction(messageClass);
         }
@@ -124,6 +126,11 @@ public class PromptFiles {
     /** The class instruction {@code class-<CLASS>.txt}. */
     public Prompt classInstruction(MessageClass messageClass) {
         return named(ClassInstruction.fileName(messageClass) + ".txt");
+    }
+
+    /** The class instruction of a recommendation on a protection topic, a demands-and-needs statement (Story 6.4). */
+    public Prompt needsInstruction() {
+        return named(NEEDS_INSTRUCTION);
     }
 
     private Prompt named(String fileName) {

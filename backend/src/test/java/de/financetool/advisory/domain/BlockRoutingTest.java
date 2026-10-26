@@ -170,6 +170,16 @@ class BlockRoutingTest {
         assertThat(RegenerationFix.of(List.of(failed(CheckId.SUITABILITY, "other")), 0)).isEmpty();
     }
 
+    /** Story 6.4: a demands-and-needs statement is never asked for costs; an investment recommendation still is. */
+    @Test
+    void theFixAsksForCostsOnlyWhenCostTransparencyApplies() {
+        List<CheckResult> suitability = List.of(failed(CheckId.SUITABILITY, "no_profile_reference_or_risk"));
+        assertThat(RegenerationFix.of(suitability, 0, "x: 1", false).orElseThrow())
+                .contains("name the main risks of the recommended category. ").doesNotContain("costs");
+        assertThat(RegenerationFix.of(suitability, 0, "x: 1", true).orElseThrow())
+                .contains("state the ex-ante costs from TOOL RESULTS.");
+    }
+
     @Test
     void numbersInTheUsersMessageParseBothFormatsAndSkipDatesAndReferences() {
         assertThat(NumberParser.numbersIn("I have 12.500,50 EUR and 1,000 EUR, about 7% since 3 March 2024, "

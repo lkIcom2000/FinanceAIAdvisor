@@ -103,9 +103,11 @@ class TurnOrchestratorTest {
     final Recommendations recommendations = mock(Recommendations.class,
             inv -> inv.getMethod().getName().equals("run")
                     ? new TurnState.Tools(null, null, null, false, List.of(), false) : List.of());
+    final NeedsStatements needsStatements = mock(NeedsStatements.class);
     final TurnOrchestrator orchestrator = new TurnOrchestrator(chats, prompts, llm, audit, nluExtractor,
             registry, (stored, stated, topic) -> profile.check(stored, stated, topic), escalations,
-            ruleParameters, tools, profiles, new DialogStates(chats), assessments, recommendations);
+            ruleParameters, tools, profiles, new DialogStates(chats), assessments, recommendations,
+            needsStatements);
 
     final PersonaScope scope = new PersonaScope(TestContexts.LENA);
     final RequestContext context = TestContexts.context();

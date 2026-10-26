@@ -4,6 +4,7 @@ import de.financetool.audit.EvidenceOrigin;
 import de.financetool.core.domain.CoreResult;
 import de.financetool.core.domain.InsuranceFigures;
 import de.financetool.core.domain.LiquidityFigures;
+import de.financetool.core.domain.NeedsFigures;
 import de.financetool.core.domain.ProfileFigures;
 import de.financetool.core.domain.RecommendationFigures;
 import de.financetool.core.domain.WealthFigures;
@@ -76,6 +77,14 @@ public interface CoreGateway {
      */
     RecommendationFigures recommendation(RequestContext context, EvidenceOrigin origin, Map<String, ?> profile,
             String topic, boolean withCosts);
+
+    /**
+     * The demands-and-needs statement at {@code asOf} (FR-18, function {@code demandsAndNeeds}): liability,
+     * occupational disability and Duplicate Coverage from the Needs Profile and the contracts started by then.
+     *
+     * @param needsProfile the effective profile, field → value; only household, dependants and occupation are read
+     */
+    NeedsFigures needs(RequestContext context, EvidenceOrigin origin, Map<String, ?> needsProfile);
 
     /**
      * The insurance figures at the end of {@code asOf}: each contract started by then with its keyed premium and next

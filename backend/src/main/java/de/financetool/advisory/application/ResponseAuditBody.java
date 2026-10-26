@@ -66,6 +66,8 @@ import java.util.UUID;
  * @param ruleParameterError whether a tool needed a Rule Parameter without a valid version
  * @param categorySelection the Core's category selection of a {@code RECOMMEND_CATEGORY} turn with its selection
  *     inputs ({@link #categorySelection}); {@code null} otherwise
+ * @param needsStatement the demands-and-needs statement of a protection turn: its areas and the Needs Profile fields
+ *     used (FR-18); {@code null} otherwise
  */
 record ResponseAuditBody(
         @JsonProperty("class") MessageClass messageClass,
@@ -114,7 +116,8 @@ record ResponseAuditBody(
         SimulationSpec simulationSpec,
         boolean parameterProposal,
         boolean ruleParameterError,
-        Map<String, Object> categorySelection) {
+        Map<String, Object> categorySelection,
+        Map<String, Object> needsStatement) {
 
     /**
      * The audit view of a Category Recommendation (FR-27): the category, its reasons and conflicts, and the selection

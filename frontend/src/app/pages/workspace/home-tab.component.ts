@@ -3,6 +3,8 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { catchError, map, of, startWith } from 'rxjs';
 import { HomeOverview } from '../../api/models/home-overview';
 import { InsuranceFlag } from '../../api/models/insurance-flag';
+import { NeedsStatement } from '../../api/models/needs-statement';
+import { ChatService } from '../../api/services/chat.service';
 import { OverviewService } from '../../api/services/overview.service';
 import { formatDate, formatShortDate } from '../../shared/dates';
 import { FigurePipe, formatFigure } from '../../shared/figure.pipe';
@@ -20,7 +22,7 @@ interface FlagLine {
 
 /**
  * Home tab: the summary (the Liquidity tab's figures with the same keys), Notifications and rules (empty until
- * Epics 8 and 9) and "Your insurance". Every figure comes from the backend; this component only formats.
+ * Epics 8 and 9) and "Your insurance" with the demands-and-needs statement once the chat made one. Every figure comes from the backend; this component only formats.
  */
 @Component({
   selector: 'app-home-tab',
@@ -39,6 +41,14 @@ export class HomeTabComponent {
         startWith<HomeState>({ status: 'loading' }),
       ),
     { requireSync: true },
+  );
+
+  /** UX-DR44: the latest demands-and-needs statement from the chat; none (204) or unavailable shows nothing. */
+  protected readonly needs = toSignal(
+    inject(ChatService)
+      .needsStatement()
+      .pipe(catchError(() => of<NeedsStatement | null>(null))),
+    { initialValue: null },
   );
 
   protected readonly formatDate = formatDate;

@@ -115,6 +115,13 @@ public final class ResponseTemplates {
                 .map(ResponseTemplates::plainConflict).toList()) + ".";
     }
 
+    /**
+     * The fixed first line of a demands-and-needs statement (FR-18): it names the three areas and that no product is
+     * recommended; no "your" and no risk wording, so the {@code SUITABILITY} check still needs the model's text.
+     */
+    public static final String NEEDS_LEAD = "Demands and needs: liability, occupational disability and cover held"
+            + " twice. This is not a product recommendation.";
+
     /** A conflict of the Core's category selection in plain words, as the first line and the panel show it. */
     public static String plainConflict(String conflict) {
         return CONFLICTS.getOrDefault(conflict, conflict);

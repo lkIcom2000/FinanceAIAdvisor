@@ -326,6 +326,39 @@
             <p class="statement-basis">Category: {{ rec.category }}. Selected only from your profile and fixed rules.</p>
           </details>
         }
+        <!-- FR-18: the demands-and-needs statement, collapsed; built by the Core, it recommends no product. -->
+        @if (m.needsStatement; as needs) {
+          <details class="why-fits">
+            <summary>Your demands and needs</summary>
+            @for (a of needs.areas; track a.area) {
+              <h4>{{ a.area }}</h4>
+              <ul>
+                <li>{{ a.need }}</li>
+                <li>{{ a.have }}</li>
+                <li>{{ a.check }}</li>
+              </ul>
+            }
+            <h4>Figures</h4>
+            <ul class="statement-figures">
+              @for (f of needs.figures; track f.provId) {
+                <li>
+                  <button type="button" class="statement-figure" (click)="openWhy(f.provId)">
+                    {{ f.label }}: {{ f.value | figure: f.unit }}
+                  </button>
+                </li>
+              }
+            </ul>
+            @if (needs.facts.length) {
+              <h4>What I used from your answers</h4>
+              <ul>
+                @for (fact of needs.facts; track fact.label) {
+                  <li>{{ fact.label }}: {{ fact.value }}</li>
+                }
+              </ul>
+            }
+            <p class="statement-basis">Needs level only: no product, insurer or tariff is recommended.</p>
+          </details>
+        }
         <!-- A handover shows at most a plain reason class, never the draft or a technical reason. -->
         @if (m.handover; as handover) {
           @if (handover.reason) {

@@ -1,6 +1,7 @@
 package de.financetool.advisory.domain;
 
 import de.financetool.core.domain.CoreResult;
+import de.financetool.core.domain.NeedsFigures;
 import de.financetool.core.domain.RecommendationFigures;
 import de.financetool.shared.domain.SimulationSpec;
 import de.financetool.shared.domain.SourcedNumber;
@@ -83,21 +84,26 @@ public record TurnState(
      *     otherwise
      * @param statement the Suitability Statement built from {@code recommendation} and the effective profile;
      *     {@code null} without a recommendation
+     * @param needs the Core's demands-and-needs result of a {@code RECOMMEND_CATEGORY} turn on a protection topic;
+     *     {@code null} otherwise
+     * @param needsStatement the demands-and-needs statement built from {@code needs}; {@code null} without one
      */
     public record Tools(ToolPlan.Planned planned, SourcedNumber accountPortfolio, SimulationSpec spec,
             boolean proposal, List<CoreResult> results, boolean ruleParameterError, boolean ruleForLaterYear,
-            RecommendationFigures recommendation, ChatMessage.Recommendation statement) {
+            RecommendationFigures recommendation, ChatMessage.Recommendation statement, NeedsFigures needs,
+            ChatMessage.NeedsStatement needsStatement) {
 
         public static final Tools NONE = new Tools(null, null, null, false, List.of(), false);
 
         public Tools(ToolPlan.Planned planned, SourcedNumber accountPortfolio, SimulationSpec spec,
                 boolean proposal, List<CoreResult> results, boolean ruleParameterError) {
-            this(planned, accountPortfolio, spec, proposal, results, ruleParameterError, false, null, null);
+            this(planned, accountPortfolio, spec, proposal, results, ruleParameterError, false, null, null, null,
+                    null);
         }
 
         /** No calculation: the subsidy rules for the later year the message asks about are not valid. */
         public static Tools laterYearRuleMissing() {
-            return new Tools(null, null, null, false, List.of(), true, true, null, null);
+            return new Tools(null, null, null, false, List.of(), true, true, null, null, null, null);
         }
 
         /** The Category Recommendation ran: its selection and cost results, in run order, and its statement. */
@@ -109,7 +115,15 @@ public record TurnState(
             if (recommendation.costs() != null) {
                 results.add(recommendation.costs());
             }
-            return new Tools(null, null, null, false, results, false, false, recommendation, statement);
+            return new Tools(null, null, null, false, results, false, false, recommendation, statement, null, null);
+        }
+
+        /** The demands-and-needs statement ran (protection topics): its Core result and the statement. */
+        public static Tools needsStated(NeedsFigures needs, ChatMessage.NeedsStatement statement) {
+            Objects.requireNonNull(needs, "needs");
+            Objects.requireNonNull(statement, "statement");
+            return new Tools(null, null, null, false, List.of(needs.result()), false, false, null, null, needs,
+                    statement);
         }
 
         public Tools {

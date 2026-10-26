@@ -99,6 +99,26 @@
         }
       </ul>
     }
+    <!-- UX-DR44: the demands-and-needs statement, once the chat made one; built by the Core, no product. -->
+    @if (needs(); as n) {
+      <article class="needs" aria-labelledby="home-needs-title">
+        <h3 id="home-needs-title" class="needs-title">Your demands and needs</h3>
+        @for (a of n.areas; track a.area) {
+          <h4 class="needs-area">{{ a.area }}</h4>
+          <p class="needs-text">{{ a.need }} {{ a.have }}</p>
+          <p class="needs-text">{{ a.check }}</p>
+        }
+        <ul class="needs-figures">
+          @for (f of n.figures; track f.provId) {
+            <li>
+              {{ f.label }}: {{ f.value | figure: f.unit }}
+              <app-why-link [provId]="f.provId" />
+            </li>
+          }
+        </ul>
+        <p class="supporting">Needs level only: no product, insurer or tariff is recommended.</p>
+      </article>
+    }
   </section>
 } @else if (s.status === 'failed') {
   <p class="error" role="alert">We couldn't load your overview. Please try again later.</p>

@@ -134,3 +134,34 @@
 .error {
   font: var(--fine-body);
 }
+
+// UX-DR44: the demands-and-needs statement inside "Your insurance".
+.needs {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--mat-sys-outline-variant);
+}
+
+.needs-title {
+  margin: 0;
+  font: var(--fine-label);
+  color: var(--fine-navy);
+}
+
+.needs-area {
+  margin: 12px 0 4px;
+  font: var(--fine-label);
+}
+
+.needs-text {
+  margin: 0 0 4px;
+  font: var(--fine-body-sm);
+}
+
+.needs-figures {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  font: var(--fine-body-sm);
+  font-variant-numeric: tabular-nums;
+}

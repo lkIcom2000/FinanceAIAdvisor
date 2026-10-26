@@ -864,4 +864,32 @@ describe('ChatColumnComponent', () => {
     panel.querySelector<HTMLButtonElement>('.statement-figure')!.click();
     http.expectOne('/api/provenance/sel000000000002');
   });
+
+  it('shows a demands-and-needs statement in a collapsed panel with Why? on its figures', () => {
+    const needs: ChatMessage = {
+      ...recommendation,
+      id: 'n1',
+      text: 'Demands and needs: liability, occupational disability and cover held twice.',
+      figures: [],
+      recommendation: undefined,
+      needsStatement: {
+        areas: [
+          { area: 'Liability', need: 'Everyone needs it.', have: 'Your own policy.', check: 'Check with Parents of Jonas.' },
+        ],
+        facts: [{ label: 'Household', value: 'I live alone' }],
+        figures: [{ provId: 'dan000000000001', label: 'Contracts covering liability', value: '2', unit: 'COUNT' }],
+      },
+    };
+    render([question, needs]);
+    fixture.detectChanges();
+
+    const panel = element.querySelector<HTMLDetailsElement>('.card.response details.why-fits')!;
+    expect(panel.open).toBe(false);
+    expect(text(panel.querySelector('summary'))).toBe('Your demands and needs');
+    expect(panel.textContent).toContain('Check with Parents of Jonas.');
+    expect(panel.textContent).toContain('Household: I live alone');
+    expect(panel.textContent).toContain('Needs level only');
+    panel.querySelector<HTMLButtonElement>('.statement-figure')!.click();
+    http.expectOne('/api/provenance/dan000000000001');
+  });
 });

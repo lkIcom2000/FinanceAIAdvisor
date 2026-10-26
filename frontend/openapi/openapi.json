@@ -362,6 +362,36 @@
         "tags" : [ "chat" ]
       }
     },
+    "/api/chat/needs-statement" : {
+      "get" : {
+        "description" : "Shown in \"Your insurance\" on Home (UX-DR44).",
+        "operationId" : "needsStatement",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NeedsStatement"
+                }
+              }
+            },
+            "description" : "The latest statement"
+          },
+          "204" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/NeedsStatement"
+                }
+              }
+            },
+            "description" : "No statement yet"
+          }
+        },
+        "summary" : "The latest demands-and-needs statement Fine released in the chat",
+        "tags" : [ "chat" ]
+      }
+    },
     "/api/overview/home" : {
       "get" : {
         "operationId" : "home",
@@ -706,6 +736,10 @@
           "id" : {
             "type" : "string",
             "format" : "uuid"
+          },
+          "needsStatement" : {
+            "$ref" : "#/components/schemas/NeedsStatement",
+            "description" : "The demands-and-needs statement; only on RECOMMEND_CATEGORY answers to an insurance question"
           },
           "outcome" : {
             "type" : "string",
@@ -1160,6 +1194,57 @@
           }
         },
         "required" : [ "amount", "currency" ]
+      },
+      "NeedsArea" : {
+        "type" : "object",
+        "description" : "One area of the demands-and-needs statement",
+        "properties" : {
+          "area" : {
+            "type" : "string",
+            "description" : "The area in plain words"
+          },
+          "check" : {
+            "type" : "string",
+            "description" : "What to check, and with whom"
+          },
+          "have" : {
+            "type" : "string",
+            "description" : "What your banking data shows"
+          },
+          "need" : {
+            "type" : "string",
+            "description" : "Why the cover matters for you"
+          }
+        },
+        "required" : [ "area", "check", "have", "need" ]
+      },
+      "NeedsStatement" : {
+        "type" : "object",
+        "description" : "The demands-and-needs statement for your insurance, from Fine's calculation engine, your answers and the contracts in your banking data; it recommends no product",
+        "properties" : {
+          "areas" : {
+            "type" : "array",
+            "description" : "Liability, occupational disability and cover held twice, in this order",
+            "items" : {
+              "$ref" : "#/components/schemas/NeedsArea"
+            }
+          },
+          "facts" : {
+            "type" : "array",
+            "description" : "The facts about you the statement used",
+            "items" : {
+              "$ref" : "#/components/schemas/ChatRecommendationFact"
+            }
+          },
+          "figures" : {
+            "type" : "array",
+            "description" : "Contracts per cover and risks covered more than once",
+            "items" : {
+              "$ref" : "#/components/schemas/Figure"
+            }
+          }
+        },
+        "required" : [ "areas", "facts", "figures" ]
       },
       "PersonaResponse" : {
         "type" : "object",

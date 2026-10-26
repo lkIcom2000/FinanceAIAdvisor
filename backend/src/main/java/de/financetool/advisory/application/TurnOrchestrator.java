@@ -121,12 +121,13 @@ public class TurnOrchestrator {
     private final DialogStates dialogStates;
     private final AssessmentCards assessments;
     private final Recommendations recommendations;
+    private final NeedsStatements needsStatements;
 
     TurnOrchestrator(ChatRepository chats, PromptFiles prompts, LlmPort llm, AuditWriter audit,
             NluExtractor nluExtractor, EntityRegistry registry,
             ProfileCompleteness completeness, EscalationCases escalations, RuleParamPort ruleParameters,
             ToolRegistry tools, Profiles profiles, DialogStates dialogStates, AssessmentCards assessments,
-            Recommendations recommendations) {
+            Recommendations recommendations, NeedsStatements needsStatements) {
         this.chats = chats;
         this.prompts = prompts;
         this.llm = llm;
@@ -141,6 +142,7 @@ public class TurnOrchestrator {
         this.dialogStates = dialogStates;
         this.assessments = assessments;
         this.recommendations = recommendations;
+        this.needsStatements = needsStatements;
     }
 
     /** Runs the turn for the saved user message {@code question} and releases the agent message. */
@@ -237,7 +239,8 @@ public class TurnOrchestrator {
      * Rule Parameter version marks the turn for {@code ESCALATE}. Before that, for every class but refusals and
      * traps, a subsidy question about a later year needs the Core's subsidy rules for that year (UJ-5); without them
      * the turn escalates too. A {@code RECOMMEND_CATEGORY} turn runs the Core's category selection and cost
-     * calculation on the effective profile ({@link Recommendations}).
+     * calculation on the effective profile ({@link Recommendations}); on a protection topic the Core's
+     * demands-and-needs statement instead ({@link NeedsStatements}).
      */
     TurnState toolPlan(RequestContext context, PersonaScope scope, TurnState turn) {
         TurnState.Tools planned = turn.tools();
@@ -251,6 +254,11 @@ public class TurnOrchestrator {
             } catch (NoValidRuleParameterException e) {
                 return turn.withTools(TurnState.Tools.laterYearRuleMissing()).ran(TurnStage.TOOL_PLAN);
             }
+        }
+        if (messageClass == MessageClass.RECOMMEND_CATEGORY
+                && CheckChain.protectionTopic(turn.nlu().extraction().topic())) {
+            return turn.withTools(needsStatements.run(context, profiles.stored(scope),
+                    turn.nlu().extraction().statedProfile())).ran(TurnStage.TOOL_PLAN);
         }
         if (messageClass == MessageClass.RECOMMEND_CATEGORY) {
             return turn.withTools(recommendations.run(context, profiles.stored(scope),
@@ -296,7 +304,8 @@ public class TurnOrchestrator {
                 ToolResults.format(turn.tools().results()), turn.passages());
         PromptFiles.Prompt rolePrompt = prompts.rolePrompt(agent.rolePrompt());
         PromptFiles.Prompt rules = prompts.complianceRules();
-        PromptFiles.Prompt instruction = prompts.classInstruction(turn.messageClass());
+        PromptFiles.Prompt instruction = turn.tools().needsStatement() != null ? prompts.needsInstruction()
+                : prompts.classInstruction(turn.messageClass());
         ChatMessage.Recommendation statement = turn.tools().statement();
         String classInstruction = ClassInstruction.fill(instruction.text(), turn.classification(),
                 statement == null ? null : statement.category(),
@@ -351,7 +360,9 @@ public class TurnOrchestrator {
             case ASK_PROFILE -> ResponseTemplates.withProfileReason(text);
             case RECOMMEND_CATEGORY -> {
                 ChatMessage.Recommendation statement = turn.tools().statement();
-                String led = statement == null ? text : ResponseTemplates.withRecommendationLead(text,
+                String led = turn.tools().needsStatement() != null
+                        ? ResponseTemplates.withRecommendationLead(text, ResponseTemplates.NEEDS_LEAD)
+                        : statement == null ? text : ResponseTemplates.withRecommendationLead(text,
                         ResponseTemplates.recommendationLead(statement.label(), statement.conflicts()));
                 yield ResponseTemplates.withLimitations(led, turn.classification().limitations());
             }
@@ -387,7 +398,7 @@ public class TurnOrchestrator {
             return turn.ran(TurnStage.RULE_ENGINE);
         }
         Optional<String> fix = RegenerationFix.of(checks.shadow().failed(), passagesInPrompt(turn),
-                turn.prompt().payload().toolResults());
+                turn.prompt().payload().toolResults(), CheckChain.investTopic(turn.nlu().extraction().topic()));
         if (fix.isEmpty()) {
             return turn.ran(TurnStage.RULE_ENGINE);
         }
@@ -466,8 +477,9 @@ public class TurnOrchestrator {
      * selection of a recommendation. {@code SOURCE_VALIDITY} applies only with retrieval on, as in the experiment.
      */
     private static CheckChain.Facts facts(TurnState turn, boolean retrievalOn) {
-        return CheckChain.Facts.of(turn.classification(), turn.userText(),
-                Recommendations.facts(turn.tools().statement(), turn.nlu().extraction().topic()), retrievalOn,
+        return CheckChain.Facts.of(turn.classification(), turn.userText(), turn.tools().needs() != null
+                ? NeedsStatements.facts(turn.tools().needs())
+                : Recommendations.facts(turn.tools().statement(), turn.nlu().extraction().topic()), retrievalOn,
                 passagesInPrompt(turn), turn.prompt().ledger());
     }
 
@@ -510,11 +522,13 @@ public class TurnOrchestrator {
         List<ChatMessage.Check> shownChecks = released.checks().flags().shadowMode() || proposal ? List.of()
                 : released.checks().finalResults().applicable().stream().map(ChatMessage.Check::of).toList();
         boolean draftReleased = released.checks().route() == null || released.checks().route().released();
-        boolean recommended = released.outcome() == ResponseOutcome.RECOMMEND_CATEGORY && draftReleased
-                && turnTools.recommendation() != null;
+        boolean releasedRecommendation = released.outcome() == ResponseOutcome.RECOMMEND_CATEGORY && draftReleased;
+        boolean recommended = releasedRecommendation && turnTools.recommendation() != null;
+        boolean needsStated = releasedRecommendation && turnTools.needsStatement() != null;
         List<SourcedNumber> figures = turnTools.spec() != null && !turnTools.proposal() && draftReleased
                 ? ToolRegistry.figures(turnTools.spec(), turnTools.results())
-                : recommended ? recommendations.chips(context, turnTools.recommendation()) : List.of();
+                : recommended ? recommendations.chips(context, turnTools.recommendation())
+                : needsStated ? turnTools.needsStatement().figures() : List.of();
         ChatMessage.Assessment assessment = released.outcome() == ResponseOutcome.ASK_PROFILE
                 ? assessments.open(context, released.classification().missingFields()).orElse(null) : null;
         ChatMessage answer = new ChatMessage(turnId, ChatMessage.Author.AGENT, released.finalText(),
@@ -524,7 +538,7 @@ public class TurnOrchestrator {
                 figures, released.outcome() == ResponseOutcome.DETECT_TRAP
                         ? ResponseTemplates.premiseCallout(released.classification().unverifiedPremises(),
                                 released.userText()) : null, assessment,
-                recommended ? turnTools.statement() : null);
+                recommended ? turnTools.statement() : null, needsStated ? turnTools.needsStatement() : null);
         UUID conversation = chats.conversation(scope);
         chats.insert(scope, conversation, answer);
         if (proposal) {
@@ -568,7 +582,8 @@ public class TurnOrchestrator {
                         released.passThroughStages(), prompt.ledger().entries(), released.dialogState(),
                         turnTools.spec(), proposal, turnTools.ruleParameterError(),
                         ResponseAuditBody.categorySelection(turnTools.recommendation() == null ? null
-                                : turnTools.recommendation().details()))));
+                                : turnTools.recommendation().details()),
+                        NeedsStatements.audit(turnTools.needs()))));
         return answer;
     }
 

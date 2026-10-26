@@ -133,6 +133,39 @@ class CheckChainTest {
         assertThat(idd("R+V and HUK sell such cover.", "protection_needs").failed()).isTrue();
     }
 
+    static ChainResult needsRecommendation(Map<String, Object> category) {
+        return CheckChain.run("Your liability cover protects you against the risk of damage claims.",
+                new CheckChain.Facts(MessageClass.RECOMMEND_CATEGORY, "", true, category, "protection_needs",
+                        List.of(), false, 0, List.of()));
+    }
+
+    @Test
+    void iddNeedsFailsAProtectionRecommendationMadeBeforeTheNeedsFactsWereCollected() {
+        Map<String, Object> collected = Map.of("category", CheckChain.DEMANDS_AND_NEEDS, "conflicts", List.of(),
+                CheckChain.STATEMENT_COMPLETE, true, CheckChain.NEEDS_FACTS_COLLECTED, true);
+        assertThat(needsRecommendation(collected).get(CheckId.IDD_NEEDS).passed()).isTrue();
+        assertThat(needsRecommendation(collected).get(CheckId.DOCUMENTATION).passed()).isTrue();
+        assertThat(needsRecommendation(collected).get(CheckId.COST_TRANSPARENCY).applicable()).isFalse();
+
+        Map<String, Object> missing = new java.util.HashMap<>(collected);
+        missing.put(CheckChain.NEEDS_FACTS_COLLECTED, false);
+        assertThat(needsRecommendation(missing).get(CheckId.IDD_NEEDS).reasonCode()).isEqualTo("needs_facts_missing");
+        assertThat(needsRecommendation(null).get(CheckId.IDD_NEEDS).reasonCode()).isEqualTo("needs_facts_missing");
+        assertThat(needsRecommendation(null).get(CheckId.DOCUMENTATION).reasonCode())
+                .isEqualTo("no_core_selection_recorded");
+        Map<String, Object> unknown = new java.util.HashMap<>(collected);
+        unknown.remove(CheckChain.NEEDS_FACTS_COLLECTED);
+        assertThat(needsRecommendation(unknown).get(CheckId.IDD_NEEDS).reasonCode()).isEqualTo("needs_facts_missing");
+        assertThat(CheckChain.run("Your liability cover protects you against the risk of damage claims.",
+                new CheckChain.Facts(MessageClass.RECOMMEND_CATEGORY, "", true, missing, "protection_duplicate",
+                        List.of(), false, 0, List.of())).get(CheckId.IDD_NEEDS).reasonCode())
+                .isEqualTo("needs_facts_missing");
+        // naming an insurer still fails with its own code
+        assertThat(CheckChain.run("Allianz covers your liability risk.", new CheckChain.Facts(
+                MessageClass.RECOMMEND_CATEGORY, "", true, collected, "protection_needs", List.of(), false, 0,
+                List.of())).get(CheckId.IDD_NEEDS).reasonCode()).isEqualTo("insurer_or_tariff_named");
+    }
+
     @Test
     void iddNeedsPassesAtNeedsLevelAndOnlyAppliesToProtectionTopics() {
         assertThat(idd("Liability insurance covers damage you cause to others.", "protection_needs"))

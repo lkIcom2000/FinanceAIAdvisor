@@ -34,4 +34,13 @@ class ResponseTemplatesTest {
             assertThat(CheckChain.COST.matcher(plain).find()).as(label).isFalse();
         }
     }
+
+    @Test
+    void theNeedsLeadNamesNoProductAndLeavesTheSuitabilityWordsToTheModel() {
+        String lead = ResponseTemplates.NEEDS_LEAD;
+        assertThat(lead).doesNotContainPattern("\\d").doesNotContain("your");
+        assertThat(CheckChain.RISK.matcher(lead).find()).isFalse();
+        assertThat(CheckChain.TARIFF.matcher(lead.toLowerCase(java.util.Locale.ROOT)).find()).isFalse();
+        assertThat(CheckChain.INSURERS).noneMatch(n -> lead.toLowerCase(java.util.Locale.ROOT).contains(n + " "));
+    }
 }

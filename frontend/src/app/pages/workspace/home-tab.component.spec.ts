@@ -2,6 +2,7 @@ import { HttpTestingController } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { HomeOverview } from '../../api/models/home-overview';
+import { NeedsStatement } from '../../api/models/needs-statement';
 import { httpTestingProviders } from '../../testing/session-testing';
 import { HomeTabComponent } from './home-tab.component';
 
@@ -81,10 +82,14 @@ describe('HomeTabComponent', () => {
     }).compileComponents();
   });
 
-  async function render(body: HomeOverview) {
+  async function render(body: HomeOverview, needs: NeedsStatement | null = null) {
     const fixture = TestBed.createComponent(HomeTabComponent);
     fixture.detectChanges();
-    TestBed.inject(HttpTestingController).expectOne('/api/overview/home').flush(body);
+    const http = TestBed.inject(HttpTestingController);
+    http.expectOne('/api/overview/home').flush(body);
+    http
+      .expectOne('/api/chat/needs-statement')
+      .flush(needs, needs ? {} : { status: 204, statusText: 'No Content' });
     await fixture.whenStable();
     fixture.detectChanges();
     return fixture.nativeElement as HTMLElement;
@@ -236,5 +241,41 @@ describe('HomeTabComponent', () => {
     expect(
       (fixture.nativeElement as HTMLElement).querySelector('[role="alert"]')?.textContent,
     ).toContain("We couldn't load your overview.");
+  });
+
+  it('shows no statement card until the chat made one', async () => {
+    const element = await render(home());
+    expect(element.querySelector('.needs')).toBeNull();
+  });
+
+  it('shows the demands-and-needs statement in Your insurance with Why? on every figure', async () => {
+    const needs: NeedsStatement = {
+      areas: [
+        {
+          area: 'Liability',
+          need: 'Everyone needs it.',
+          have: 'Your own policy.',
+          check: 'Check with Parents of Jonas.',
+        },
+        { area: 'Occupational disability', need: 'It replaces income.', have: 'None.', check: 'Check.' },
+        { area: 'Cover held twice', need: 'Paying twice.', have: 'Liability twice.', check: 'Check.' },
+      ],
+      facts: [{ label: 'Household', value: 'I live alone' }],
+      figures: [
+        figure('n000000000000001', '2', 'COUNT'),
+        figure('n000000000000002', '0', 'COUNT'),
+        figure('n000000000000003', '1', 'COUNT'),
+      ],
+    };
+    const element = await render(home(), needs);
+    const card = element.querySelector('.insurance .needs');
+    expect(text(card?.querySelector('h3'))).toBe('Your demands and needs');
+    expect(Array.from(card?.querySelectorAll('.needs-area') ?? []).map(text)).toEqual([
+      'Liability',
+      'Occupational disability',
+      'Cover held twice',
+    ]);
+    expect(text(card)).toContain('Check with Parents of Jonas.');
+    expect(card?.querySelectorAll('.needs-figures app-why-link')).toHaveLength(3);
   });
 });
