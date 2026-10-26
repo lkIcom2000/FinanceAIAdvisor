@@ -25,7 +25,7 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 /**
  * The Rule Parameters in {@code APP_HOME/data/rules/rule_parameters.yaml}, loaded once at startup. Startup fails on a
- * malformed entry or on two versions of one key with overlapping validity.
+ * malformed entry, a duplicate version of a key, or two versions of one key with overlapping validity.
  */
 @Component
 class YamlRuleParameters implements RuleParamPort {
@@ -84,6 +84,10 @@ class YamlRuleParameters implements RuleParamPort {
         }
         for (RuleParameter a : result) {
             for (RuleParameter b : result) {
+                if (a != b && a.key().equals(b.key()) && a.version().equals(b.version())) {
+                    throw new IllegalStateException(file + ": version " + a.version() + " of " + a.key()
+                            + " appears twice; a change adds a new version");
+                }
                 if (a != b && a.key().equals(b.key()) && overlap(a, b)) {
                     throw new IllegalStateException(file + ": versions " + a.version() + " and " + b.version()
                             + " of " + a.key() + " overlap");

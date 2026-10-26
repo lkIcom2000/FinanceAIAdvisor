@@ -46,6 +46,7 @@ import de.financetool.shared.config.DataExposureLevel;
 import de.financetool.shared.domain.SimulationSpec;
 import de.financetool.shared.domain.SourcedNumber;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -207,10 +208,23 @@ public class TurnOrchestrator {
     /**
      * Stage 3, only for {@code COMPUTE}: parameters from the message become a proposal and nothing is computed
      * (AD-24); a confirmed spec runs its whitelisted tool through the {@link ToolRegistry}. A tool missing a valid
-     * Rule Parameter version marks the turn for {@code ESCALATE}.
+     * Rule Parameter version marks the turn for {@code ESCALATE}. Before that, for every class but refusals and
+     * traps, a subsidy question about a later year needs the Core's subsidy rules for that year (UJ-5); without them
+     * the turn escalates too.
      */
     TurnState toolPlan(RequestContext context, TurnState turn) {
         TurnState.Tools planned = turn.tools();
+        MessageClass messageClass = turn.messageClass();
+        Optional<LocalDate> laterYear = messageClass == MessageClass.REFUSE_OUT_OF_SCOPE
+                || messageClass == MessageClass.DETECT_TRAP ? Optional.empty()
+                : ToolPlan.laterSubsidyYear(turn.nlu().extraction(), turn.userText(), context.asOf());
+        if (laterYear.isPresent()) {
+            try {
+                tools.requireSubsidyRules(laterYear.get());
+            } catch (NoValidRuleParameterException e) {
+                return turn.withTools(TurnState.Tools.laterYearRuleMissing()).ran(TurnStage.TOOL_PLAN);
+            }
+        }
         if (turn.messageClass() != MessageClass.COMPUTE) {
             return turn.passedThrough(TurnStage.TOOL_PLAN);
         }
@@ -357,7 +371,7 @@ public class TurnOrchestrator {
                     .passedThrough(TurnStage.BLOCK_ROUTING);
         }
         BlockRouting.Route route = BlockRouting.route(checks.finalResults().failed(), turn.classification(),
-                turn.tools().ruleParameterError());
+                turn.tools().ruleParameterError(), turn.tools().ruleForLaterYear());
         TurnState routed = turn.withChecks(checks.withRoute(route));
         if (route.released()) {
             String text = checks.regenerated() ? checks.regeneration().text() : checks.draftText();

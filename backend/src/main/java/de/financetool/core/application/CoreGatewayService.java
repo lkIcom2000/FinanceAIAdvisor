@@ -27,6 +27,7 @@ import de.financetool.core.domain.Investments;
 import de.financetool.core.domain.LiquidityFigures;
 import de.financetool.core.domain.MissingEssentialCover;
 import de.financetool.core.domain.MonteCarloProjection;
+import de.financetool.core.domain.RiesterSubsidy;
 import de.financetool.core.domain.RuleParameterValue;
 import de.financetool.core.domain.ShortfallDetection;
 import de.financetool.core.domain.VariableSpending;
@@ -41,6 +42,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -203,6 +205,27 @@ class CoreGatewayService implements CoreGateway {
         return record(context, origin,
                 WithdrawalDuration.compute(portfolio, portfolioFigure, monthlyWithdrawal, annualRate), List.of(),
                 Map.of());
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY, noRollbackFor = NoValidRuleParameterException.class)
+    public CoreResult riesterSubsidy(RequestContext context, EvidenceOrigin origin, BigDecimal priorYearGrossIncome,
+            List<Integer> childrenBirthYears) {
+        Map<String, RuleParameterValue> parameters = subsidyRules(context.asOf());
+        return record(context, origin, RiesterSubsidy.compute(priorYearGrossIncome, childrenBirthYears, parameters),
+                List.of(), parameters);
+    }
+
+    @Override
+    public void requireSubsidyRules(LocalDate date) {
+        subsidyRules(date);
+    }
+
+    /** Every Riester Rule Parameter valid on {@code date}; the port refuses a key without one. */
+    private Map<String, RuleParameterValue> subsidyRules(LocalDate date) {
+        Map<String, RuleParameterValue> parameters = new LinkedHashMap<>();
+        RiesterSubsidy.PARAMETERS.forEach(key -> parameters.put(key, parameter(key, date)));
+        return parameters;
     }
 
     private List<WealthFigures.Holding> holdings(RequestContext context, EvidenceOrigin origin,

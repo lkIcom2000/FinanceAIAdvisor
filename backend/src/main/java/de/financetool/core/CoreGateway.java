@@ -8,6 +8,8 @@ import de.financetool.core.domain.WealthFigures;
 import de.financetool.shared.RequestContext;
 import de.financetool.shared.domain.SourcedNumber;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -65,4 +67,21 @@ public interface CoreGateway {
      */
     CoreResult withdrawalDuration(RequestContext context, EvidenceOrigin origin, BigDecimal portfolio,
             SourcedNumber portfolioFigure, BigDecimal monthlyWithdrawal, BigDecimal annualRate);
+
+    /**
+     * The Riester allowances at the as-of date for the income and children given (Core function {@code
+     * riesterSubsidy}).
+     *
+     * @throws de.financetool.knowledge.NoValidRuleParameterException if a subsidy rule has no version valid at the
+     *     as-of date; nothing is computed or stored
+     */
+    CoreResult riesterSubsidy(RequestContext context, EvidenceOrigin origin, BigDecimal priorYearGrossIncome,
+            List<Integer> childrenBirthYears);
+
+    /**
+     * The Core's refusal without inputs: checks that every subsidy rule has a version valid on {@code date}.
+     *
+     * @throws de.financetool.knowledge.NoValidRuleParameterException if one has none
+     */
+    void requireSubsidyRules(LocalDate date);
 }

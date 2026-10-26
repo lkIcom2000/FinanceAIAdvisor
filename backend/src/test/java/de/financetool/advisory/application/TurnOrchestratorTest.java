@@ -1039,4 +1039,37 @@ class TurnOrchestratorTest {
         assertThat(body.ruleParameterError()).isTrue();
         assertThat(body.regenerated()).isFalse();
     }
+
+    static final String UJ_5 = "Should I cancel my Riester contract and switch to the new subsidised product next year?";
+
+    @Test
+    void aSubsidyQuestionAboutNextYearEscalatesWithTheNextYearReason() {
+        RequestContext enforcing = with(ComplianceLevel.A_B_C, false);
+        org.mockito.Mockito.doThrow(new NoValidRuleParameterException("No version")).when(tools)
+                .requireSubsidyRules(java.time.LocalDate.of(2027, 1, 1));
+        when(escalations.openForTurn(eq(scope), any())).thenReturn(UUID.randomUUID());
+        ChatMessage asked = new ChatMessage(UUID.randomUUID(), ChatMessage.Author.USER, UJ_5, null, null);
+
+        ChatMessage answer = run(asked, "Switching could make sense.", enforcing, false,
+                nlu("personal_recommendation", "contract_switch", List.of("pension_product"), List.of()));
+
+        assertThat(answer.outcome()).isEqualTo(ResponseOutcome.ESCALATE);
+        assertThat(answer.handover().reason()).isEqualTo(HandoverReason.RULE_NEXT_YEAR_NOT_CONFIRMED.text());
+        org.mockito.Mockito.verify(escalations).openForTurn(eq(scope), any());
+        ResponseAuditBody body = auditBody();
+        assertThat(body.route()).isEqualTo("rule_not_confirmed_next_year");
+        assertThat(body.ruleParameterError()).isTrue();
+    }
+
+    @Test
+    void aSubsidyQuestionAboutThisYearIsNotCheckedForLaterRules() {
+        ChatMessage asked = new ChatMessage(UUID.randomUUID(), ChatMessage.Author.USER,
+                "How does the Riester subsidy work?", null, null);
+
+        ChatMessage answer = run(asked, "It adds allowances.", with(ComplianceLevel.A_B_C, false), false,
+                nlu("general_explanation", "subsidy_eligibility", List.of("pension_product"), List.of()));
+
+        org.mockito.Mockito.verify(tools, org.mockito.Mockito.never()).requireSubsidyRules(any());
+        assertThat(answer.outcome()).isNotEqualTo(ResponseOutcome.ESCALATE);
+    }
 }

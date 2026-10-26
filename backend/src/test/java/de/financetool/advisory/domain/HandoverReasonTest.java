@@ -10,6 +10,10 @@ class HandoverReasonTest {
     @Test
     void onlyTheRuleParameterAndTheNumberRoutesHaveAPlainReasonClass() {
         assertThat(HandoverReason.of("invalid_rule_parameter")).contains(HandoverReason.RULE_NOT_CONFIRMED);
+        assertThat(HandoverReason.of("rule_not_confirmed_next_year"))
+                .contains(HandoverReason.RULE_NEXT_YEAR_NOT_CONFIRMED);
+        assertThat(HandoverReason.RULE_NEXT_YEAR_NOT_CONFIRMED.text())
+                .isEqualTo("because a rule for next year isn't confirmed yet");
         assertThat(HandoverReason.of("number_mismatch_after_regeneration"))
                 .contains(HandoverReason.FIGURES_NOT_CONFIRMED);
         assertThat(HandoverReason.of("block_no_product_naming")).isEmpty();

@@ -108,4 +108,24 @@ class ToolPlanTest {
         assertThat(ToolPlan.problems(spec)).hasSize(3);
         assertThat(ToolPlan.problems(new SimulationSpec("somethingElse", List.of()))).hasSize(1);
     }
+
+    static final java.time.LocalDate AS_OF = java.time.LocalDate.of(2026, 10, 15);
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource(delimiter = '|', nullValues = "-", value = {
+        "contract_switch | Should I switch to the new subsidised product? | 2027-01-01",
+        "contract_switch | Do I get a Riester allowance next year? | 2027-01-01",
+        "other | Bekomme ich nächstes Jahr noch die Riester-Zulage? | 2027-01-01",
+        "subsidy_eligibility | What will the allowance be in 2027? | 2027-01-01",
+        "contract_switch | Soll ich zum Altersvorsorgedepot wechseln? | 2027-01-01",
+        "other | I retire in 2045, does Riester help? | -",
+        "subsidy_eligibility | How does the subsidy work? | -",
+        "subsidy_eligibility | I have had my contract since 2016. | -",
+        "contract_switch | Should I switch my car insurance next year? | -",
+        "other | My Riester contract runs until 2050. | -",
+    })
+    void aSubsidyQuestionAboutALaterYearNamesThatYear(String topic, String message, String expected) {
+        assertThat(ToolPlan.laterSubsidyYear(nlu(topic, Map.of()), message, AS_OF))
+                .isEqualTo(java.util.Optional.ofNullable(expected).map(java.time.LocalDate::parse));
+    }
 }

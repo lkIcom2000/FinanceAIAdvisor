@@ -16,6 +16,8 @@ import de.financetool.core.domain.Investments;
 import de.financetool.core.domain.MonteCarloProjection;
 import de.financetool.core.domain.WealthFigures;
 import de.financetool.core.domain.WithdrawalDuration;
+import de.financetool.core.domain.RiesterSubsidy;
+import de.financetool.knowledge.NoValidRuleParameterException;
 import de.financetool.knowledge.RuleParamPort;
 import de.financetool.knowledge.RuleParameter;
 import de.financetool.shared.RequestContext;
@@ -80,6 +82,50 @@ class CoreGatewayServiceTest {
                 throw new UnsupportedOperationException();
             }
         };
+    }
+
+    /** The Riester rules as in {@code data/rules}: valid to the end of 2026. */
+    static final RuleParamPort SUBSIDY_RULES = port((key, asOf) -> {
+        if (asOf.isAfter(LocalDate.of(2026, 12, 31))) {
+            throw new NoValidRuleParameterException("No version of Rule Parameter " + key + " is valid on " + asOf);
+        }
+        String value = Map.of(RiesterSubsidy.BASIC, "175", RiesterSubsidy.CHILD_NEW, "300", RiesterSubsidy.CHILD_OLD,
+                "185", RiesterSubsidy.RATE, "0.04", RiesterSubsidy.FLOOR, "60", RiesterSubsidy.CAP, "2100").get(key);
+        return new RuleParameter(key, new BigDecimal(value), "EUR", LocalDate.of(2018, 1, 1),
+                LocalDate.of(2026, 12, 31), "test", "2018");
+    });
+
+    @Test
+    void theRiesterSubsidyIsKeyedStoredAndCarriesItsRuleVersions() {
+        List<EvidenceItem> stored = new ArrayList<>();
+        CoreGatewayService gateway = new CoreGatewayService((persona, asOf) -> withHolding(false), stored::addAll,
+                SUBSIDY_RULES, Optional::empty);
+
+        de.financetool.core.domain.CoreResult result = gateway.riesterSubsidy(TestContexts.context(),
+                EvidenceOrigin.TURN, new BigDecimal("24000"), List.of(2010, 2014));
+
+        assertThat(result.number(RiesterSubsidy.TOTAL_ALLOWANCES).value()).isEqualByComparingTo("775");
+        assertThat(result.number(RiesterSubsidy.MIN_OWN_CONTRIBUTION).provId()).matches("[0-9a-f]{16}");
+        assertThat(result.ruleParamVersions()).containsEntry(RiesterSubsidy.BASIC, "2018").hasSize(6);
+        assertThat(stored).hasSize(result.numbers().size());
+        assertThat(((Provenance) stored.getFirst().content()).ruleParameters())
+                .contains(new Provenance.RuleParameter(RiesterSubsidy.BASIC, "2018", LocalDate.of(2018, 1, 1),
+                        LocalDate.of(2026, 12, 31)));
+    }
+
+    @Test
+    void theRiesterSubsidyIsRefusedForAYearWithoutConfirmedRules() {
+        List<EvidenceItem> stored = new ArrayList<>();
+        CoreGatewayService gateway = new CoreGatewayService((persona, asOf) -> withHolding(false), stored::addAll,
+                SUBSIDY_RULES, Optional::empty);
+        de.financetool.shared.RequestContext nextYear = TestContexts.context(TestContexts.LENA, LocalDate.of(2027, 1, 1));
+
+        assertThatThrownBy(() -> gateway.riesterSubsidy(nextYear, EvidenceOrigin.TURN, new BigDecimal("24000"),
+                List.of())).isInstanceOf(NoValidRuleParameterException.class);
+        assertThatThrownBy(() -> gateway.requireSubsidyRules(LocalDate.of(2027, 1, 1)))
+                .isInstanceOf(NoValidRuleParameterException.class);
+        gateway.requireSubsidyRules(TestContexts.AS_OF);
+        assertThat(stored).isEmpty();
     }
 
     static BankSnapshot withHolding(boolean holding) {

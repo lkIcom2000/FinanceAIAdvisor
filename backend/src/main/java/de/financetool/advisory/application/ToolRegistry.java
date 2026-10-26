@@ -7,6 +7,7 @@ import de.financetool.core.domain.CoreResult;
 import de.financetool.shared.RequestContext;
 import de.financetool.shared.domain.SimulationSpec;
 import de.financetool.shared.domain.SourcedNumber;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -35,6 +36,15 @@ public class ToolRegistry {
     public Optional<SourcedNumber> accountPortfolio(RequestContext context) {
         return core.investmentTotals(context, EvidenceOrigin.TURN)
                 .map(totals -> totals.number(CoreGateway.INVESTMENTS_TODAY));
+    }
+
+    /**
+     * Checks that the Core has subsidy rules valid on {@code date}, without computing.
+     *
+     * @throws de.financetool.knowledge.NoValidRuleParameterException if it has none
+     */
+    public void requireSubsidyRules(LocalDate date) {
+        core.requireSubsidyRules(date);
     }
 
     /**

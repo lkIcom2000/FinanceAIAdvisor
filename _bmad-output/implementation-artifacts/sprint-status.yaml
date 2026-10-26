@@ -48,7 +48,7 @@ project_key: NOKEY
 tracking_system: file-system
 story_location: _bmad-output/implementation-artifacts
 development_status:
-  epic-1: in-progress  # [critical-path]
+  epic-1: done  # [critical-path]
   1-1-project-scaffold-with-enforced-architecture-guardrails: done  # start 2026-10-21T14:03+02:00, end 2026-10-21T14:20+02:00 (17 min); no code review (not safety-critical)
   1-2-one-image-one-compose-file-fine-runs-locally: done  # start 2026-10-21T14:23+02:00, end 2026-10-21T14:32+02:00 (9 min); compose up verified 2026-10-21 18:05
   1-3-log-in-as-a-persona-an-advisor-or-a-researcher: done  # [code-review] persona isolation; start 2026-10-21T14:39+02:00, end 2026-10-21T14:57+02:00; Testcontainers tests + bmad-code-review done 2026-10-21
@@ -80,8 +80,8 @@ development_status:
   # >>> CHECKPOINT (after Epic 3): measure velocity (actual days per story), project the
   # >>> UAT date; if too late, activate the reserve list (scope proposal §6) in order.
 
-  epic-4: backlog  # [critical-path]
-  4-1-versioned-rule-parameters-and-the-subsidy-calculator: backlog
+  epic-4: in-progress  # [critical-path]
+  4-1-versioned-rule-parameters-and-the-subsidy-calculator: done
   4-2-knowledge-base-ingest-with-a-pinned-snapshot: backlog  # [depends-on E1] check E1 result first; reserve item 2: minimal/off if RAG does not win
   4-3-explanations-with-cited-valid-sources: backlog  # [depends-on E1] check E1 result first; reserve item 2
   epic-4-retrospective: optional

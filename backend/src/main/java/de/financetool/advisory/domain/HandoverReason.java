@@ -9,6 +9,7 @@ import java.util.Optional;
 public enum HandoverReason {
 
     RULE_NOT_CONFIRMED("because a rule this answer depends on isn't confirmed yet"),
+    RULE_NEXT_YEAR_NOT_CONFIRMED("because a rule for next year isn't confirmed yet"),
     FIGURES_NOT_CONFIRMED("because I couldn't confirm every figure in my answer");
 
     private final String text;
@@ -26,6 +27,7 @@ public enum HandoverReason {
     public static Optional<HandoverReason> of(String route) {
         return switch (route) {
             case "invalid_rule_parameter" -> Optional.of(RULE_NOT_CONFIRMED);
+            case "rule_not_confirmed_next_year" -> Optional.of(RULE_NEXT_YEAR_NOT_CONFIRMED);
             case "number_mismatch_after_regeneration" -> Optional.of(FIGURES_NOT_CONFIRMED);
             default -> Optional.empty();
         };

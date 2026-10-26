@@ -65,3 +65,93 @@ parameters:
     valid_to: null
     source: "Design parameter (Story 2.4): default horizon of the goal projection"
     version: "1"
+
+  # --- Riester subsidy (Story 4.1). Values from experiments/data/rules/rule_parameters.yaml; valid to the end of 2026
+  # because the reform announced from 2027 is not confirmed yet (data/rules/README.md). A question about 2027 or the
+  # new subsidised product finds no valid version and escalates (UJ-5).
+  - key: riester_basic_allowance
+    value: 175
+    unit: EUR
+    valid_from: 2018-01-01
+    valid_to: 2026-12-31
+    source: "§ 84 EStG (Grundzulage)"
+    version: "2018"
+  - key: riester_child_allowance_born_2008_or_later
+    value: 300
+    unit: EUR
+    valid_from: 2008-01-01
+    valid_to: 2026-12-31
+    source: "§ 85 Abs. 1 EStG (Kinderzulage)"
+    version: "2008"
+  - key: riester_child_allowance_born_before_2008
+    value: 185
+    unit: EUR
+    valid_from: 2008-01-01
+    valid_to: 2026-12-31
+    source: "§ 85 Abs. 1 EStG (Kinderzulage)"
+    version: "2008"
+  - key: riester_min_contribution_rate
+    value: 0.04
+    unit: FRACTION
+    valid_from: 2008-01-01
+    valid_to: 2026-12-31
+    source: "§ 86 Abs. 1 EStG (Mindesteigenbeitrag, share of prior-year income)"
+    version: "2008"
+  - key: riester_min_contribution_floor
+    value: 60
+    unit: EUR
+    valid_from: 2005-01-01
+    valid_to: 2026-12-31
+    source: "§ 86 Abs. 1 EStG (Sockelbetrag)"
+    version: "2005"
+  - key: riester_special_expense_cap
+    value: 2100
+    unit: EUR
+    valid_from: 2008-01-01
+    valid_to: 2026-12-31
+    source: "§ 10a Abs. 1 EStG (Sonderausgabenabzug)"
+    version: "2008"
+
+  # --- ECB key interest rates (Story 4.1), as fractions. Each decision adds a version and closes the previous one.
+  - key: ecb_deposit_facility_rate
+    value: 0.0225
+    unit: FRACTION
+    valid_from: 2025-04-23
+    valid_to: 2025-06-10
+    source: "ECB monetary policy decision of 17 April 2025"
+    version: "2025-04-23"
+  - key: ecb_deposit_facility_rate
+    value: 0.02
+    unit: FRACTION
+    valid_from: 2025-06-11
+    valid_to: null
+    source: "ECB monetary policy decision of 5 June 2025"
+    version: "2025-06-11"
+  - key: ecb_main_refinancing_rate
+    value: 0.024
+    unit: FRACTION
+    valid_from: 2025-04-23
+    valid_to: 2025-06-10
+    source: "ECB monetary policy decision of 17 April 2025"
+    version: "2025-04-23"
+  - key: ecb_main_refinancing_rate
+    value: 0.0215
+    unit: FRACTION
+    valid_from: 2025-06-11
+    valid_to: null
+    source: "ECB monetary policy decision of 5 June 2025"
+    version: "2025-06-11"
+  - key: ecb_marginal_lending_rate
+    value: 0.0265
+    unit: FRACTION
+    valid_from: 2025-04-23
+    valid_to: 2025-06-10
+    source: "ECB monetary policy decision of 17 April 2025"
+    version: "2025-04-23"
+  - key: ecb_marginal_lending_rate
+    value: 0.024
+    unit: FRACTION
+    valid_from: 2025-06-11
+    valid_to: null
+    source: "ECB monetary policy decision of 5 June 2025"
+    version: "2025-06-11"

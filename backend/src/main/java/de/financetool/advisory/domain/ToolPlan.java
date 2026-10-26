@@ -5,11 +5,13 @@ import de.financetool.shared.domain.SourcedNumber;
 import de.financetool.shared.domain.Unit;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -57,6 +59,16 @@ public final class ToolPlan {
     static final Pattern OWN_SAVINGS = Pattern.compile(
             "\\bmy (savings|portfolio|investments?|capital|assets|money)\\b", Pattern.CASE_INSENSITIVE);
 
+    private static final int FLAGS_CI = Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CHARACTER_CLASS;
+    /** Subsidy wording in English and German. */
+    static final Pattern SUBSIDY = Pattern.compile("\\b(riester\\w*|subsid\\w*|altersvorsorgedepot\\w*|zulage\\w*|förder\\w*|gefördert\\w*)",
+            FLAGS_CI);
+    /** The message asks about the next year, or about the new subsidised product (it starts with the reform in 2027). */
+    static final Pattern NEXT_YEAR = Pattern.compile("\\b(next year|coming year|following year|(nächst|kommend)\\w* jahr\\w*"
+            + "|new subsidi[sz]ed|neu\\w* gefördert\\w*|altersvorsorgedepot\\w*)", FLAGS_CI);
+    /** The next year named as a number ("in 2027", "ab 2027"); a later year is a horizon, not an ask. */
+    static final Pattern NAMED_YEAR = Pattern.compile("\\b(in|for|from|by|ab|für|im|bis)\\s+(20\\d\\d)\\b", FLAGS_CI);
+
     /**
      * A planned calculation before account data is read.
      *
@@ -101,6 +113,27 @@ public final class ToolPlan {
         }
         return Optional.of(new Planned(Tool.WITHDRAWAL_DURATION,
                 Map.of(MONTHLY_WITHDRAWAL, monthly, ANNUAL_RATE, rate), true));
+    }
+
+    /**
+     * The first day of a later year a subsidy question asks about, whose subsidy rules the Core must have before Fine
+     * may answer (UJ-5): the topic is {@code subsidy_eligibility} or the message uses subsidy wording, and it names
+     * the next year (in words or as a number) or the new subsidised product. Empty otherwise.
+     */
+    public static Optional<LocalDate> laterSubsidyYear(NluExtraction extraction, String message, LocalDate asOf) {
+        if (!extraction.topic().equals("subsidy_eligibility") && !SUBSIDY.matcher(message).find()) {
+            return Optional.empty();
+        }
+        int year = asOf.getYear();
+        int later = NEXT_YEAR.matcher(message).find() ? year + 1 : Integer.MAX_VALUE;
+        Matcher named = NAMED_YEAR.matcher(message);
+        while (named.find()) {
+            int value = Integer.parseInt(named.group(2));
+            if (value == year + 1) {
+                later = value;
+            }
+        }
+        return later == Integer.MAX_VALUE ? Optional.empty() : Optional.of(LocalDate.of(later, 1, 1));
     }
 
     /**

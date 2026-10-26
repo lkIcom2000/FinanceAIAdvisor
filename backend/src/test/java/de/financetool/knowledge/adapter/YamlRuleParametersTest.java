@@ -3,6 +3,7 @@ package de.financetool.knowledge.adapter;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import de.financetool.knowledge.NoValidRuleParameterException;
 import de.financetool.knowledge.RuleParameter;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -77,6 +78,35 @@ class YamlRuleParametersTest {
                 """);
         assertThatThrownBy(() -> new YamlRuleParameters(missing)).isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("invalid Rule Parameter k");
+    }
+
+    @Test
+    void theSubsidyRulesEndWithTheYearAndTheEcbRatesAreVersioned() {
+        YamlRuleParameters parameters = new YamlRuleParameters(FILE);
+
+        RuleParameter basic = parameters.valid("riester_basic_allowance", AS_OF);
+        assertThat(basic.value()).isEqualByComparingTo("175");
+        assertThat(basic.validTo()).isEqualTo(LocalDate.of(2026, 12, 31));
+        assertThatThrownBy(() -> parameters.valid("riester_basic_allowance", LocalDate.of(2027, 1, 1)))
+                .isInstanceOf(NoValidRuleParameterException.class);
+        de.financetool.core.domain.RiesterSubsidy.PARAMETERS
+                .forEach(key -> assertThat(parameters.valid(key, AS_OF).validTo()).hasYear(2026));
+        assertThat(parameters.valid("ecb_deposit_facility_rate", AS_OF).value()).isEqualByComparingTo("0.02");
+        assertThat(parameters.valid("ecb_deposit_facility_rate", LocalDate.of(2025, 5, 1)).version())
+                .isEqualTo("2025-04-23");
+        assertThat(parameters.valid("ecb_main_refinancing_rate", AS_OF).value()).isEqualByComparingTo("0.0215");
+        assertThat(parameters.valid("ecb_marginal_lending_rate", AS_OF).value()).isEqualByComparingTo("0.024");
+    }
+
+    @Test
+    void aVersionThatAppearsTwiceStopsLoading(@TempDir Path dir) throws IOException {
+        Path edited = write(dir, """
+                parameters:
+                  - {key: k, value: 1, unit: COUNT, valid_from: 2020-01-01, valid_to: 2020-12-31, source: s, version: "1"}
+                  - {key: k, value: 2, unit: COUNT, valid_from: 2021-01-01, valid_to: null, source: s, version: "1"}
+                """);
+        assertThatThrownBy(() -> new YamlRuleParameters(edited)).isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("appears twice");
     }
 
     private static Path write(Path dir, String yaml) throws IOException {

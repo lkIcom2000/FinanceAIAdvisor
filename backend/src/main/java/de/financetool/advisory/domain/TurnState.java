@@ -77,11 +77,22 @@ public record TurnState(
      * @param proposal whether the turn releases a parameter proposal instead of calculating (AD-24)
      * @param results the Core results of the tools run, in run order (none for a proposal)
      * @param ruleParameterError whether a tool needed a Rule Parameter without a version valid at the as-of date
+     * @param ruleForLaterYear whether the invalid Rule Parameter is one for a later year the message asks about
      */
     public record Tools(ToolPlan.Planned planned, SourcedNumber accountPortfolio, SimulationSpec spec,
-            boolean proposal, List<CoreResult> results, boolean ruleParameterError) {
+            boolean proposal, List<CoreResult> results, boolean ruleParameterError, boolean ruleForLaterYear) {
 
         public static final Tools NONE = new Tools(null, null, null, false, List.of(), false);
+
+        public Tools(ToolPlan.Planned planned, SourcedNumber accountPortfolio, SimulationSpec spec,
+                boolean proposal, List<CoreResult> results, boolean ruleParameterError) {
+            this(planned, accountPortfolio, spec, proposal, results, ruleParameterError, false);
+        }
+
+        /** No calculation: the subsidy rules for the later year the message asks about are not valid. */
+        public static Tools laterYearRuleMissing() {
+            return new Tools(null, null, null, false, List.of(), true, true);
+        }
 
         public Tools {
             results = List.copyOf(results);

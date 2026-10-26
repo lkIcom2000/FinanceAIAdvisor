@@ -46,10 +46,19 @@ public final class BlockRouting {
      * @param ruleParameterError whether a Rule Parameter needed by the turn is not valid (false until Story 3.7)
      */
     public static Route route(List<CheckResult> failed, Classification classification, boolean ruleParameterError) {
+        return route(failed, classification, ruleParameterError, false);
+    }
+
+    /**
+     * @param ruleForLaterYear whether the invalid Rule Parameter is one for a later year the message asks about
+     */
+    public static Route route(List<CheckResult> failed, Classification classification, boolean ruleParameterError,
+            boolean ruleForLaterYear) {
         List<CheckId> fired = failed.stream().map(CheckResult::checkId).distinct().sorted().toList();
         if (ruleParameterError) {
-            return new Route(ResponseOutcome.ESCALATE, "invalid_rule_parameter", ResponseTemplates.ESCALATE, fired,
-                    false);
+            return new Route(ResponseOutcome.ESCALATE,
+                    ruleForLaterYear ? "rule_not_confirmed_next_year" : "invalid_rule_parameter",
+                    ResponseTemplates.ESCALATE, fired, false);
         }
         if (failed.isEmpty()) {
             return new Route(null, RELEASED, null, List.of(), false);
