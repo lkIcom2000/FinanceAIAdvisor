@@ -35,28 +35,38 @@ public final class ResponseTemplates {
 
     /** The callout of a trap whose only unverified premise is a guarantee without a name. */
     static final String GUARANTEE_CALLOUT = "I couldn't confirm the guarantee your question assumes.";
+    /** The callout when no premise can be named in the message's own words. */
+    static final String ASSUMPTION_CALLOUT = "I couldn't confirm something your question assumes.";
 
     private ResponseTemplates() {
     }
 
     /**
      * The premise callout of a {@code DETECT_TRAP} card: one sentence naming the unverified premises in the message's
-     * own words (named entities, described laws), never details about them.
+     * own words (named entities, described laws that occur in the message), never details about them.
+     *
+     * @param message the user's message; a name the NLU proposed that is not in it is not quoted
      */
-    public static String premiseCallout(List<Premise> unverified) {
+    public static String premiseCallout(List<Premise> unverified, String message) {
+        String low = message == null ? "" : message.toLowerCase(java.util.Locale.ROOT);
         List<String> parts = new java.util.ArrayList<>();
         for (Premise p : unverified) {
-            String part = p.kind().equals(Premise.DESCRIBED_LAW)
-                    ? "a law or regulation on " + p.description().strip()
-                    : p.namedEntity().isBlank() ? "" : "\"" + p.namedEntity().strip() + "\"";
-            if (!part.isEmpty() && !parts.contains(part)) {
+            String words = p.kind().equals(Premise.DESCRIBED_LAW)
+                    ? (p.description() == null ? "" : p.description().strip()) : p.namedEntity().strip();
+            if (words.isEmpty() || !low.contains(words.toLowerCase(java.util.Locale.ROOT))) {
+                continue;
+            }
+            String part = p.kind().equals(Premise.DESCRIBED_LAW) ? "a law or regulation on " + words
+                    : "\"" + words + "\"";
+            if (!parts.contains(part)) {
                 parts.add(part);
             }
         }
-        if (parts.isEmpty()) {
-            return GUARANTEE_CALLOUT;
+        if (!parts.isEmpty()) {
+            return "I couldn't confirm that " + String.join(" or ", parts) + " exists.";
         }
-        return "I couldn't confirm that " + String.join(" or ", parts) + " exists.";
+        return unverified.stream().anyMatch(p -> p.kind().equals(Premise.GUARANTEE)) ? GUARANTEE_CALLOUT
+                : ASSUMPTION_CALLOUT;
     }
 
     /** The refusal for the out-of-scope categories ({@code ", ".join(oos).replace("_", " ") or "these products"}). */

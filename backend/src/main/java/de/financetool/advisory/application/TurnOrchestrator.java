@@ -444,7 +444,8 @@ public class TurnOrchestrator {
                 released.suggestions(), shownChecks, null,
                 proposal ? new ChatMessage.Proposal(turnTools.spec(), ChatMessage.Proposal.Status.OPEN) : null,
                 figures, released.outcome() == ResponseOutcome.DETECT_TRAP
-                        ? ResponseTemplates.premiseCallout(released.classification().unverifiedPremises()) : null);
+                        ? ResponseTemplates.premiseCallout(released.classification().unverifiedPremises(),
+                                released.userText()) : null);
         UUID conversation = chats.conversation(scope);
         chats.insert(scope, conversation, answer);
         if (proposal) {

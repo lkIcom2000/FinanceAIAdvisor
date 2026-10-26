@@ -74,7 +74,7 @@ development_status:
   3-5-hand-over-to-a-human-advisor-when-the-answer-is-blocked: done
   3-6-numbers-only-from-the-deterministic-core-the-number-check: done  # [code-review] Number Check
   3-7-calculated-answers-with-parameter-proposal-and-figure-chips: done
-  3-8-transparent-refusals-trap-detection-and-injection-resistance: backlog  # [code-review] injection resistance (Epic 1 A6, Commc 2026-10-22)
+  3-8-transparent-refusals-trap-detection-and-injection-resistance: done  # [code-review] injection resistance (Epic 1 A6, Commc 2026-10-22); end 2026-10-26; 4-layer review, 7 fixes
   3-9-block-only-judge-under-a-b-c: backlog  # [depends-on E3] check E3 result first; reserve item 1: only if E3 selects A+B+C
   epic-3-retrospective: optional
   # >>> CHECKPOINT (after Epic 3): measure velocity (actual days per story), project the

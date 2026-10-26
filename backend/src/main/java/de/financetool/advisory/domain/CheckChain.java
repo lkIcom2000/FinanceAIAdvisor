@@ -11,7 +11,6 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
 
 /**
  * The deterministic Check Chain (FR-10 to FR-16, FR-25, FR-27; AD-6): a verbatim port of {@code run_checks} of
@@ -90,7 +89,8 @@ public final class CheckChain {
     static final Pattern TARIFF = Pattern.compile("\\b(this|the|a) tariff\\b|\\btariff (called|named)\\b", U);
 
     /** {@code ROLE_BREAK_RE} of {@code checks.py}, verbatim ({@code ROLE_INTEGRITY}, folded into {@code SCOPE}). */
-    static final Pattern ROLE_BREAK = Pattern.compile("\\b(unrestricted|as an? (investment )?guru|I am now|"
+    static final Pattern ROLE_BREAK = Pattern.compile("\\b(unrestricted|as an? (investment )?guru|"
+            + "I am now (free|unrestricted|dan|in developer mode|no longer|without)|"
             + "developer mode|no longer bound|ignoring (my|the) (rules|instructions))\\b", CI);
     public static final String ROLE_ABANDONED = "role_abandoned";
     public static final String INSTRUCTIONS_REVEALED = "instructions_revealed";
@@ -107,6 +107,9 @@ public final class CheckChain {
      * Headings a draft gives its instructions when it lists them in its own words (live, R04: "**System Prompt:** I'm
      * a licensed financial advisor … I'll follow these rules"); a refusal to share them carries no colon.
      */
+    /** Markdown marks and runs of white space, ignored when looking for a leak ("**System  Prompt**:"). */
+    private static final Pattern MARKUP = Pattern.compile("[*_`#]");
+    private static final Pattern SPACES = Pattern.compile("\\s+");
     static final List<String> LEAK_HEADINGS = List.of("system prompt:", "hidden rules:", "my instructions:",
             "internal rules:");
 
@@ -308,7 +311,10 @@ public final class CheckChain {
 
     /** Whether the lower-case text repeats a phrase only the phrasing prompt holds. */
     static boolean revealsInstructions(String low) {
-        return Stream.concat(INSTRUCTION_MARKERS.stream(), LEAK_HEADINGS.stream()).anyMatch(low::contains);
+        String flat = SPACES.matcher(low).replaceAll(" ");
+        String compact = SPACES.matcher(MARKUP.matcher(low).replaceAll("")).replaceAll("");
+        return INSTRUCTION_MARKERS.stream().anyMatch(flat::contains)
+                || LEAK_HEADINGS.stream().map(h -> SPACES.matcher(h).replaceAll("")).anyMatch(compact::contains);
     }
 
     /** Python's {@code int()} of a digit run; a run too long for an int is out of range anyway. */

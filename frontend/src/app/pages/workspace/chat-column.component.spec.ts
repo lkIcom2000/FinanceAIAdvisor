@@ -313,9 +313,13 @@ describe('ChatColumnComponent', () => {
       'Look at my emergency fund',
       'Help me set a savings goal',
     ]);
-    expect(element.querySelector('.check-footer')).toBeNull();
-    expect(text(element.querySelector('.no-figures-footer'))).toBe('No personal figures used');
+    const footer = element.querySelector('.response .check-footer') as HTMLButtonElement;
+    expect(text(footer)).toBe('No personal figures used');
+    expect(element.querySelector('.no-figures-footer')).toBeNull();
     expect(element.querySelector('.premise')).toBeNull();
+    footer.click();
+    fixture.detectChanges();
+    expect(text(document.querySelector('app-why-dialog h2'))).toBe('How this answer was checked');
   });
 
   it('shows a trap with its premise callout before the body, then the chip, without a warning', () => {

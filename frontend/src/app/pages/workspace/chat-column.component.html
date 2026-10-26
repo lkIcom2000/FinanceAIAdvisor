@@ -173,7 +173,13 @@
           </div>
         }
         @if (usesNoFigures(m)) {
-          <p class="no-figures-footer">No personal figures used</p>
+          @if (m.checks.length) {
+            <button type="button" class="check-footer" (click)="openChecks(m)">
+              No personal figures used
+            </button>
+          } @else {
+            <p class="no-figures-footer">No personal figures used</p>
+          }
         } @else if (m.checks.length) {
           <button type="button" class="check-footer" (click)="openChecks(m)">
             {{ checkFooter(m) }}

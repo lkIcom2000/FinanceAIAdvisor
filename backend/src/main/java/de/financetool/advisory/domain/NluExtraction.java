@@ -58,9 +58,11 @@ public record NluExtraction(
     /** Legal-assessment wording near a document word adds {@link Classifier#LEGAL_ASSESSMENT}. */
     private static final String LEGAL = "(legal(ly)?|lawful|unlawful|enforceable|rechtlich\\w*|rechtens"
             + "|rechtswirksam\\w*|unwirksam\\w*)";
-    private static final String DOCUMENT = "(letters?|contracts?|clauses?|notices?|termination|brief\\w*"
-            + "|vertr(a|ä)g\\w*|klausel\\w*|kündigung\\w*|schreiben)";
+    private static final String DOCUMENT = "(letters?|contracts?|clauses?|termination|vertr(a|ä)g\\w*|klausel\\w*"
+            + "|kündigung\\w*)";
     private static final int FLAGS_CI = Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CHARACTER_CLASS;
+    /** A legal assessment counts only for the user's own or a shown document ("my contract", "this letter"). */
+    static final Pattern OWN_DOCUMENT = Pattern.compile("\\b(my|our|this|mein\\w*|unser\\w*|dies\\w*)\\b", FLAGS_CI);
 
     /**
      * An out-of-scope category counts only if the message contains matching wording. Deviation from {@code nlu.py}:
@@ -95,7 +97,7 @@ public record NluExtraction(
             "crypto", "\\b(crypto\\w*|bitcoin|ether(eum)?|altcoins?|stablecoins?|nfts?|krypto\\w*)\\b",
             "forex_or_cfd", "\\b(forex|cfds?|devisenhandel)\\b",
             "building_society_savings", "\\b(building society|bauspar\\w*)\\b",
-            "insurance_tariff_selection", "\\btarif(?!f)\\w*",
+            "insurance_tariff_selection", "\\btarif(?!f|vertr|lich|runde|lohn|partner|verhandl)\\w*",
             Classifier.LEGAL_ASSESSMENT, "\\b" + LEGAL + "\\b[^.?!]{0,60}\\b" + DOCUMENT + "\\b|\\b" + DOCUMENT
                     + "\\b[^.?!]{0,60}\\b" + LEGAL + "\\b");
 
@@ -204,7 +206,8 @@ public record NluExtraction(
             }
         }
         SCOPE_STRONG.forEach((c, rx) -> {
-            if (!cats.contains(c) && rx.matcher(low).find()) {
+            boolean own = !c.equals(Classifier.LEGAL_ASSESSMENT) || OWN_DOCUMENT.matcher(message).find();
+            if (!cats.contains(c) && own && rx.matcher(low).find()) {
                 cats.add(c);
                 notes.add("added category '" + c + "' from the message wording");
             }
