@@ -240,8 +240,8 @@ From the Architecture Spine (no starter template is prescribed; Story 1.1 scaffo
 | FR-20 | Epic 2, 3, 4, 6, 7 | 2.3, 2.4, 2.5, 3.7, 4.1, 6.3, 7.1 | Core functions (allocation drift removed) |
 | FR-21 | Epic 2, Epic 7 | 2.3, 2.4, 7.1 | Explicit assumptions, ranges |
 | FR-22 | Epic 4 | 4.1 | Versioned Rule Parameters, invalid → Escalation |
-| FR-23 | Epic 4 | 4.2, 4.3 | Versioned, cited KB documents |
-| FR-24 | Epic 4 | 4.3 | Switchable retrieval |
+| FR-23 | Epic 4 | 4.2, 4.3 | Versioned, cited KB documents (not active: reserve item 2, 4.2/4.3 not built) |
+| FR-24 | Epic 4 | 3.3, 4.3 | Switchable retrieval (the `retrieval` flag; with no KB, on gives the no-valid-source answer) |
 | FR-25 | Epic 3 | 3.4 | Rule Engine approval, Shadow Mode |
 | FR-26 | Epic 3 | 3.9 | Block-only Judge |
 | FR-27 | Epic 6 | 6.3 | No commission incentive |
@@ -917,6 +917,8 @@ So that I am never given a figure based on an outdated or unconfirmed rule.
 
 ### Story 4.2: Knowledge Base ingest with a pinned snapshot
 
+*Not built: E1 selected `e1-llama3` without retrieval; reserve list item 2 activated (Commc, 2026-10-26).*
+
 As the researcher,
 I want the KB to be ingested from versioned files with one pinned embedding model,
 So that retrieval always matches the files and the snapshot is traceable.
@@ -938,6 +940,8 @@ So that retrieval always matches the files and the snapshot is traceable.
 **Then** `data/kb/` holds the first curated corpus (regulation, products, taxes, subsidies) with validity dates and its reference date is recorded
 
 ### Story 4.3: Explanations with cited, valid sources
+
+*Not built: E1 selected `e1-llama3` without retrieval; reserve list item 2 activated (Commc, 2026-10-26).*
 
 As a persona,
 I want Fine's general explanations to cite their sources with validity dates,

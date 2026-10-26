@@ -7,8 +7,8 @@ Fine explains finance topics with cited, dated sources and computes subsidies fr
 ## Stories
 
 - Story 4.1: Versioned Rule Parameters and the Subsidy Calculator
-- Story 4.2: Knowledge Base ingest with a pinned snapshot (check the E1 result first; reserve item 2: minimal/off if RAG does not win)
-- Story 4.3: Explanations with cited, valid sources (check E1 first)
+- Story 4.2: Knowledge Base ingest with a pinned snapshot: not built (reserve item 2, off; Commc 2026-10-26)
+- Story 4.3: Explanations with cited, valid sources: not built (reserve item 2, off)
 
 ## Requirements & Constraints
 

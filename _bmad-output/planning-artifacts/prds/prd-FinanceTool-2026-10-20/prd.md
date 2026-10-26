@@ -233,11 +233,14 @@ Rule Parameters have validity dates. The Deterministic Core refuses to compute w
 **Description:** A curated, versioned retrieval corpus for explanations (regulation, products, taxes, subsidies). It explains but does not compute. Realizes UJ-5, UJ-6.
 
 #### FR-23: Versioned, cited documents
+*Not active, justified by E1 (2026-10-23: `e1-llama3` without retrieval won; reserve list item 2, see §11). No Knowledge Base is built.*
+
 Every Knowledge Base document has a source, a version and a validity period. Retrieved passages are cited in responses with their source and validity date.
 - Expired documents are excluded from retrieval for current-date questions.
 
 #### FR-24: Switchable retrieval
 Retrieval can be switched on or off per Agent Configuration.
+- With no Knowledge Base built (reserve list item 2), retrieval on finds no valid source, so `INFORM` answers use the no-valid-source answer (FR-13).
 
 ### 4.7 Compliance Check Chain
 
@@ -600,7 +603,7 @@ Synthetic English letters from a seeded generator with Ground Truth. The set has
 1. *(Experiment Track)* How is SM-9 scored automatically without biasing the comparison, given that the Judge is itself an LLM? One option is to use a different model family for scoring than any model under test.
 2. What are the concrete Autonomy Gate thresholds (amount relative to wealth, data-confidence cut-off)? They are a design parameter, to be set empirically.
 3. Recruiting for the user acceptance test: how close to the C-class profile can participants realistically be?
-4. Which Rule Parameters and Knowledge Base sources does the first corpus contain, and as of which reference date?
+4. Which Rule Parameters and Knowledge Base sources does the first corpus contain, and as of which reference date? *(Rule Parameters: `data/rules/README.md`. Knowledge Base: none, reserve list item 2.)*
 5. Which acceptance criteria and instruments does the user acceptance test use (e.g. SUS, a trust scale, a comprehension score per Recommendation)?
 6. Which requirements from the DSR relevance and rigor cycles are added to the verification matrix beyond the FRs and §5?
 
@@ -635,6 +638,7 @@ All draft assumptions were confirmed by the author on 2026-10-20:
 - 2026-10-20 (Correct Course): the evaluation is split into an Experiment Track (Colab, independent of the application) and an Artifact Evaluation (requirement verification plus user acceptance test). The platform is Java Spring Boot and Angular, deployed locally and on Azure. See `../../sprint-change-proposal-2026-10-20.md`.
 - 2026-10-21 (Correct Course): the Letter & Contract Assistant is added (UJ-7, §4.14, FR-53 to FR-61, SM-10, §8.7). Letters are in English. The user acceptance test includes a planted-error task with prior notice and debriefing. See `../../sprint-change-proposal-2026-10-21.md`.
 - 2026-10-26 (E2–E4 results, decision Commc): Reference Configuration is advisor role prompt, `A+B`, exposure `none` (`experiments/results/agent_config_derived.yaml`). Reserve list item 1 activated: FR-26 is not active, justified by E3; Story 3.9 is not built, under `A+B+C` the application records the Judge as not implemented and otherwise runs like `A+B`.
+- 2026-10-26 (decision Commc): reserve list item 2 activated, retrieval and Knowledge Base off. E1 showed retrieval lowered behavior accuracy (0.69 vs 0.77) and answer quality (3.2 vs 3.7) and doubled hallucinations (4 vs 2). Stories 4.2 and 4.3 are not built and FR-23 is not active. FR-24 remains: with retrieval on, `INFORM` gets the no-valid-source answer.
 - 2026-10-23 (E1 result, decision Commc): FR-13 applies its source rule when retrieval is on; with retrieval off (E1 winner) `INFORM` answers are checked general explanations.
 - 2026-10-21 (Correct Course, scope reduction): FR-19 and FR-34 removed; FR-5, FR-18, FR-30, FR-37, FR-42, FR-43 and FR-59 reduced; Azure deferred; the user test runs in person. See `../../sprint-change-proposal-2026-10-21-scope.md`.
 - 2026-10-21: an ECB key-rate change is a Rule Parameter change and triggers an informative Notification (FR-30, Scenario S19). It never triggers a buy or sell Recommendation.
