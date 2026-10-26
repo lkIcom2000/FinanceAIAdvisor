@@ -6,7 +6,8 @@
 - Stories 4.2/4.3 not built: E1 winner `e1-llama3` has retrieval off; reserve item 2 (off) activated by Commc 2026-10-26 (PRD §11, FR-23 not active, epics.md, sprint-status). No code change: with `retrieval: true` and no KB, `INFORM` gets the 3.3 no-valid-source template.
 - Epic-end compose check done 2026-10-26: image rebuilt, `research` profile (researcher login 200, export 200), back to `default` (login 401, export 404, frontend 200). Live at the reference config: UJ-5 question (Lena) → `ESCALATE`, reason "a rule for next year isn't confirmed yet"; "How does the Riester subsidy work this year?" → `INFORM`, no handover, no figures invented.
 - Seam reviewer (retro A8) not needed: Epic 4 main code is Story 4.1 only, already reviewed.
-- Next: `bmad-retrospective` for Epic 4, then set `epic-4: done`.
+- Epic 4 closed 2026-10-26 without its own retro (Commc): the next epic retro held (5 or 6) also covers Epic 4, using this note, spec 4.1 and commits `f9ac702..a651b88`.
+- Next: the next epic (Epic 6 is the next on the critical path; Epic 5 is non-blocking).
 
 ## Checklist per story (lean loop, memory build-loop-economy)
 

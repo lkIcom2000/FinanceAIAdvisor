@@ -80,11 +80,11 @@ development_status:
   # >>> CHECKPOINT (after Epic 3): measure velocity (actual days per story), project the
   # >>> UAT date; if too late, activate the reserve list (scope proposal §6) in order.
 
-  epic-4: in-progress  # [critical-path]
+  epic-4: done  # [critical-path] closed 2026-10-26: 4.1 done, 4.2/4.3 not built (reserve item 2); compose check passed
   4-1-versioned-rule-parameters-and-the-subsidy-calculator: done
   4-2-knowledge-base-ingest-with-a-pinned-snapshot: backlog  # NOT BUILT: E1 selected e1-llama3 without retrieval; reserve item 2 (off) activated by Commc 2026-10-26, FR-23 not active
   4-3-explanations-with-cited-valid-sources: backlog  # NOT BUILT: reserve item 2 (off), Commc 2026-10-26; retrieval on gives the no-valid-source answer (3.3)
-  epic-4-retrospective: optional
+  epic-4-retrospective: optional  # folded into the next epic retro held (Commc 2026-10-26); inputs in epic-4-handoff.md
 
   epic-5: backlog  # [non-blocking] Advisor; not needed for the UAT, may run in parallel or after
   5-1-advisor-handles-a-case-end-to-end-through-the-advisor-endpoi: backlog
