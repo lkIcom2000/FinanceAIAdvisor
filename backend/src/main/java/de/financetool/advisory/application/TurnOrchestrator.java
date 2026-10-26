@@ -350,7 +350,8 @@ public class TurnOrchestrator {
     TurnState blockRouting(TurnState turn) {
         TurnState.Checks checks = turn.checks();
         if (!checks.flags().routing()) {
-            return turn.withOutcome(ResponseOutcome.of(turn.messageClass()), releasable(checks.draftText()))
+            ResponseOutcome outcome = ResponseOutcome.of(turn.messageClass());
+            return turn.withOutcome(outcome, releasable(checks.draftText()), chips(outcome, turn), false)
                     .passedThrough(TurnStage.BLOCK_ROUTING);
         }
         BlockRouting.Route route = BlockRouting.route(checks.finalResults().failed(), turn.classification(),
@@ -358,14 +359,27 @@ public class TurnOrchestrator {
         TurnState routed = turn.withChecks(checks.withRoute(route));
         if (route.released()) {
             String text = checks.regenerated() ? checks.regeneration().text() : checks.draftText();
-            return routed.withOutcome(ResponseOutcome.of(turn.messageClass()), releasable(text))
+            ResponseOutcome outcome = ResponseOutcome.of(turn.messageClass());
+            return routed.withOutcome(outcome, releasable(text), chips(outcome, turn), false)
                     .ran(TurnStage.BLOCK_ROUTING);
         }
         List<String> chips = route.noValidSource()
                 ? List.of(NoValidSource.suggestion(turn.nlu().extraction().topic(), turn.userText()))
-                : List.of();
+                : chips(route.outcome(), turn);
         return routed.withOutcome(route.outcome(), route.text(), chips, route.noValidSource())
                 .ran(TurnStage.BLOCK_ROUTING);
+    }
+
+    /**
+     * The fixed suggestion chips of an outcome (UX-DR11): a refusal offers the in-scope next steps, a trap the related
+     * in-scope question of its topic; other outcomes have none.
+     */
+    private static List<String> chips(ResponseOutcome outcome, TurnState turn) {
+        return switch (outcome) {
+            case REFUSE_OUT_OF_SCOPE -> ResponseTemplates.REFUSAL_SUGGESTIONS;
+            case DETECT_TRAP -> List.of(NoValidSource.suggestion(turn.nlu().extraction().topic(), turn.userText()));
+            default -> List.of();
+        };
     }
 
     private static String releasable(String text) {
@@ -429,7 +443,8 @@ public class TurnOrchestrator {
                 released.outcome(), confirmation == null ? question.id() : confirmation.proposal().id(),
                 released.suggestions(), shownChecks, null,
                 proposal ? new ChatMessage.Proposal(turnTools.spec(), ChatMessage.Proposal.Status.OPEN) : null,
-                figures);
+                figures, released.outcome() == ResponseOutcome.DETECT_TRAP
+                        ? ResponseTemplates.premiseCallout(released.classification().unverifiedPremises()) : null);
         UUID conversation = chats.conversation(scope);
         chats.insert(scope, conversation, answer);
         if (proposal) {

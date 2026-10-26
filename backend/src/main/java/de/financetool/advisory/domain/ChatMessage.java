@@ -17,10 +17,12 @@ import java.util.UUID;
  * @param handover the case an {@code ESCALATE} answer opened for a human advisor; {@code null} for other messages
  * @param proposal the parameter proposal a {@code COMPUTE} answer shows before calculating; {@code null} otherwise
  * @param figures the Core figures a calculated answer used, shown as figure chips; empty for other messages
+ * @param premise the premise callout of a {@code DETECT_TRAP} answer: one sentence naming the unverified premise;
+ *     {@code null} for other messages
  */
 public record ChatMessage(UUID id, Author author, String text, ResponseOutcome outcome, UUID replyTo,
         List<String> suggestions, List<Check> checks, Handover handover, Proposal proposal,
-        List<SourcedNumber> figures) {
+        List<SourcedNumber> figures, String premise) {
 
     /** At most three chips per card (UX). */
     public static final int MAX_SUGGESTIONS = 3;
@@ -90,6 +92,13 @@ public record ChatMessage(UUID id, Author author, String text, ResponseOutcome o
         }
     }
 
+    /** A message without a premise callout. */
+    public ChatMessage(UUID id, Author author, String text, ResponseOutcome outcome, UUID replyTo,
+            List<String> suggestions, List<Check> checks, Handover handover, Proposal proposal,
+            List<SourcedNumber> figures) {
+        this(id, author, text, outcome, replyTo, suggestions, checks, handover, proposal, figures, null);
+    }
+
     /** A message without a proposal and figures. */
     public ChatMessage(UUID id, Author author, String text, ResponseOutcome outcome, UUID replyTo,
             List<String> suggestions, List<Check> checks, Handover handover) {
@@ -104,14 +113,15 @@ public record ChatMessage(UUID id, Author author, String text, ResponseOutcome o
 
     /** This message with the handover of its case. */
     public ChatMessage withHandover(Handover value) {
-        return new ChatMessage(id, author, text, outcome, replyTo, suggestions, checks, value, proposal, figures);
+        return new ChatMessage(id, author, text, outcome, replyTo, suggestions, checks, value, proposal, figures,
+                premise);
     }
 
     /** This proposal message with a new status. */
     public ChatMessage withProposalStatus(Proposal.Status value) {
         Objects.requireNonNull(proposal, "proposal");
         return new ChatMessage(id, author, text, outcome, replyTo, suggestions, checks, handover,
-                new Proposal(proposal.spec(), value), figures);
+                new Proposal(proposal.spec(), value), figures, premise);
     }
 
     /** A message without checks. */

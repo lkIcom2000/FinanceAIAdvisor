@@ -16,9 +16,14 @@ import java.util.regex.Pattern;
  */
 public final class Classifier {
 
+    /**
+     * Legal assessment of letters or contracts: an app-only category (not in the NLU schema), added from the message
+     * wording by {@link NluExtraction#ground(String)}.
+     */
+    public static final String LEGAL_ASSESSMENT = "legal_assessment";
     public static final Set<String> OUT_OF_SCOPE_CATEGORIES = Set.of("single_stock", "penny_stock",
             "derivative_or_certificate", "crypto", "forex_or_cfd", "building_society_savings",
-            "insurance_tariff_selection", "individual_tax_advice", "single_bond");
+            "insurance_tariff_selection", "individual_tax_advice", "single_bond", LEGAL_ASSESSMENT);
     static final Set<String> PERSONAL_TYPES = Set.of("personal_recommendation", "product_selection",
             "profile_or_eligibility_question");
 

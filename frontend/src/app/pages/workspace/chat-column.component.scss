@@ -195,6 +195,24 @@
   white-space: nowrap;
 }
 
+/* The false assumption of a DETECT_TRAP question (premise-callout, DESIGN.md): yellow accent on its tint, navy text. */
+.premise {
+  margin: 8px 0 0;
+  padding: 10px 14px;
+  border-left: 4px solid #edc739;
+  border-radius: 8px;
+  background: #fbf3d4;
+  font: var(--fine-body-sm);
+  color: var(--fine-navy);
+}
+
+/* Footer of a refusal or trap card: nothing personal was used, so there is no check badge. */
+.no-figures-footer {
+  margin: 8px 0 0;
+  font: var(--fine-label);
+  color: var(--mat-sys-on-surface-variant);
+}
+
 /* Footer of a released answer: opens "Why?" on its Checks section. */
 .check-footer {
   display: block;

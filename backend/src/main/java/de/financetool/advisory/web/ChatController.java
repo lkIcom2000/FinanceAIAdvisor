@@ -84,7 +84,9 @@ class ChatController {
             @ArraySchema(arraySchema = @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                     description = "The figures a calculated answer used, shown as figure chips; empty on other "
                             + "messages"))
-            List<FigureView> figures) {
+            List<FigureView> figures,
+            @Schema(description = "The false assumption a question makes, in one sentence; only on DETECT_TRAP "
+                    + "answers") String premise) {
 
         static MessageView of(ChatMessage message) {
             return new MessageView(message.id(), Author.valueOf(message.author().name()), message.text(),
@@ -92,7 +94,7 @@ class ChatController {
                     message.checks().stream().map(CheckView::of).toList(),
                     message.handover() == null ? null : HandoverView.of(message.handover()),
                     message.proposal() == null ? null : ProposalView.of(message.proposal()),
-                    message.figures().stream().map(FigureView::of).toList());
+                    message.figures().stream().map(FigureView::of).toList(), message.premise());
         }
     }
 

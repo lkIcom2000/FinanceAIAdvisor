@@ -55,32 +55,49 @@ public record NluExtraction(
             "years", "initial");
 
     private static final int FLAGS = Pattern.UNICODE_CHARACTER_CLASS;
+    /** Legal-assessment wording near a document word adds {@link Classifier#LEGAL_ASSESSMENT}. */
+    private static final String LEGAL = "(legal(ly)?|lawful|unlawful|enforceable|rechtlich\\w*|rechtens"
+            + "|rechtswirksam\\w*|unwirksam\\w*)";
+    private static final String DOCUMENT = "(letters?|contracts?|clauses?|notices?|termination|brief\\w*"
+            + "|vertr(a|ä)g\\w*|klausel\\w*|kündigung\\w*|schreiben)";
     private static final int FLAGS_CI = Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CHARACTER_CLASS;
 
-    /** An out-of-scope category counts only if the message contains matching wording. */
+    /**
+     * An out-of-scope category counts only if the message contains matching wording. Deviation from {@code nlu.py}:
+     * German wording is added (the experiment's lists are English only, so R08's "Tarifname" lost its category).
+     */
     static final Map<String, Pattern> SCOPE_EVIDENCE = patterns(FLAGS,
-            "single_stock", "\\b(stocks?|shares?|equit(y|ies)|aktien?)\\b",
-            "penny_stock", "\\bpenny\\b",
+            "single_stock", "\\b(stocks?|shares?|equit(y|ies)|aktien?|einzelaktien?|einzelwert\\w*)\\b",
+            "penny_stock", "\\b(penny|pennystocks?)\\b",
             "derivative_or_certificate", "\\b(derivatives?|certificates?|knock-?outs?|options?|futures?|warrants?"
-                    + "|turbos?|leveraged?|zertifikat\\w*)\\b",
+                    + "|turbos?|leveraged?|zertifikat\\w*|derivat\\w*|optionsschein\\w*|hebel\\w*)\\b",
             "crypto", "\\b(crypto\\w*|bitcoin|btc|ether(eum)?|altcoins?|stablecoins?|coins?|tokens?|nfts?"
-                    + "|blockchain)\\b",
-            "forex_or_cfd", "\\b(forex|fx|cfds?|currency trading|contracts? for difference)\\b",
+                    + "|blockchain|krypto\\w*)\\b",
+            "forex_or_cfd", "\\b(forex|fx|cfds?|currency trading|contracts? for difference|devisen\\w*"
+                    + "|differenzkontrakt\\w*)\\b",
             "building_society_savings", "\\b(building society|bauspar\\w*|home savings contract)\\b",
             "insurance_tariff_selection", "\\b(tariffs?|which (insurer|insurance company|provider|policy|insurance)|"
                     + "compare (insurers|policies|insurance offers)|(cheapest|best) (insurer|policy|"
-                    + "insurance company))\\b",
+                    + "insurance company)|tarif\\w*|versicherer\\w*|welche versicherung\\w*|"
+                    + "(günstigste|beste) versicherung\\w*)\\b",
             "individual_tax_advice", "\\b(tax return|tax advi[cs]\\w*|steuererkl\\w*|(reduce|avoid|save) (my )?"
-                    + "tax(es)?)\\b",
+                    + "tax(es)?|steuerberat\\w*|steuern? sparen)\\b",
             "single_bond", "\\b(bonds?|anleihen?|debentures?)\\b");
 
-    /** Unambiguous wording adds the category even if the NLU missed it. */
+    /**
+     * Unambiguous wording adds the category even if the NLU missed it. German wording is added (see
+     * {@link #SCOPE_EVIDENCE}); {@code Tarif…} counts, the English "tariff" does not (it also names a health
+     * insurance plan in general questions).
+     */
     static final Map<String, Pattern> SCOPE_STRONG = patterns(FLAGS,
-            "single_stock", "\\b(single|individual|specific|which) (stocks?|shares?)\\b",
-            "penny_stock", "\\bpenny stocks?\\b",
-            "crypto", "\\b(crypto\\w*|bitcoin|ether(eum)?|altcoins?|stablecoins?|nfts?)\\b",
-            "forex_or_cfd", "\\b(forex|cfds?)\\b",
-            "building_society_savings", "\\b(building society|bauspar\\w*)\\b");
+            "single_stock", "\\b((single|individual|specific|which) (stocks?|shares?)|einzelaktien?|welche aktien?)\\b",
+            "penny_stock", "\\b(penny stocks?|pennystocks?)\\b",
+            "crypto", "\\b(crypto\\w*|bitcoin|ether(eum)?|altcoins?|stablecoins?|nfts?|krypto\\w*)\\b",
+            "forex_or_cfd", "\\b(forex|cfds?|devisenhandel)\\b",
+            "building_society_savings", "\\b(building society|bauspar\\w*)\\b",
+            "insurance_tariff_selection", "\\btarif(?!f)\\w*",
+            Classifier.LEGAL_ASSESSMENT, "\\b" + LEGAL + "\\b[^.?!]{0,60}\\b" + DOCUMENT + "\\b|\\b" + DOCUMENT
+                    + "\\b[^.?!]{0,60}\\b" + LEGAL + "\\b");
 
     static final Pattern ADVICE = Pattern.compile("\\b(should|can|could|may|shall) (i|we)\\b|\\bi should\\b"
             + "|\\bfor me\\b|\\bmy (wealth|savings|money|portfolio|income|capital)\\b", FLAGS_CI);
@@ -198,6 +215,12 @@ public record NluExtraction(
                 && cats.stream().anyMatch(SCOPE_EVIDENCE::containsKey)) {
             type = "personal_recommendation";
             notes.add("request asks for advice for the user on an out-of-scope product");
+        }
+        // App addition: assessing the user's own letter or contract is always a personal request.
+        if (cats.contains(Classifier.LEGAL_ASSESSMENT) && !Classifier.PERSONAL_TYPES.contains(type)
+                && !type.equals("computation") && PERSON.matcher(message).find()) {
+            type = "personal_recommendation";
+            notes.add("request asks for a legal assessment of the user's own document");
         }
 
         String who = subject;

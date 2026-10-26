@@ -31,6 +31,7 @@ public record PhrasingPrompt(String system, String user, int droppedHistoryTurns
     static final double CHARS_PER_TOKEN = 3.2;
 
     private static final Pattern SLOT_MARKER = Pattern.compile("(?i)<\\s*/?\\s*user_message\\s*>");
+    private static final Pattern LINE_BREAKS = Pattern.compile("\\s*\\R\\s*");
 
     public PhrasingPrompt {
         Objects.requireNonNull(system, "system");
@@ -120,8 +121,8 @@ public record PhrasingPrompt(String system, String user, int droppedHistoryTurns
         if (!history.isEmpty()) {
             StringBuilder earlier = new StringBuilder("EARLIER CONVERSATION (oldest first):");
             for (PromptPayload.HistoryTurn turn : history) {
-                earlier.append("\nCustomer: ").append(data(turn.userText()))
-                        .append("\nAssistant: ").append(data(turn.agentText()));
+                earlier.append("\nCustomer: ").append(oneLine(data(turn.userText())))
+                        .append("\nAssistant: ").append(oneLine(data(turn.agentText())));
             }
             blocks.add(earlier.toString());
         }
@@ -138,6 +139,14 @@ public record PhrasingPrompt(String system, String user, int droppedHistoryTurns
             out = SLOT_MARKER.matcher(out).replaceAll("");
         } while (!out.equals(previous));
         return out;
+    }
+
+    /**
+     * A history text on one line: the history block is line-oriented, so a line break followed by
+     * {@code Assistant:} or a block header in an earlier message would fake the prompt's structure (Story 3.8).
+     */
+    static String oneLine(String text) {
+        return LINE_BREAKS.matcher(text.strip()).replaceAll(" ");
     }
 
     /** The profile as compact JSON ({@code json.dumps} with {@code ensure_ascii=False}). */

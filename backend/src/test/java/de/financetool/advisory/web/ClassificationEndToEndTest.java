@@ -146,7 +146,9 @@ class ClassificationEndToEndTest extends PostgresIntegrationTest {
 
         assertThat(t.answer()).containsEntry("outcome", "REFUSE_OUT_OF_SCOPE")
                 .containsEntry("text", REFUSAL)
-                .containsEntry("suggestions", List.of());
+                .containsEntry("suggestions", List.of("Look at my emergency fund", "Help me set a savings goal"))
+                .containsEntry("figures", List.of())
+                .containsEntry("premise", null);
         assertThat(t.body()).containsEntry("class", "REFUSE_OUT_OF_SCOPE")
                 .containsEntry("outOfScope", List.of("derivative_or_certificate"))
                 .containsEntry("noValidSource", false)
@@ -162,7 +164,9 @@ class ClassificationEndToEndTest extends PostgresIntegrationTest {
     void anInventedLawIsATrapWithItsUnverifiedPremiseRecorded() throws Exception {
         Turn t = turn(TRAP);
 
-        assertThat(t.answer()).containsEntry("outcome", "DETECT_TRAP");
+        assertThat(t.answer()).containsEntry("outcome", "DETECT_TRAP")
+                .containsEntry("premise", "I couldn't confirm that \"Savings Bonus Act 2026\" exists.")
+                .containsEntry("suggestions", List.of(NoValidSource.DEFAULT_SUGGESTION));
         assertThat(t.body()).containsEntry("class", "DETECT_TRAP");
         assertThat((List<Map<String, Object>>) t.body().get("unverifiedPremises")).singleElement()
                 .satisfies(p -> assertThat(p).containsEntry("named_entity", "Savings Bonus Act 2026")

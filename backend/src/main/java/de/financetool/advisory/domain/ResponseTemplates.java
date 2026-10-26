@@ -29,7 +29,34 @@ public final class ResponseTemplates {
 
     public static final String NO_VALID_SOURCE = NoValidSource.TEXT;
 
+    /** The in-scope next steps of every released refusal (UX-DR11), as suggestion chips. */
+    public static final List<String> REFUSAL_SUGGESTIONS = List.of("Look at my emergency fund",
+            "Help me set a savings goal");
+
+    /** The callout of a trap whose only unverified premise is a guarantee without a name. */
+    static final String GUARANTEE_CALLOUT = "I couldn't confirm the guarantee your question assumes.";
+
     private ResponseTemplates() {
+    }
+
+    /**
+     * The premise callout of a {@code DETECT_TRAP} card: one sentence naming the unverified premises in the message's
+     * own words (named entities, described laws), never details about them.
+     */
+    public static String premiseCallout(List<Premise> unverified) {
+        List<String> parts = new java.util.ArrayList<>();
+        for (Premise p : unverified) {
+            String part = p.kind().equals(Premise.DESCRIBED_LAW)
+                    ? "a law or regulation on " + p.description().strip()
+                    : p.namedEntity().isBlank() ? "" : "\"" + p.namedEntity().strip() + "\"";
+            if (!part.isEmpty() && !parts.contains(part)) {
+                parts.add(part);
+            }
+        }
+        if (parts.isEmpty()) {
+            return GUARANTEE_CALLOUT;
+        }
+        return "I couldn't confirm that " + String.join(" or ", parts) + " exists.";
     }
 
     /** The refusal for the out-of-scope categories ({@code ", ".join(oos).replace("_", " ") or "these products"}). */

@@ -291,6 +291,57 @@ describe('ChatColumnComponent', () => {
     ]);
   });
 
+  it('shows a refusal with its chips and "No personal figures used" instead of the check badge', () => {
+    render([
+      question,
+      {
+        ...answer,
+        outcome: 'REFUSE_OUT_OF_SCOPE',
+        text: 'Knock-out certificates are outside this service. Instead, I can look at your emergency fund.',
+        suggestions: ['Look at my emergency fund', 'Help me set a savings goal'],
+        checks: [
+          {
+            id: 'SCOPE',
+            passed: true,
+            description: 'The answer stays within what this service covers',
+          },
+        ],
+      },
+    ]);
+    expect(text(element.querySelector('.response .outcome-text'))).toBe('Not part of this service');
+    expect(Array.from(element.querySelectorAll('.response .chip')).map(text)).toEqual([
+      'Look at my emergency fund',
+      'Help me set a savings goal',
+    ]);
+    expect(element.querySelector('.check-footer')).toBeNull();
+    expect(text(element.querySelector('.no-figures-footer'))).toBe('No personal figures used');
+    expect(element.querySelector('.premise')).toBeNull();
+  });
+
+  it('shows a trap with its premise callout before the body, then the chip, without a warning', () => {
+    render([
+      question,
+      {
+        ...answer,
+        outcome: 'DETECT_TRAP',
+        premise: 'I couldn\'t confirm that "Savings Bonus Act 2026" exists.',
+        text: 'I can\'t confirm this act. What does exist are state retirement subsidies.',
+        suggestions: ['How do state retirement subsidies work?'],
+      },
+    ]);
+    const card = element.querySelector('.response') as HTMLElement;
+    const parts = Array.from(card.children).map((c) => c.className.split(' ')[0]);
+    expect(parts.indexOf('premise')).toBeLessThan(parts.indexOf('body'));
+    expect(text(card.querySelector('.premise'))).toBe(
+      'I couldn\'t confirm that "Savings Bonus Act 2026" exists.',
+    );
+    expect(Array.from(card.querySelectorAll('.chip')).map(text)).toEqual([
+      'How do state retirement subsidies work?',
+    ]);
+    expect(text(card.querySelector('.no-figures-footer'))).toBe('No personal figures used');
+    expect(card.querySelector('[role="alert"]')).toBeNull();
+  });
+
   it('shows no check footer on an answer without final checks', () => {
     render([question, { ...answer, text: NO_VALID_SOURCE }]);
     expect(element.querySelector('.check-footer')).toBeNull();

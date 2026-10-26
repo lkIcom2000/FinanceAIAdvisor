@@ -48,6 +48,9 @@
             <span class="outcome-text">{{ outcomes[outcome].label }}</span>
           </div>
         }
+        @if (m.premise) {
+          <p class="premise">{{ m.premise }}</p>
+        }
         <p class="body">{{ m.text }}</p>
         @if (m.proposal; as proposal) {
           <section
@@ -169,7 +172,9 @@
             }
           </div>
         }
-        @if (m.checks.length) {
+        @if (usesNoFigures(m)) {
+          <p class="no-figures-footer">No personal figures used</p>
+        } @else if (m.checks.length) {
           <button type="button" class="check-footer" (click)="openChecks(m)">
             {{ checkFooter(m) }}
           </button>

@@ -34,6 +34,11 @@ export interface ChatMessage {
   outcome?: 'INFORM' | 'ASK_PROFILE' | 'RECOMMEND_CATEGORY' | 'COMPUTE' | 'REFUSE_OUT_OF_SCOPE' | 'DETECT_TRAP' | 'ESCALATE';
 
   /**
+   * The false assumption a question makes, in one sentence; only on DETECT_TRAP answers
+   */
+  premise?: string;
+
+  /**
    * "Here's what I understood": the values a calculation will run with; only on COMPUTE answers that ask before calculating
    */
   proposal?: ChatProposal;

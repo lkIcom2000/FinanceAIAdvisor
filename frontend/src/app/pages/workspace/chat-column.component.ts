@@ -162,6 +162,14 @@ export class ChatColumnComponent {
     return `Checked · ${passed} ${passed === 1 ? 'check' : 'checks'} passed`;
   }
 
+  /**
+   * Refusal and trap cards use no personal figures: their footer says so instead of the check badge (EXPERIENCE.md,
+   * response card).
+   */
+  protected usesNoFigures(message: ChatMessage): boolean {
+    return message.outcome === 'REFUSE_OUT_OF_SCOPE' || message.outcome === 'DETECT_TRAP';
+  }
+
   /** The footer opens "Why?" on the answer's Checks section. */
   protected openChecks(message: ChatMessage): void {
     openChecksDialog(this.dialog, message.checks);
