@@ -175,7 +175,8 @@ class BlockRoutingTest {
     void theFixAsksForCostsOnlyWhenCostTransparencyApplies() {
         List<CheckResult> suitability = List.of(failed(CheckId.SUITABILITY, "no_profile_reference_or_risk"));
         assertThat(RegenerationFix.of(suitability, 0, "x: 1", false).orElseThrow())
-                .contains("name the main risks of the recommended category. ").doesNotContain("costs");
+                .contains("Speak to the customer directly as \"you\"", "name the risk each cover protects against.")
+                .doesNotContain("costs");
         assertThat(RegenerationFix.of(suitability, 0, "x: 1", true).orElseThrow())
                 .contains("state the ex-ante costs from TOOL RESULTS.");
     }

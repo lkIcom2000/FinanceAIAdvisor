@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -104,7 +105,8 @@ public record NluExtraction(
     static final Pattern ADVICE = Pattern.compile("\\b(should|can|could|may|shall) (i|we)\\b|\\bi should\\b"
             + "|\\bfor me\\b|\\bmy (wealth|savings|money|portfolio|income|capital)\\b", FLAGS_CI);
     static final Pattern PERSON = Pattern.compile("\\b(i|i'm|i've|i'd|me|my|mine|we|our|ours)\\b", FLAGS_CI);
-    static final Pattern CLIENT = Pattern.compile("\\b(client|customer|profile|he|she|his|her)\\b", FLAGS_CI);
+    static final Set<String> PROTECTION_TOPICS = Set.of("protection_needs", "protection_duplicate");
+    static final Pattern CLIENT =Pattern.compile("\\b(client|customer|profile|he|she|his|her)\\b", FLAGS_CI);
     private static final String MONEY = "(\\d{1,3}(?:[.,]\\d{3})+|\\d+)(?:[.,]\\d+)?\\s?(?:EUR|€|euros?)";
     private static final Pattern MONTHLY = Pattern.compile(
             MONEY + "\\s*(?:per month|a month|monthly|each month)", FLAGS_CI);
@@ -233,6 +235,13 @@ public record NluExtraction(
         if (!who.equals("generic") && !PERSON.matcher(message).find() && !CLIENT.matcher(message).find()) {
             who = "generic";
             notes.add("subject set to generic: the message refers to no person");
+        }
+        // App addition: the live model returned "Am I paying twice for my liability insurance?" as a general
+        // explanation; a protection question about the user's own cover needs the demands-and-needs statement.
+        if (PROTECTION_TOPICS.contains(topic) && type.equals("general_explanation") && !who.equals("generic")
+                && PERSON.matcher(message).find()) {
+            type = "personal_recommendation";
+            notes.add("request asks about the user's own insurance cover");
         }
 
         Map<String, Double> p = new LinkedHashMap<>(computationParams);

@@ -72,9 +72,14 @@ public final class RegenerationFix {
                     && REPAIRABLE_SUITABILITY_CODES.contains(f.reasonCode()) || f.checkId() == CheckId.COST_TRANSPARENCY
                     && REPAIRABLE_COST_CODES.contains(f.reasonCode()))) {
                 // One fix for both: the chain runs again on the whole rewrite, which must keep all three elements.
-                fixes.add("Your draft did not explain the recommendation completely. Refer to the customer's "
-                        + "figures, name the main risks of the recommended category"
-                        + (costsApply ? " and state the ex-ante costs from TOOL RESULTS." : "."));
+                // Story 6.4 live check: a needs statement has no figures in the question, so it must address the
+                // customer as "you" and name the risks each cover protects against.
+                fixes.add(costsApply ? "Your draft did not explain the recommendation completely. Refer to the "
+                        + "customer's figures, name the main risks of the recommended category and state the ex-ante "
+                        + "costs from TOOL RESULTS."
+                        : "Your draft did not explain the statement completely. Speak to the customer directly as "
+                                + "\"you\", refer to their household, dependants and occupation and name the risk each "
+                                + "cover protects against.");
                 statement = true;
                 restated = restate(fixes, restated, toolResults);
             } else if (f.checkId() == CheckId.SCOPE && REPAIRABLE_ROLE_CODES.contains(f.reasonCode())) {

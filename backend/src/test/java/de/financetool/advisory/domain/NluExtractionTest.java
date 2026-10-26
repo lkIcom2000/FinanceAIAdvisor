@@ -150,8 +150,22 @@ class NluExtractionTest {
         assertThat(other.notes()).isEmpty();
     }
 
+    /** App addition: the live model returned a question about the user's own cover as a general explanation. */
     @Test
-    void theSchemaIsTheExperimentsSchema() throws IOException {
+    void aProtectionQuestionAboutTheUsersOwnCoverIsAPersonalRequest() {
+        NluExtraction.Grounded g = NluExtraction.normalize(Map.of("request_type", "general_explanation",
+                "subject", "self", "topic", "protection_duplicate")).ground(
+                "Am I paying twice for my liability insurance?");
+        assertThat(g.extraction().requestType()).isEqualTo("personal_recommendation");
+        assertThat(g.notes()).containsExactly("request asks about the user's own insurance cover");
+
+        NluExtraction.Grounded general = NluExtraction.normalize(Map.of("request_type", "general_explanation",
+                "subject", "self", "topic", "protection_needs")).ground("What does liability insurance cover?");
+        assertThat(general.extraction().requestType()).isEqualTo("general_explanation");
+    }
+
+    @Test
+    void theSchemaIsTheExperimentsSchema()throws IOException {
         try (InputStream in = getClass().getResourceAsStream("/nlu/schema.json")) {
             Object expected = JSON.readValue(in, Object.class);
             Object actual = JSON.readValue(JSON.writeValueAsString(NluExtraction.schema()), Object.class);
