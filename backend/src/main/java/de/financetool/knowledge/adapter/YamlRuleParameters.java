@@ -1,5 +1,6 @@
 package de.financetool.knowledge.adapter;
 
+import de.financetool.knowledge.NoValidRuleParameterException;
 import de.financetool.knowledge.RuleParamPort;
 import de.financetool.knowledge.RuleParameter;
 import de.financetool.shared.AppHome;
@@ -46,10 +47,10 @@ class YamlRuleParameters implements RuleParamPort {
     public RuleParameter valid(String key, LocalDate asOf) {
         List<RuleParameter> versions = parameters.stream().filter(p -> p.key().equals(key)).toList();
         if (versions.isEmpty()) {
-            throw new IllegalStateException("Unknown Rule Parameter " + key);
+            throw new NoValidRuleParameterException("Unknown Rule Parameter " + key);
         }
         return versions.stream().filter(p -> p.isValidAt(asOf)).findFirst()
-                .orElseThrow(() -> new IllegalStateException("No version of Rule Parameter " + key
+                .orElseThrow(() -> new NoValidRuleParameterException("No version of Rule Parameter " + key
                         + " is valid on " + asOf));
     }
 

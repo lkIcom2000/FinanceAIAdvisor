@@ -5,11 +5,13 @@ import de.financetool.advisory.domain.PromptPayload;
 import de.financetool.advisory.domain.ResponseOutcome;
 import de.financetool.shared.PersonaScope;
 import de.financetool.shared.domain.PersonaId;
+import de.financetool.shared.domain.SourcedNumber;
 import java.sql.Array;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -24,10 +26,16 @@ import tools.jackson.databind.json.JsonMapper;
 @Repository
 public class ChatRepository {
 
-    private static final String MESSAGE_COLUMNS = "id, author, text, outcome, reply_to, suggestions, checks::text AS checks";
+    private static final String MESSAGE_COLUMNS = "id, author, text, outcome, reply_to, suggestions, checks::text AS checks, "
+            + "proposal::text AS proposal, figures::text AS figures";
+
+    /** The dialog state while a parameter proposal is open (AD-24). */
+    public static final String PARAMETER_PROPOSAL = "PARAMETER_PROPOSAL";
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
     private static final TypeReference<List<ChatMessage.Check>> CHECKS = new TypeReference<>() {
+    };
+    private static final TypeReference<List<SourcedNumber>> FIGURES = new TypeReference<>() {
     };
 
     private final JdbcClient jdbc;
@@ -50,12 +58,24 @@ public class ChatRepository {
     public void insert(PersonaScope scope, UUID conversationId, ChatMessage message) {
         jdbc.sql("""
                 INSERT INTO messages (id, conversation_id, persona_id, author, text, outcome, reply_to, suggestions,
-                    checks)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb)""")
+                    checks, proposal, figures)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?::jsonb)""")
                 .params(message.id(), conversationId, scope.id(), message.author().name(), message.text(),
                         message.outcome() == null ? null : message.outcome().name(), message.replyTo(),
-                        message.suggestions().toArray(String[]::new), JSON.writeValueAsString(message.checks()))
+                        message.suggestions().toArray(String[]::new), JSON.writeValueAsString(message.checks()),
+                        message.proposal() == null ? null : JSON.writeValueAsString(message.proposal()),
+                        JSON.writeValueAsString(message.figures()))
                 .update();
+    }
+
+    /** Sets the status of the scope's proposal message; returns whether it was {@code from} and is now changed. */
+    public boolean updateProposalStatus(PersonaScope scope, UUID messageId, ChatMessage.Proposal.Status from,
+            ChatMessage.Proposal.Status to) {
+        return jdbc.sql("""
+                UPDATE messages SET proposal = jsonb_set(proposal, '{status}', to_jsonb(?::text))
+                WHERE id = ? AND persona_id = ? AND proposal ->> 'status' = ?""")
+                .params(to.name(), messageId, scope.id(), from.name())
+                .update() == 1;
     }
 
     /** The message, only if it belongs to the scope's persona. */
@@ -110,6 +130,26 @@ public class ChatRepository {
                 .optional();
     }
 
+    /** The proposal message the persona's {@code PARAMETER_PROPOSAL} dialog state holds, if it is in that state. */
+    public Optional<UUID> openProposal(PersonaScope scope) {
+        return jdbc.sql("SELECT payload ->> 'proposalId' FROM dialog_states WHERE persona_id = ? AND state = ?")
+                .params(scope.id(), PARAMETER_PROPOSAL)
+                .query(String.class)
+                .optional()
+                .map(UUID::fromString);
+    }
+
+    /** Stores the persona's dialog state: {@code PARAMETER_PROPOSAL} with the proposal's id, or {@code NONE}. */
+    public void saveDialogState(PersonaScope scope, UUID conversationId, UUID proposalId) {
+        jdbc.sql("""
+                INSERT INTO dialog_states (persona_id, conversation_id, state, payload)
+                VALUES (?, ?, ?, ?::jsonb)
+                ON CONFLICT (persona_id) DO UPDATE SET state = EXCLUDED.state, payload = EXCLUDED.payload""")
+                .params(scope.id(), conversationId, proposalId == null ? "NONE" : PARAMETER_PROPOSAL,
+                        proposalId == null ? null : JSON.writeValueAsString(Map.of("proposalId", proposalId)))
+                .update();
+    }
+
     /** Persona reset: deletes the persona's dialog states, messages and conversation; returns the deleted rows. */
     public int deletePersonaRows(PersonaId personaId) {
         int deleted = 0;
@@ -124,7 +164,10 @@ public class ChatRepository {
         return new ChatMessage(rs.getObject("id", UUID.class), ChatMessage.Author.valueOf(rs.getString("author")),
                 rs.getString("text"), outcome == null ? null : ResponseOutcome.valueOf(outcome),
                 rs.getObject("reply_to", UUID.class), suggestions(rs.getArray("suggestions")),
-                JSON.readValue(rs.getString("checks"), CHECKS));
+                JSON.readValue(rs.getString("checks"), CHECKS), null,
+                rs.getString("proposal") == null ? null
+                        : JSON.readValue(rs.getString("proposal"), ChatMessage.Proposal.class),
+                JSON.readValue(rs.getString("figures"), FIGURES));
     }
 
     private static List<String> suggestions(Array array) throws SQLException {

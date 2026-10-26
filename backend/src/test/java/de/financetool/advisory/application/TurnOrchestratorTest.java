@@ -31,14 +31,16 @@ import de.financetool.advisory.domain.RegenerationFix;
 import de.financetool.advisory.domain.ResponseOutcome;
 import de.financetool.advisory.domain.ResponseTemplates;
 import de.financetool.escalation.EscalationCases;
+import de.financetool.core.domain.CoreResult;
+import de.financetool.knowledge.NoValidRuleParameterException;
 import de.financetool.knowledge.RuleParamPort;
 import de.financetool.knowledge.RuleParameter;
+import de.financetool.advisory.domain.ToolPlan;
 import de.financetool.advisory.domain.TurnStage;
 import de.financetool.advisory.domain.TurnState;
 import de.financetool.audit.AuditEntry;
 import de.financetool.audit.AuditKind;
 import de.financetool.audit.AuditWriter;
-import de.financetool.audit.EvidenceStore;
 import de.financetool.llm.LlmMessage;
 import de.financetool.llm.LlmPort;
 import de.financetool.llm.LlmResult;
@@ -48,8 +50,12 @@ import de.financetool.shared.RequestContext;
 import de.financetool.shared.config.AgentConfiguration;
 import de.financetool.shared.config.ComplianceLevel;
 import de.financetool.shared.config.DataExposureLevel;
+import de.financetool.shared.domain.SimulationSpec;
+import de.financetool.shared.domain.SourcedNumber;
+import de.financetool.shared.domain.Unit;
 import de.financetool.testing.TestContexts;
 import java.lang.reflect.Method;
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
@@ -80,16 +86,16 @@ class TurnOrchestratorTest {
     final PromptFiles prompts = mock(PromptFiles.class);
     final LlmPort llm = mock(LlmPort.class);
     final AuditWriter audit = mock(AuditWriter.class);
-    final EvidenceStore evidence = mock(EvidenceStore.class);
     final NluExtractor nluExtractor = mock(NluExtractor.class);
     final EntityRegistry registry = new EntityRegistry(Map.of("laws_and_regulations", List.of("MiFID II")), List.of(),
             List.of());
     final EscalationCases escalations = mock(EscalationCases.class);
     final RuleParamPort ruleParameters = mock(RuleParamPort.class);
+    final ToolRegistry tools = mock(ToolRegistry.class);
     ProfileCompleteness profile = ProfileCompleteness.INCOMPLETE;
-    final TurnOrchestrator orchestrator = new TurnOrchestrator(chats, prompts, llm, audit, evidence, nluExtractor,
+    final TurnOrchestrator orchestrator = new TurnOrchestrator(chats, prompts, llm, audit, nluExtractor,
             registry, (stored, stated, topic) -> profile.check(stored, stated, topic), escalations,
-            ruleParameters);
+            ruleParameters, tools);
 
     final PersonaScope scope = new PersonaScope(TestContexts.LENA);
     final RequestContext context = TestContexts.context();
@@ -165,11 +171,10 @@ class TurnOrchestratorTest {
     void dialogStateFirstThenDraftThenReleaseThenAudit() {
         ChatMessage answer = run("  An ETF is a fund.  ");
 
-        InOrder order = inOrder(chats, llm, evidence, audit);
+        InOrder order = inOrder(chats, llm, audit);
         order.verify(chats).dialogState(scope);
         order.verify(llm).generate(eq(LlmRole.PHRASING), anyList(), any(), isNull());
         order.verify(chats).insert(eq(scope), eq(conversation), eq(answer));
-        order.verify(evidence).putIfAbsent(List.of());
         order.verify(audit).write(eq(context), any(AuditEntry.class));
 
         assertThat(answer.author()).isEqualTo(ChatMessage.Author.AGENT);
@@ -432,7 +437,7 @@ class TurnOrchestratorTest {
                 .thenReturn(new LlmResult("Fixed answer [S1].", "m1", "sha256:d1", TestContexts.DECODING, 10, true,
                         Duration.ZERO));
         TurnState turn = stages7to10(context, informDraft("Answer [S3].", 1, 1));
-        ChatMessage answer = orchestrator.auditAndRelease(context, scope, question, "fv-1", turn);
+        ChatMessage answer = orchestrator.auditAndRelease(context, scope, question, null, "fv-1", turn);
 
         assertThat(answer.text()).isEqualTo("Fixed answer [S1].");
         ResponseAuditBody body = auditBody();
@@ -665,10 +670,10 @@ class TurnOrchestratorTest {
                 Arguments.of(ResponseOutcome.REFUSE_OUT_OF_SCOPE, nlu("product_selection", "other",
                         List.of("derivative_or_certificate"), List.of()), false, "Which knock-out should I buy?"),
                 Arguments.of(ResponseOutcome.DETECT_TRAP, nlu("general_explanation", "regulation_or_concept",
-                        List.of(), List.of(premise)), false, "Does the Savings Bonus Act 2026 apply to me?"));
+                        List.of(), List.of(premise)), false, "Does the Savings Bonus Act 2026 apply to me?"),
+                Arguments.of(ResponseOutcome.COMPUTE, ITEM_40_NLU, false, ITEM_40));
     }
 
-    /** {@code COMPUTE} needs Story 3.7's {@code computable}; the guard in the release is on the outcome alone. */
     @ParameterizedTest
     @MethodSource("outcomesWithoutACase")
     void noOutcomeButEscalateOpensACase(ResponseOutcome expected, NluExtraction extraction, boolean profileComplete,
@@ -752,7 +757,7 @@ class TurnOrchestratorTest {
                 .thenReturn(result("You can make 524 full withdrawals."));
         RequestContext enforcing = with(ComplianceLevel.A_B_C, false);
         TurnState turn = stages7to10(enforcing, numberDraft("You can make 523 full withdrawals.", "", CORE_522));
-        ChatMessage answer = orchestrator.auditAndRelease(enforcing, scope, question, "fv-1", turn);
+        ChatMessage answer = orchestrator.auditAndRelease(enforcing, scope, question, null, "fv-1", turn);
 
         org.mockito.Mockito.verify(llm, org.mockito.Mockito.times(1)).generate(any(), anyList(), any(), any());
         assertThat(answer.outcome()).isEqualTo(ResponseOutcome.ESCALATE);
@@ -790,5 +795,179 @@ class TurnOrchestratorTest {
                 NumberLedger.Source.RULE_PARAMETER, NumberLedger.Source.USER, NumberLedger.Source.EXPOSURE);
         assertThat(body.numberLedger()).contains(new NumberLedger.Entry(new java.math.BigDecimal("3"),
                 NumberLedger.Source.RULE_PARAMETER, "emergency_fund_months_min"));
+    }
+
+    static final String ITEM_40 = "I have a portfolio of 500,000 EUR and want to withdraw 2,000 EUR monthly "
+            + "supplemental income. How long does it last at a 4% calculated return?";
+    static final NluExtraction ITEM_40_NLU = new NluExtraction("computation", "self", "withdrawal_duration",
+            List.of(), List.of(), false, false, Map.of(),
+            Map.of("portfolio", 500000.0, "monthly_withdrawal", 2000.0, "annual_rate", 0.04), "");
+
+    static SimulationSpec item40Spec() {
+        return ToolPlan.spec(ToolPlan.plan(ITEM_40_NLU, ITEM_40).orElseThrow(), null);
+    }
+
+    /** A withdrawal-duration result as the gateway would key it: 522 effective, 538 nominal, plus an echo. */
+    static CoreResult withdrawalResult() {
+        List<de.financetool.core.domain.Figure> outputs = List.of(
+                new de.financetool.core.domain.Figure("fullWithdrawalsEffective", "Full (effective)",
+                        new BigDecimal("522"), Unit.COUNT),
+                new de.financetool.core.domain.Figure("fullWithdrawalsNominal", "Full (nominal)",
+                        new BigDecimal("538"), Unit.COUNT),
+                new de.financetool.core.domain.Figure("portfolio", "Starting portfolio", new BigDecimal("500000.00"),
+                        Unit.EUR));
+        List<SourcedNumber> numbers = List.of(
+                new SourcedNumber("00000000000000a1", new BigDecimal("522"), Unit.COUNT, "Full (effective)"),
+                new SourcedNumber("00000000000000a2", new BigDecimal("538"), Unit.COUNT, "Full (nominal)"),
+                new SourcedNumber("00000000000000a3", new BigDecimal("500000.00"), Unit.EUR, "Starting portfolio"));
+        return new CoreResult("withdrawalDuration", List.of(), outputs, List.of("Withdrawals at month end"), Map.of(),
+                numbers);
+    }
+
+    @Test
+    void aComputeQuestionReleasesAProposalWithoutPhrasingOrCalculatingAndOpensTheDialogState() {
+        ChatMessage asked = new ChatMessage(UUID.randomUUID(), ChatMessage.Author.USER, ITEM_40, null, null);
+        ChatMessage answer = run(asked, "unused", context, false, ITEM_40_NLU);
+
+        assertThat(answer.outcome()).isEqualTo(ResponseOutcome.COMPUTE);
+        assertThat(answer.text()).isEqualTo(ResponseTemplates.PARAMETER_PROPOSAL);
+        assertThat(answer.checks()).as("a proposal card shows its values, not checks").isEmpty();
+        assertThat(answer.figures()).isEmpty();
+        assertThat(answer.proposal().status()).isEqualTo(ChatMessage.Proposal.Status.OPEN);
+        assertThat(answer.proposal().spec().parameters())
+                .extracting(SimulationSpec.Parameter::key, p -> p.value().toPlainString(),
+                        SimulationSpec.Parameter::unit, SimulationSpec.Parameter::source)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple("portfolio", "500000.00", Unit.EUR,
+                                SimulationSpec.Source.QUESTION),
+                        org.assertj.core.groups.Tuple.tuple("monthlyWithdrawal", "2000.00", Unit.EUR,
+                                SimulationSpec.Source.QUESTION),
+                        org.assertj.core.groups.Tuple.tuple("annualRate", "0.04", Unit.FRACTION,
+                                SimulationSpec.Source.QUESTION));
+        org.mockito.Mockito.verifyNoInteractions(llm, tools);
+        org.mockito.Mockito.verify(chats).saveDialogState(scope, conversation, answer.id());
+        ResponseAuditBody body = auditBody();
+        assertThat(body.parameterProposal()).isTrue();
+        assertThat(body.simulationSpec()).isEqualTo(answer.proposal().spec());
+        assertThat(body.passThroughStages()).contains(TurnStage.LLM_DRAFT).doesNotContain(TurnStage.TOOL_PLAN);
+    }
+
+    static final String OWN_SAVINGS = "How long will my savings last if I withdraw 2,000 EUR a month at a 4% return?";
+    static final NluExtraction OWN_SAVINGS_NLU = new NluExtraction("computation", "self", "withdrawal_duration",
+            List.of(), List.of(), false, false, Map.of(), Map.of("monthly_withdrawal", 2000.0, "annual_rate", 0.04),
+            "");
+
+    @Test
+    void aPortfolioFromAccountDataNeedsInvestmentsAndCarriesTheirFigure() {
+        SourcedNumber investments = new SourcedNumber("00000000000000b1", new BigDecimal("48210.00"), Unit.EUR,
+                "Value of your investments today");
+        when(tools.accountPortfolio(context)).thenReturn(Optional.of(investments));
+        ChatMessage asked = new ChatMessage(UUID.randomUUID(), ChatMessage.Author.USER, OWN_SAVINGS, null, null);
+
+        ChatMessage answer = run(asked, "unused", context, false, OWN_SAVINGS_NLU);
+
+        assertThat(answer.proposal().spec().parameter("portfolio")).isEqualTo(new SimulationSpec.Parameter(
+                "portfolio", "Starting portfolio", new BigDecimal("48210.00"), Unit.EUR,
+                SimulationSpec.Source.ACCOUNT_DATA, "00000000000000b1"));
+    }
+
+    @Test
+    void withoutInvestmentsAPortfolioFromAccountDataIsNotComputable() {
+        when(tools.accountPortfolio(context)).thenReturn(Optional.empty());
+        ChatMessage asked = new ChatMessage(UUID.randomUUID(), ChatMessage.Author.USER, OWN_SAVINGS, null, null);
+
+        ChatMessage answer = run(asked, "Here is how withdrawals work.", context, false, OWN_SAVINGS_NLU);
+
+        assertThat(answer.outcome()).isNotEqualTo(ResponseOutcome.COMPUTE);
+        assertThat(answer.proposal()).isNull();
+    }
+
+    @Test
+    void aNewQuestionCancelsTheOpenProposalAndResetsTheDialogState() {
+        UUID proposalId = UUID.randomUUID();
+        when(chats.openProposal(scope)).thenReturn(Optional.of(proposalId));
+        run("  An ETF is a fund.  ");
+
+        org.mockito.Mockito.verify(chats).updateProposalStatus(scope, proposalId, ChatMessage.Proposal.Status.OPEN,
+                ChatMessage.Proposal.Status.CANCELLED);
+        org.mockito.Mockito.verify(chats).saveDialogState(scope, conversation, null);
+        assertThat(auditBody().passThroughStages()).doesNotContain(TurnStage.DIALOG_STATE);
+    }
+
+    ChatMessage calculate(String draft, RequestContext turnContext, SimulationSpec spec) {
+        ChatMessage asked = new ChatMessage(UUID.randomUUID(), ChatMessage.Author.USER, ITEM_40, null, null);
+        ChatMessage proposal = new ChatMessage(UUID.randomUUID(), ChatMessage.Author.AGENT,
+                ResponseTemplates.PARAMETER_PROPOSAL, ResponseOutcome.COMPUTE, asked.id(), List.of(), List.of(), null,
+                new ChatMessage.Proposal(spec, ChatMessage.Proposal.Status.OPEN), List.of());
+        when(chats.openProposal(scope)).thenReturn(Optional.of(proposal.id()));
+        when(chats.updateProposalStatus(scope, proposal.id(), ChatMessage.Proposal.Status.OPEN,
+                ChatMessage.Proposal.Status.CALCULATED)).thenReturn(true);
+        when(nluExtractor.extract(any(), eq(scope), eq(ITEM_40))).thenReturn(new TurnState.Nlu(ITEM_40_NLU,
+                List.of(), "nlu-m", "sha256:n1", new java.util.TreeMap<>(NLU_HASHES), true, true));
+        when(chats.conversation(scope)).thenReturn(conversation);
+        when(prompts.rolePrompt("advisor")).thenReturn(new PromptFiles.Prompt("role-advisor.txt", "ROLE", "abc123"));
+        when(prompts.complianceRules()).thenReturn(new PromptFiles.Prompt("compliance-rules.txt", "RULES", "def456"));
+        when(prompts.classInstruction(MessageClass.COMPUTE)).thenReturn(new PromptFiles.Prompt("class-COMPUTE.txt",
+                "CLASS COMPUTE", "h-COMPUTE"));
+        when(llm.generate(eq(LlmRole.PHRASING), anyList(), eq(TestContexts.DECODING), isNull()))
+                .thenReturn(result(draft));
+        return orchestrator.calculate(turnContext, scope, asked, new TurnOrchestrator.Confirmation(proposal, spec),
+                "fv-1");
+    }
+
+    @Test
+    void calculateRunsTheRegistryToolPhrasesItsResultsAndListsItsFigures() {
+        SimulationSpec spec = item40Spec();
+        when(tools.run(context, spec)).thenReturn(List.of(withdrawalResult()));
+
+        ChatMessage answer = calculate("It lasts 522 full monthly withdrawals, or 538 with monthly rates.", context,
+                spec);
+
+        assertThat(answer.outcome()).isEqualTo(ResponseOutcome.COMPUTE);
+        assertThat(answer.text()).isEqualTo("It lasts 522 full monthly withdrawals, or 538 with monthly rates.");
+        assertThat(answer.proposal()).isNull();
+        assertThat(answer.figures()).extracting(SourcedNumber::provId)
+                .as("computed outputs, not the echoed inputs").containsExactly("00000000000000a1", "00000000000000a2");
+        assertThat(sentMessages().get(1).content()).contains(RegenerationFix.TOOL_RESULTS_HEADER)
+                .contains("Full (effective): 522 ");
+        org.mockito.Mockito.verify(chats).saveDialogState(scope, conversation, null);
+        ResponseAuditBody body = auditBody();
+        assertThat(body.evidence()).containsExactly("00000000000000a1", "00000000000000a2", "00000000000000a3");
+        assertThat(body.numberLedger()).startsWith(new NumberLedger.Entry(new BigDecimal("522"),
+                NumberLedger.Source.CORE, "00000000000000a1"));
+        assertThat(body.finalChecks()).filteredOn(c -> c.checkId() == CheckId.NUMBER_MATCH)
+                .singleElement().matches(CheckResult::passed);
+        assertThat(body.parameterProposal()).isFalse();
+        assertThat(body.simulationSpec()).isEqualTo(spec);
+    }
+
+    @Test
+    void calculateOnAProposalThatIsNoLongerOpenFailsTheTurn() {
+        SimulationSpec spec = item40Spec();
+        ChatMessage asked = new ChatMessage(UUID.randomUUID(), ChatMessage.Author.USER, ITEM_40, null, null);
+        ChatMessage proposal = new ChatMessage(UUID.randomUUID(), ChatMessage.Author.AGENT,
+                ResponseTemplates.PARAMETER_PROPOSAL, ResponseOutcome.COMPUTE, asked.id(), List.of(), List.of(), null,
+                new ChatMessage.Proposal(spec, ChatMessage.Proposal.Status.OPEN), List.of());
+        when(chats.openProposal(scope)).thenReturn(Optional.empty());
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> orchestrator.calculate(context, scope, asked,
+                new TurnOrchestrator.Confirmation(proposal, spec), "fv-1")).isInstanceOf(IllegalStateException.class);
+        org.mockito.Mockito.verifyNoInteractions(llm, tools, audit);
+    }
+
+    @Test
+    void aToolWithoutAValidRuleParameterEscalatesUnderEnforcement() {
+        SimulationSpec spec = item40Spec();
+        RequestContext enforcing = with(ComplianceLevel.A_B_C, false);
+        when(tools.run(enforcing, spec)).thenThrow(new NoValidRuleParameterException("No version"));
+        when(escalations.openForTurn(eq(scope), any())).thenReturn(UUID.randomUUID());
+
+        ChatMessage answer = calculate("It lasts a while.", enforcing, spec);
+
+        assertThat(answer.outcome()).isEqualTo(ResponseOutcome.ESCALATE);
+        assertThat(answer.figures()).isEmpty();
+        ResponseAuditBody body = auditBody();
+        assertThat(body.ruleParameterError()).isTrue();
+        assertThat(body.regenerated()).isFalse();
     }
 }

@@ -208,3 +208,155 @@
   cursor: pointer;
   text-decoration: underline;
 }
+
+/* "Here's what I understood" (UX-DR16): the values a calculation will run with, nothing computed yet. */
+.proposal {
+  margin-top: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 8px;
+  background: var(--mat-sys-surface);
+}
+
+.proposal.cancelled {
+  opacity: 0.6;
+}
+
+.proposal-title {
+  margin: 0 0 8px;
+  font: var(--fine-label);
+}
+
+.proposal-status {
+  margin: 0 0 8px;
+  font: var(--fine-body-sm);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.proposal-rows {
+  margin: 0;
+}
+
+.proposal-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border-top: 1px solid var(--mat-sys-outline-variant);
+
+  &:first-child {
+    border-top: 0;
+  }
+
+  dt {
+    font: var(--fine-body-sm);
+  }
+
+  dd {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+  }
+}
+
+.value {
+  font: var(--fine-label);
+  font-variant-numeric: tabular-nums;
+}
+
+.field {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+
+  input {
+    width: 120px;
+    min-height: 32px;
+    padding: 4px 8px;
+    border: 1px solid var(--mat-sys-outline);
+    border-radius: 8px;
+    font: var(--fine-body-sm);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+}
+
+.unit,
+.source-tag {
+  font: var(--fine-body-sm);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.proposal-error {
+  margin: 8px 0 0;
+  font: var(--fine-body-sm);
+  color: var(--mat-sys-error);
+}
+
+.proposal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* Figure chips (UX-DR6): ice background, small radius, tabular figures; the link icon shows it in the Overview. */
+.figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.figure {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.figure-chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 4px;
+  background: var(--fine-ice);
+  color: var(--fine-navy);
+  text-align: left;
+  cursor: pointer;
+}
+
+.figure-label {
+  font: var(--fine-body-sm);
+  font-size: 12px;
+}
+
+.figure-value {
+  font: var(--fine-label);
+  font-variant-numeric: tabular-nums;
+}
+
+.show-in-overview {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--mat-sys-primary);
+  cursor: pointer;
+
+  .icon {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+  }
+}

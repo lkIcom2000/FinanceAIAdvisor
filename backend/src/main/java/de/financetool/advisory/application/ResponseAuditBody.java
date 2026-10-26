@@ -9,6 +9,7 @@ import de.financetool.advisory.domain.NumberLedger;
 import de.financetool.advisory.domain.ResponseOutcome;
 import de.financetool.advisory.domain.TurnStage;
 import de.financetool.shared.config.DataExposureLevel;
+import de.financetool.shared.domain.SimulationSpec;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
@@ -57,6 +58,10 @@ import java.util.UUID;
  * @param complianceLevel the configured level, e.g. {@code A+B+C}
  * @param passThroughStages the stages that ran as explicit pass-throughs, in pipeline order
  * @param numberLedger the turn's sourced numbers (value, source, label) the Number Check matched against
+ * @param dialogState the persona's dialog state as consulted first, e.g. {@code PARAMETER_PROPOSAL}
+ * @param simulationSpec the spec the turn proposed or calculated; {@code null} without a calculation
+ * @param parameterProposal whether the turn released a parameter proposal instead of calculating
+ * @param ruleParameterError whether a tool needed a Rule Parameter without a valid version
  */
 record ResponseAuditBody(
         @JsonProperty("class") MessageClass messageClass,
@@ -100,5 +105,9 @@ record ResponseAuditBody(
         String regeneratedText,
         String complianceLevel,
         List<TurnStage> passThroughStages,
-        List<NumberLedger.Entry> numberLedger) {
+        List<NumberLedger.Entry> numberLedger,
+        String dialogState,
+        SimulationSpec simulationSpec,
+        boolean parameterProposal,
+        boolean ruleParameterError) {
 }

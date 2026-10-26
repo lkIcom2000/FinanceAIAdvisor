@@ -61,6 +61,17 @@ class ModulithTest {
         assertThat(names).containsExactlyInAnyOrderElementsOf(AD12_GRAPH.keySet());
     }
 
+    /** AD-3: chat never proposes an Action, so {@code advisory} has no dependency on {@code actions}. */
+    @Test
+    void advisoryDoesNotDependOnActions() {
+        assertThat(AD12_GRAPH.get("advisory")).doesNotContain("actions");
+        com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses()
+                .that().resideInAPackage("de.financetool.advisory..")
+                .should().dependOnClassesThat().resideInAPackage("de.financetool.actions..")
+                .check(new com.tngtech.archunit.core.importer.ClassFileImporter()
+                        .importPackages("de.financetool.advisory", "de.financetool.actions"));
+    }
+
     @Test
     void declaredDependenciesEqualTheAd12Graph() throws ClassNotFoundException {
         Map<String, Set<String>> declared = new TreeMap<>();

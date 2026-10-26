@@ -6,6 +6,9 @@ import de.financetool.core.domain.InsuranceFigures;
 import de.financetool.core.domain.LiquidityFigures;
 import de.financetool.core.domain.WealthFigures;
 import de.financetool.shared.RequestContext;
+import de.financetool.shared.domain.SourcedNumber;
+import java.math.BigDecimal;
+import java.util.Optional;
 
 /**
  * Module API: the single entry point to the Deterministic Core (AD-2). Every call reads its data for the context's
@@ -13,6 +16,9 @@ import de.financetool.shared.RequestContext;
  * caller's transaction.
  */
 public interface CoreGateway {
+
+    /** The output of {@link #investmentTotals} that is the value of the persona's investments today. */
+    String INVESTMENTS_TODAY = "holdingsValue";
 
     /** The persona's current account balance at the end of {@code asOf} (function {@code accountBalance}). */
     CoreResult currentAccountBalance(RequestContext context, EvidenceOrigin origin);
@@ -41,4 +47,22 @@ public interface CoreGateway {
      * check; each flag names the output whose key it carries.
      */
     InsuranceFigures insurance(RequestContext context, EvidenceOrigin origin);
+
+    /**
+     * The value of the persona's investments today and their monthly savings plan contributions (function
+     * {@code investmentTotals}), with the same figure keys as in {@link #wealth}; empty without holdings and savings
+     * plans.
+     */
+    Optional<CoreResult> investmentTotals(RequestContext context, EvidenceOrigin origin);
+
+    /**
+     * How many full month-end withdrawals a portfolio pays out under the effective and the monthly-rate convention
+     * (function {@code withdrawalDuration}).
+     *
+     * @param portfolioFigure the Core figure the portfolio is, or {@code null} if the persona stated it
+     * @param annualRate the assumed annual return as a fraction
+     * @throws IllegalArgumentException if the withdrawal is not positive or the portfolio is negative
+     */
+    CoreResult withdrawalDuration(RequestContext context, EvidenceOrigin origin, BigDecimal portfolio,
+            SourcedNumber portfolioFigure, BigDecimal monthlyWithdrawal, BigDecimal annualRate);
 }

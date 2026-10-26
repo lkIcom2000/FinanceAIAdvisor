@@ -35,6 +35,7 @@ const question: ChatMessage = {
   text: 'What is an ETF?',
   suggestions: [],
   checks: [],
+  figures: [],
 };
 const answer: ChatMessage = {
   id: 'a1',
@@ -44,6 +45,7 @@ const answer: ChatMessage = {
   replyTo: 'q1',
   suggestions: [],
   checks: [],
+  figures: [],
 };
 
 describe('ChatColumnComponent', () => {
@@ -132,7 +134,7 @@ describe('ChatColumnComponent', () => {
     const outcomes = Object.keys(OUTCOME_LABELS) as Outcome[];
     expect(outcomes).toHaveLength(7);
     const messages: ChatMessage[] = outcomes.flatMap((outcome, i) => [
-      { id: `q${i}`, author: 'USER', text: `question ${i}`, suggestions: [], checks: [] },
+      { id: `q${i}`, author: 'USER', text: `question ${i}`, suggestions: [], checks: [], figures: [] },
       {
         id: `a${i}`,
         author: 'AGENT',
@@ -141,6 +143,7 @@ describe('ChatColumnComponent', () => {
         replyTo: `q${i}`,
         suggestions: [],
         checks: [],
+        figures: [],
       },
     ]);
     render(messages);
@@ -208,6 +211,7 @@ describe('ChatColumnComponent', () => {
         text: 'How does an emergency fund work?',
         suggestions: [],
         checks: [],
+        figures: [],
       },
       { status: 201, statusText: 'Created' },
     );
@@ -455,5 +459,150 @@ describe('ChatColumnComponent', () => {
     http.expectOne('/api/chat/messages/q1/answer').flush(answer);
     fixture.detectChanges();
     expect(element.querySelector('.new-message')).toBeNull();
+  });
+
+  const item40: ChatMessage = {
+    id: 'q40',
+    author: 'USER',
+    text: 'I have a portfolio of 500,000 EUR ...',
+    suggestions: [],
+    checks: [],
+    figures: [],
+  };
+  const proposal: ChatMessage = {
+    id: 'p40',
+    author: 'AGENT',
+    text: "Here's what I understood from your question.",
+    outcome: 'COMPUTE',
+    replyTo: 'q40',
+    suggestions: [],
+    checks: [],
+    figures: [],
+    proposal: {
+      status: 'OPEN',
+      parameters: [
+        { key: 'portfolio', label: 'Starting portfolio', value: '48210.00', unit: 'EUR', source: 'ACCOUNT_DATA', provId: 'wea0000000000a3' },
+        { key: 'monthlyWithdrawal', label: 'Monthly withdrawal', value: '2000.00', unit: 'EUR', source: 'QUESTION' },
+        { key: 'annualRate', label: 'Assumed annual return', value: '0.04', unit: 'FRACTION', source: 'QUESTION' },
+      ],
+    },
+  };
+  const calculated: ChatMessage = {
+    id: 'c40',
+    author: 'AGENT',
+    text: 'It lasts 522 full monthly withdrawals.',
+    outcome: 'COMPUTE',
+    replyTo: 'p40',
+    suggestions: [],
+    checks: [],
+    figures: [
+      { provId: 'calc000000000a1', label: 'Full monthly withdrawals', value: '522', unit: 'COUNT' },
+      { provId: 'wea0000000000a3', label: 'Value of your investments today', value: '48210.00', unit: 'EUR' },
+    ],
+  };
+
+  function flushOverviewIndex(): void {
+    http.expectOne('/api/overview/home').flush({});
+    http.expectOne('/api/overview/liquidity').flush({});
+    http.expectOne('/api/overview/wealth').flush({ projection: { initial: { provId: 'wea0000000000a3' } } });
+    fixture.detectChanges();
+  }
+
+  it('shows a proposal with each value, its unit and its source, and nothing calculated', () => {
+    render([item40, proposal]);
+
+    expect(text(element.querySelector('.proposal-title'))).toBe("Here's what I understood");
+    const rows = Array.from(element.querySelectorAll('.proposal-row')).map(text);
+    expect(rows).toEqual([
+      'Starting portfolio 48,210.00 EUR From your account data',
+      'Monthly withdrawal 2,000.00 EUR From your question',
+      'Assumed annual return 4 % From your question',
+    ]);
+    expect(element.querySelector('.figures')).toBeNull();
+    expect(element.querySelector('.check-footer')).toBeNull();
+  });
+
+  it('calculates on Calculate and shows the answer with figure chips linked to the Overview', () => {
+    render([item40, proposal]);
+    element.querySelector<HTMLButtonElement>('.calculate')!.click();
+    fixture.detectChanges();
+
+    const call = http.expectOne('/api/chat/messages/p40/calculate');
+    expect(call.request.body).toEqual({ parameters: [] });
+    expect(element.querySelector('.waiting')).not.toBeNull();
+    call.flush(calculated);
+    fixture.detectChanges();
+    flushOverviewIndex();
+
+    expect(element.querySelector('.proposal-actions')).toBeNull();
+    const chips = Array.from(element.querySelectorAll('.figure-chip')).map(text);
+    expect(chips).toEqual(['Full monthly withdrawals 522', 'Value of your investments today 48,210.00 EUR']);
+    const links = element.querySelectorAll('.show-in-overview');
+    expect(links.length).toBe(1);
+    expect(links[0].closest('.figure')?.textContent).toContain('48,210.00 EUR');
+
+    element.querySelector<HTMLButtonElement>('.figure-chip')!.click();
+    http.expectOne('/api/provenance/calc000000000a1');
+  });
+
+  it('turns the rows into fields on Change values and sends only the changed values, a rate as a share', () => {
+    render([item40, proposal]);
+    element.querySelector<HTMLButtonElement>('.change-values')!.click();
+    fixture.detectChanges();
+
+    const fields = Array.from(element.querySelectorAll<HTMLInputElement>('.proposal input'));
+    expect(fields.map((f) => f.value)).toEqual(['48210.00', '2000.00', '4']);
+    fields[2].value = '3';
+    fields[2].dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('.calculate')!.click();
+
+    expect(http.expectOne('/api/chat/messages/p40/calculate').request.body).toEqual({
+      parameters: [{ key: 'annualRate', value: '0.03' }],
+    });
+  });
+
+  it('refuses a field that is not a number before calling the backend', () => {
+    render([item40, proposal]);
+    element.querySelector<HTMLButtonElement>('.change-values')!.click();
+    fixture.detectChanges();
+    const field = element.querySelectorAll<HTMLInputElement>('.proposal input')[1];
+    field.value = 'two thousand';
+    field.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('.calculate')!.click();
+    fixture.detectChanges();
+
+    expect(text(element.querySelector('.proposal-error'))).toBe(
+      'Please enter a number for Monthly withdrawal.',
+    );
+  });
+
+  it('greys an open proposal as Cancelled when a new question is sent', () => {
+    render([item40, proposal]);
+    typeAndSend('What is an ETF?');
+
+    expect(element.querySelector('.proposal')?.classList).toContain('cancelled');
+    expect(text(element.querySelector('.proposal-status'))).toBe('Cancelled');
+    expect(element.querySelector('.calculate')).toBeNull();
+    http.expectOne('/api/chat/messages');
+  });
+
+  it('shows a proposal the backend already cancelled as Cancelled after Calculate', () => {
+    render([item40, proposal]);
+    element.querySelector<HTMLButtonElement>('.calculate')!.click();
+    http
+      .expectOne('/api/chat/messages/p40/calculate')
+      .flush({ code: 'PROPOSAL_CLOSED' }, { status: 409, statusText: 'Conflict' });
+    fixture.detectChanges();
+
+    expect(text(element.querySelector('.proposal-status'))).toBe('Cancelled');
+  });
+
+  it('indexes the Overview on load when the history has figure chips', () => {
+    render([item40, { ...proposal, proposal: { ...proposal.proposal!, status: 'CALCULATED' } }, calculated]);
+    flushOverviewIndex();
+
+    expect(element.querySelectorAll('.show-in-overview').length).toBe(1);
   });
 });

@@ -11,8 +11,11 @@ import de.financetool.bank.AssetClass;
 import de.financetool.bank.BankSnapshot;
 import de.financetool.bank.TransactionCategory;
 import de.financetool.bank.TransactionOrigin;
+import de.financetool.core.CoreGateway;
+import de.financetool.core.domain.Investments;
 import de.financetool.core.domain.MonteCarloProjection;
 import de.financetool.core.domain.WealthFigures;
+import de.financetool.core.domain.WithdrawalDuration;
 import de.financetool.knowledge.RuleParamPort;
 import de.financetool.knowledge.RuleParameter;
 import de.financetool.shared.RequestContext;
@@ -182,5 +185,51 @@ class CoreGatewayServiceTest {
         assertThat(figures.projection()).isNull();
         assertThat(figures.totals()).isNull();
         assertThat(stored).isEmpty();
+    }
+
+    @Test
+    void theInvestmentTotalsHaveTheSameFigureKeysAsInTheWealthViewAndNoRuleParameter() {
+        RuleParamPort none = port((key, asOf) -> {
+            throw new IllegalStateException("no Rule Parameter needed");
+        });
+        BankSnapshot snapshot = withHolding(true);
+        CoreGatewayService totalsOnly = new CoreGatewayService((persona, asOf) -> snapshot, items -> { }, none,
+                Optional::empty);
+        CoreGatewayService full = new CoreGatewayService((persona, asOf) -> snapshot, items -> { }, PARAMETERS,
+                Optional::empty);
+
+        de.financetool.core.domain.CoreResult totals = totalsOnly.investmentTotals(TestContexts.context(),
+                EvidenceOrigin.TURN).orElseThrow();
+
+        assertThat(totals.number(CoreGateway.INVESTMENTS_TODAY)).isEqualTo(full.wealth(TestContexts.context(),
+                EvidenceOrigin.OVERVIEW).totals().number(Investments.OUTPUT_INITIAL));
+        assertThat(totals.number(CoreGateway.INVESTMENTS_TODAY).value()).isEqualByComparingTo("1000.00");
+    }
+
+    @Test
+    void withoutHoldingsOrPlansThereAreNoInvestmentTotals() {
+        CoreGatewayService gateway = new CoreGatewayService((persona, asOf) -> withHolding(false), items -> { },
+                PARAMETERS, Optional::empty);
+
+        assertThat(gateway.investmentTotals(TestContexts.context(), EvidenceOrigin.TURN)).isEmpty();
+    }
+
+    @Test
+    void theWithdrawalDurationIsKeyedStoredAndDrillsDownToAnAccountFigure() {
+        List<EvidenceItem> stored = new ArrayList<>();
+        CoreGatewayService gateway = new CoreGatewayService((persona, asOf) -> withHolding(true), stored::addAll,
+                PARAMETERS, Optional::empty);
+        de.financetool.shared.domain.SourcedNumber investments = gateway.investmentTotals(TestContexts.context(),
+                EvidenceOrigin.TURN).orElseThrow().number(CoreGateway.INVESTMENTS_TODAY);
+        stored.clear();
+
+        de.financetool.core.domain.CoreResult result = gateway.withdrawalDuration(TestContexts.context(),
+                EvidenceOrigin.TURN, investments.value(), investments, new BigDecimal("10.00"),
+                new BigDecimal("0.04"));
+
+        assertThat(result.number(WithdrawalDuration.FULL_EFFECTIVE).provId()).matches("[0-9a-f]{16}");
+        assertThat(stored).hasSize(result.numbers().size())
+                .allMatch(i -> i.origin() == EvidenceOrigin.TURN);
+        assertThat(result.inputs().getFirst().provId()).isEqualTo(investments.provId());
     }
 }

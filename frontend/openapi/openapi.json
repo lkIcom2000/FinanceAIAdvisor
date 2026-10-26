@@ -204,6 +204,85 @@
         "tags" : [ "chat" ]
       }
     },
+    "/api/chat/messages/{id}/calculate" : {
+      "post" : {
+        "description" : "Nothing is calculated before this call. A proposal that was already calculated returns that answer again.",
+        "operationId" : "calculate",
+        "parameters" : [ {
+          "description" : "The proposal's id (a UUID)",
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CalculateRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChatMessage"
+                }
+              }
+            },
+            "description" : "Fine's calculated answer"
+          },
+          "400" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChatMessage"
+                }
+              }
+            },
+            "description" : "A changed value is unknown or out of bounds"
+          },
+          "404" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChatMessage"
+                }
+              }
+            },
+            "description" : "No such proposal for this persona"
+          },
+          "409" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChatMessage"
+                }
+              }
+            },
+            "description" : "The proposal was cancelled by a later question"
+          },
+          "503" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChatMessage"
+                }
+              }
+            },
+            "description" : "The answer could not be finished; the proposal stays open"
+          }
+        },
+        "summary" : "Calculate a parameter proposal and return Fine's calculated answer",
+        "tags" : [ "chat" ]
+      }
+    },
     "/api/overview/home" : {
       "get" : {
         "operationId" : "home",
@@ -331,6 +410,39 @@
   },
   "components" : {
     "schemas" : {
+      "CalculateRequest" : {
+        "type" : "object",
+        "description" : "Calculate a proposal, with the values the persona changed",
+        "properties" : {
+          "parameters" : {
+            "type" : "array",
+            "description" : "Only the changed values; empty or missing to calculate as proposed",
+            "items" : {
+              "$ref" : "#/components/schemas/ChangedValue"
+            },
+            "maxItems" : 10,
+            "minItems" : 0
+          }
+        }
+      },
+      "ChangedValue" : {
+        "type" : "object",
+        "description" : "A value the persona changed, in the parameter's unit (a rate as a fraction: 0.04 = 4 %)",
+        "properties" : {
+          "key" : {
+            "type" : "string",
+            "maxLength" : 64,
+            "minLength" : 0
+          },
+          "value" : {
+            "type" : "string",
+            "maxLength" : 32,
+            "minLength" : 0,
+            "pattern" : "^-?\\d+(\\.\\d+)?$"
+          }
+        },
+        "required" : [ "key", "value" ]
+      },
       "Chat" : {
         "type" : "object",
         "description" : "The conversation, oldest message first",
@@ -398,6 +510,13 @@
               "$ref" : "#/components/schemas/ChatCheck"
             }
           },
+          "figures" : {
+            "type" : "array",
+            "description" : "The figures a calculated answer used, shown as figure chips; empty on other messages",
+            "items" : {
+              "$ref" : "#/components/schemas/Figure"
+            }
+          },
           "handover" : {
             "$ref" : "#/components/schemas/ChatHandover",
             "description" : "The case for a human advisor; only on answers passed to an advisor (ESCALATE)"
@@ -410,6 +529,10 @@
             "type" : "string",
             "description" : "How the turn ended; only on Fine's answers",
             "enum" : [ "INFORM", "ASK_PROFILE", "RECOMMEND_CATEGORY", "COMPUTE", "REFUSE_OUT_OF_SCOPE", "DETECT_TRAP", "ESCALATE" ]
+          },
+          "proposal" : {
+            "$ref" : "#/components/schemas/ChatProposal",
+            "description" : "\"Here's what I understood\": the values a calculation will run with; only on COMPUTE answers that ask before calculating"
           },
           "replyTo" : {
             "type" : "string",
@@ -428,7 +551,58 @@
             "type" : "string"
           }
         },
-        "required" : [ "author", "checks", "id", "suggestions", "text" ]
+        "required" : [ "author", "checks", "figures", "id", "suggestions", "text" ]
+      },
+      "ChatProposal" : {
+        "type" : "object",
+        "description" : "The values a calculation will run with, shown before calculating",
+        "properties" : {
+          "parameters" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ChatProposalParameter"
+            }
+          },
+          "status" : {
+            "type" : "string",
+            "description" : "OPEN: waiting for Calculate; CALCULATED: answered below; CANCELLED: a later question replaced it",
+            "enum" : [ "OPEN", "CALCULATED", "CANCELLED" ]
+          }
+        },
+        "required" : [ "parameters", "status" ]
+      },
+      "ChatProposalParameter" : {
+        "type" : "object",
+        "description" : "One value of a proposed calculation",
+        "properties" : {
+          "key" : {
+            "type" : "string",
+            "description" : "The key to change it by"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "provId" : {
+            "type" : "string",
+            "description" : "The figure an account-data value is; only for ACCOUNT_DATA",
+            "pattern" : "^[0-9a-f]{16}$"
+          },
+          "source" : {
+            "type" : "string",
+            "description" : "QUESTION: from your question; ACCOUNT_DATA: from your account data; CHANGED: changed by you",
+            "enum" : [ "QUESTION", "ACCOUNT_DATA", "CHANGED" ]
+          },
+          "unit" : {
+            "type" : "string",
+            "enum" : [ "EUR", "FRACTION", "PP", "MONTHS", "YEARS", "COUNT" ]
+          },
+          "value" : {
+            "type" : "string",
+            "description" : "Decimal string",
+            "pattern" : "^-?\\d+(\\.\\d+)?$"
+          }
+        },
+        "required" : [ "key", "label", "source", "unit", "value" ]
       },
       "DatedFigure" : {
         "type" : "object",
@@ -769,7 +943,7 @@
       "ProblemCode" : {
         "type" : "string",
         "description" : "Closed set of machine-readable error codes.",
-        "enum" : [ "VALIDATION_FAILED", "BAD_CREDENTIALS", "UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "REQUEST_REJECTED", "TURN_FAILED", "INTERNAL_ERROR" ]
+        "enum" : [ "VALIDATION_FAILED", "BAD_CREDENTIALS", "UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "REQUEST_REJECTED", "TURN_FAILED", "PROPOSAL_CLOSED", "INTERNAL_ERROR" ]
       },
       "ProblemDetail" : {
         "type" : "object",

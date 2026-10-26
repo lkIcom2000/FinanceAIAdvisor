@@ -116,6 +116,21 @@ app-root {
   }
 }
 
+// FR-8: the Overview element of a figure the chat referenced. A steady 3px cyan outline that fades in; under
+// reduced motion the rule below makes it appear at once.
+.fine-highlight-ring {
+  outline: 3px solid var(--fine-highlight-ring);
+  outline-offset: 4px;
+  border-radius: 8px;
+  animation: fine-ring-in 200ms ease-out;
+}
+
+@keyframes fine-ring-in {
+  from {
+    outline-color: transparent;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

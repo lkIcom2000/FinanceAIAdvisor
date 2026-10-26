@@ -56,7 +56,7 @@ export class WealthTabComponent {
 
   protected readonly legend = { middle: MIDDLE, lower: LOWER, higher: HIGHER };
 
-  /** The projection's figures, each with its "Why?". */
+  /** The projection's figures, each with its "Why?"; the starting value is the one chat calculations use. */
   protected readonly figureRows = computed(() => {
     const s = this.state();
     const pr = s.status === 'ready' ? s.wealth.projection : undefined;
@@ -69,6 +69,7 @@ export class WealthTabComponent {
       { name: `High end (${HIGHER})`, figure: pr.p90 },
       { name: "Middle outcome in today's money", figure: pr.p50TodaysMoney },
       { name: 'Total paid in', figure: pr.paidIn },
+      { name: 'Value of your investments today', figure: pr.startingValue },
     ];
   });
 

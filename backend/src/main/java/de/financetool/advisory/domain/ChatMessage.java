@@ -1,5 +1,7 @@
 package de.financetool.advisory.domain;
 
+import de.financetool.shared.domain.SimulationSpec;
+import de.financetool.shared.domain.SourcedNumber;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -13,9 +15,12 @@ import java.util.UUID;
  * @param checks the applicable final checks of an agent message, shown under "Checks"; empty for other messages and
  *     for an answer that is a fixed template
  * @param handover the case an {@code ESCALATE} answer opened for a human advisor; {@code null} for other messages
+ * @param proposal the parameter proposal a {@code COMPUTE} answer shows before calculating; {@code null} otherwise
+ * @param figures the Core figures a calculated answer used, shown as figure chips; empty for other messages
  */
 public record ChatMessage(UUID id, Author author, String text, ResponseOutcome outcome, UUID replyTo,
-        List<String> suggestions, List<Check> checks, Handover handover) {
+        List<String> suggestions, List<Check> checks, Handover handover, Proposal proposal,
+        List<SourcedNumber> figures) {
 
     /** At most three chips per card (UX). */
     public static final int MAX_SUGGESTIONS = 3;
@@ -56,18 +61,42 @@ public record ChatMessage(UUID id, Author author, String text, ResponseOutcome o
         }
     }
 
+    /**
+     * "Here's what I understood": the parameters a calculation will run with (AD-24).
+     *
+     * @param status {@code OPEN} until the persona calculates it or asks something else
+     */
+    public record Proposal(SimulationSpec spec, Status status) {
+
+        public enum Status {
+            OPEN, CALCULATED, CANCELLED
+        }
+
+        public Proposal {
+            Objects.requireNonNull(spec, "spec");
+            Objects.requireNonNull(status, "status");
+        }
+    }
+
     public ChatMessage {
         Objects.requireNonNull(id, "id");
         Objects.requireNonNull(author, "author");
         Objects.requireNonNull(text, "text");
         suggestions = suggestions == null ? List.of() : List.copyOf(suggestions);
         checks = checks == null ? List.of() : List.copyOf(checks);
+        figures = figures == null ? List.of() : List.copyOf(figures);
         if (suggestions.size() > MAX_SUGGESTIONS) {
             throw new IllegalArgumentException("At most " + MAX_SUGGESTIONS + " suggestions per message");
         }
     }
 
-    /** A message without a handover. */
+    /** A message without a proposal and figures. */
+    public ChatMessage(UUID id, Author author, String text, ResponseOutcome outcome, UUID replyTo,
+            List<String> suggestions, List<Check> checks, Handover handover) {
+        this(id, author, text, outcome, replyTo, suggestions, checks, handover, null, List.of());
+    }
+
+    /** A message without a handover, a proposal and figures. */
     public ChatMessage(UUID id, Author author, String text, ResponseOutcome outcome, UUID replyTo,
             List<String> suggestions, List<Check> checks) {
         this(id, author, text, outcome, replyTo, suggestions, checks, null);
@@ -75,17 +104,24 @@ public record ChatMessage(UUID id, Author author, String text, ResponseOutcome o
 
     /** This message with the handover of its case. */
     public ChatMessage withHandover(Handover value) {
-        return new ChatMessage(id, author, text, outcome, replyTo, suggestions, checks, value);
+        return new ChatMessage(id, author, text, outcome, replyTo, suggestions, checks, value, proposal, figures);
+    }
+
+    /** This proposal message with a new status. */
+    public ChatMessage withProposalStatus(Proposal.Status value) {
+        Objects.requireNonNull(proposal, "proposal");
+        return new ChatMessage(id, author, text, outcome, replyTo, suggestions, checks, handover,
+                new Proposal(proposal.spec(), value), figures);
     }
 
     /** A message without checks. */
     public ChatMessage(UUID id, Author author, String text, ResponseOutcome outcome, UUID replyTo,
             List<String> suggestions) {
-        this(id, author, text, outcome, replyTo, suggestions, List.of(), null);
+        this(id, author, text, outcome, replyTo, suggestions, List.of());
     }
 
     /** A message without suggestion chips and checks. */
     public ChatMessage(UUID id, Author author, String text, ResponseOutcome outcome, UUID replyTo) {
-        this(id, author, text, outcome, replyTo, List.of(), List.of(), null);
+        this(id, author, text, outcome, replyTo, List.of(), List.of());
     }
 }

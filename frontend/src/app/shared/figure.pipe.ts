@@ -51,6 +51,22 @@ function shiftTwoPlaces(digits: string): string {
   return rest ? `${whole}.${rest}` : whole;
 }
 
+/** A share as the percentage a field shows, by moving the decimal point (text only): "0.04" becomes "4". */
+export function fractionToPercent(value: string): string {
+  const negative = value.startsWith('-');
+  return (negative ? '-' : '') + shiftTwoPlaces(negative ? value.slice(1) : value);
+}
+
+/** A percentage typed into a field as the share the API takes (text only): "4" becomes "0.04", "4.5" "0.045". */
+export function percentToFraction(value: string): string {
+  const negative = value.startsWith('-');
+  const [integer, fraction = ''] = (negative ? value.slice(1) : value).split('.');
+  const padded = integer.padStart(3, '0');
+  const whole = padded.slice(0, -2).replace(/^0+(?=\d)/, '');
+  const rest = (padded.slice(-2) + fraction).replace(/0+$/, '');
+  return (negative ? '-' : '') + (rest ? `${whole}.${rest}` : whole);
+}
+
 @Pipe({ name: 'figure' })
 export class FigurePipe implements PipeTransform {
   transform(value: string, unit: FigureUnit): string {

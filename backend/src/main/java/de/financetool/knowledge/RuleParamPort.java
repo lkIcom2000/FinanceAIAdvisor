@@ -9,7 +9,7 @@ public interface RuleParamPort {
     /**
      * The version of {@code key} valid at {@code asOf}.
      *
-     * @throws IllegalStateException if the key is unknown or no version of it is valid at {@code asOf}
+     * @throws NoValidRuleParameterException if the key is unknown or no version of it is valid at {@code asOf}
      */
     RuleParameter valid(String key, LocalDate asOf);
 

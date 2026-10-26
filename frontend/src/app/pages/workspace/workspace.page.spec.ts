@@ -9,6 +9,7 @@ import {
   flushMicrotasks,
   httpTestingProviders,
 } from '../../testing/session-testing';
+import { FigureLinksService } from '../../shared/figure-links.service';
 import { WorkspacePage } from './workspace.page';
 
 describe('WorkspacePage', () => {
@@ -249,5 +250,30 @@ describe('WorkspacePage', () => {
 
     expect(navigate).toHaveBeenCalledWith(['/login'], { queryParams: { reason: 'expired' } });
     expect(TestBed.inject(SessionService).user()).toBeNull();
+  });
+
+  it('dots the label of a tab with a referenced figure and switches only on "Show in overview"', async () => {
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const fixture = TestBed.createComponent(WorkspacePage);
+    fixture.detectChanges();
+    answerPersona();
+    await fixture.whenStable();
+    const links = TestBed.inject(FigureLinksService);
+    links.index.set(new Map([['wea0000000000a3', 'wealth']]));
+
+    links.highlight(['wea0000000000a3']);
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    const tabs = element.querySelectorAll('[role="tab"]');
+    expect(tabs[2].querySelector('.tab-dot')).not.toBeNull();
+    expect(tabs[0].querySelector('.tab-dot')).toBeNull();
+    expect(navigate).not.toHaveBeenCalled();
+
+    links.show('wea0000000000a3');
+    await fixture.whenStable();
+    expect(navigate).toHaveBeenCalledWith(
+      [],
+      expect.objectContaining({ queryParams: { tab: 'wealth' } }),
+    );
   });
 });

@@ -9,10 +9,14 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
-import { openChecksDialog } from '../../shared/why-link.component';
+import { FigureLinksService } from '../../shared/figure-links.service';
+import { FigurePipe, fractionToPercent, percentToFraction } from '../../shared/figure.pipe';
+import { openChecksDialog, openWhyDialog } from '../../shared/why-link.component';
 import { ChatMessage } from '../../api/models/chat-message';
+import { ChatProposalParameter } from '../../api/models/chat-proposal-parameter';
 import { ChatService } from '../../api/services/chat.service';
 import { ChatComposerComponent } from './chat-composer.component';
 
@@ -46,7 +50,18 @@ export const ICON_PATHS: Record<string, string> = {
   menu_book:
     'M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5 1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.1.05.15.05.25.05.25 0 .5-.25.5-.5V6c-.6-.45-1.25-.75-2-1zm0 13.5c-1.1-.35-2.3-.5-3.5-.5-1.7 0-4.15.65-5.5 1.5V8c1.35-.85 3.8-1.5 5.5-1.5 1.2 0 2.4.15 3.5.5v11.5z',
   chat: 'M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z',
+  link: 'M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z',
 };
+
+/** The source tag of a proposed value (UX-DR16). */
+export const SOURCE_TAGS: Record<ChatProposalParameter['source'], string> = {
+  QUESTION: 'From your question',
+  ACCOUNT_DATA: 'From your account data',
+  CHANGED: 'Changed by you',
+};
+
+/** What a value field accepts: a plain decimal with a point, as the backend sends it. */
+const DECIMAL = /^-?\d+(\.\d+)?$/;
 
 /** Until Epic 8 tailors them to the persona's notifications. */
 export const SUGGESTIONS = [
@@ -75,11 +90,12 @@ type LoadState = 'loading' | 'ready' | 'failed';
 /**
  * The chat column: greeting, message log, waiting and failed cards, response cards and the composer. A turn is two
  * calls: posting saves the question, answering returns one complete, checked answer. Try again repeats only the
- * answer call.
+ * answer call. A parameter proposal is calculated only on Calculate (AD-24); a new question cancels it. Figure chips
+ * open "Why?" and link to the Overview (FR-8).
  */
 @Component({
   selector: 'app-chat-column',
-  imports: [ChatComposerComponent, MatButtonModule],
+  imports: [ChatComposerComponent, MatButtonModule, FigurePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './chat-column.component.html',
   styleUrl: './chat-column.component.scss',
@@ -88,6 +104,7 @@ export class ChatColumnComponent {
   private readonly chat = inject(ChatService);
   private readonly injector = inject(Injector);
   private readonly dialog = inject(MatDialog);
+  protected readonly links = inject(FigureLinksService);
 
   protected readonly suggestions = SUGGESTIONS;
   protected readonly steps = WAITING_STEPS;
@@ -102,6 +119,11 @@ export class ChatColumnComponent {
   protected readonly slow = signal(false);
   protected readonly newMessage = signal(false);
   protected readonly sendFailed = signal(false);
+  protected readonly sourceTags = SOURCE_TAGS;
+  /** The proposal whose rows are fields ("Change values"), with the field texts by parameter key. */
+  protected readonly editing = signal<{ messageId: string; values: Record<string, string> } | null>(null);
+  /** Why the last Calculate of a proposal did not go through, shown on its card. */
+  protected readonly calculateError = signal<{ messageId: string; text: string } | null>(null);
 
   private readonly log = viewChild<ElementRef<HTMLElement>>('log');
   private readonly composer = viewChild(ChatComposerComponent);
@@ -119,6 +141,9 @@ export class ChatColumnComponent {
         }
         this.load.set('ready');
         this.scrollToBottom();
+        if (chat.messages.some((m) => m.figures.length)) {
+          this.links.refresh().subscribe();
+        }
       },
       error: () => this.load.set('failed'),
     });
@@ -151,6 +176,7 @@ export class ChatColumnComponent {
       return;
     }
     this.sendFailed.set(false);
+    this.cancelOpenProposals();
     this.startWaiting(null);
     this.scrollToBottom();
     this.chat.postMessage({ body: { text } }).subscribe({
@@ -176,6 +202,80 @@ export class ChatColumnComponent {
     }
   }
 
+  /** The field text of a value: a share as a percentage ("0.04" as "4"), every other value as sent. */
+  protected fieldText(p: ChatProposalParameter): string {
+    return p.unit === 'FRACTION' ? fractionToPercent(p.value) : p.value;
+  }
+
+  protected startEditing(message: ChatMessage): void {
+    const values: Record<string, string> = {};
+    for (const p of message.proposal?.parameters ?? []) {
+      values[p.key] = this.fieldText(p);
+    }
+    this.editing.set({ messageId: message.id, values });
+  }
+
+  protected edit(key: string, event: Event): void {
+    const value = (event.target as HTMLInputElement).value.trim().replace(',', '.');
+    this.editing.update((e) => (e ? { ...e, values: { ...e.values, [key]: value } } : e));
+  }
+
+  protected isEditing(message: ChatMessage): boolean {
+    return this.editing()?.messageId === message.id;
+  }
+
+  /** Calculate: only now does the Core run. Changed fields go along, in the parameter's unit. */
+  protected calculate(message: ChatMessage): void {
+    if (this.isBusy() || !message.proposal) {
+      return;
+    }
+    const parameters: { key: string; value: string }[] = [];
+    const editing = this.isEditing(message) ? this.editing()!.values : {};
+    for (const p of message.proposal.parameters) {
+      const text = editing[p.key];
+      if (text === undefined || text === this.fieldText(p)) {
+        continue;
+      }
+      if (!DECIMAL.test(text)) {
+        this.calculateError.set({ messageId: message.id, text: `Please enter a number for ${p.label}.` });
+        return;
+      }
+      parameters.push({ key: p.key, value: p.unit === 'FRACTION' ? percentToFraction(text) : text });
+    }
+    this.calculateError.set(null);
+    this.startWaiting(null);
+    this.scrollToBottom();
+    this.chat.calculate({ id: message.id, body: { parameters } }).subscribe({
+      next: (answer) => {
+        this.stopWaiting();
+        this.pending.set(null);
+        this.editing.set(null);
+        this.setProposalStatus(message.id, 'CALCULATED');
+        this.append(answer, true);
+        this.announceFigures(answer);
+      },
+      error: (error: HttpErrorResponse) => {
+        this.stopWaiting();
+        this.pending.set(null);
+        if (error.status === 409) {
+          this.setProposalStatus(message.id, 'CANCELLED');
+        } else {
+          this.calculateError.set({
+            messageId: message.id,
+            text:
+              error.status === 400 && typeof error.error?.detail === 'string'
+                ? error.error.detail
+                : "Something went wrong on our side, so I couldn't calculate this. Please try Calculate again.",
+          });
+        }
+      },
+    });
+  }
+
+  protected openWhy(provId: string): void {
+    openWhyDialog(this.dialog, provId);
+  }
+
   protected onScroll(): void {
     if (this.atBottom()) {
       this.newMessage.set(false);
@@ -194,12 +294,39 @@ export class ChatColumnComponent {
         this.stopWaiting();
         this.pending.set(null);
         this.append(answer, false);
+        this.announceFigures(answer);
       },
       error: () => {
         this.stopWaiting();
         this.pending.set({ status: 'failed', messageId });
       },
     });
+  }
+
+  /** A new answer with figures: refresh the Overview index, then ring or dot the matching elements. */
+  private announceFigures(answer: ChatMessage): void {
+    if (answer.figures.length) {
+      this.links.refresh().subscribe(() => this.links.highlight(answer.figures.map((f) => f.provId)));
+    }
+  }
+
+  /** A new question cancels every open proposal (the backend resets the dialog state in the same turn). */
+  private cancelOpenProposals(): void {
+    this.editing.set(null);
+    this.calculateError.set(null);
+    for (const m of this.messages()) {
+      if (m.proposal?.status === 'OPEN') {
+        this.setProposalStatus(m.id, 'CANCELLED');
+      }
+    }
+  }
+
+  private setProposalStatus(messageId: string, status: 'CALCULATED' | 'CANCELLED'): void {
+    this.messages.update((messages) =>
+      messages.map((m) =>
+        m.id === messageId && m.proposal ? { ...m, proposal: { ...m.proposal, status } } : m,
+      ),
+    );
   }
 
   /** Adds a message without moving the reader: below the fold, a "New message" pill appears instead. */

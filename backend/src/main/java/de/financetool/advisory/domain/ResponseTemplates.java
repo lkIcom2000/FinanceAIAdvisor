@@ -23,6 +23,10 @@ public final class ResponseTemplates {
     /** The default missing-fields text of {@code _route}. */
     static final String DEFAULT_MISSING = "your goals, horizon, income and expenses, emergency fund and risk tolerance";
 
+    /** The text of a parameter proposal card (AD-24): no figures, the card's rows carry them. */
+    public static final String PARAMETER_PROPOSAL = "Here's what I understood from your question. Please check the "
+            + "values below, then choose Calculate, or change them first.";
+
     public static final String NO_VALID_SOURCE = NoValidSource.TEXT;
 
     private ResponseTemplates() {

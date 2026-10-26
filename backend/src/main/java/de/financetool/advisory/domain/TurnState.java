@@ -1,5 +1,8 @@
 package de.financetool.advisory.domain;
 
+import de.financetool.core.domain.CoreResult;
+import de.financetool.shared.domain.SimulationSpec;
+import de.financetool.shared.domain.SourcedNumber;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -14,6 +17,7 @@ import java.util.TreeMap;
  * @param dialogState the persona's dialog state as consulted first ({@code NONE} without one)
  * @param nlu the grounded NLU extraction, set by the NLU stage
  * @param classification set by the classify stage
+ * @param tools the tool plan classify evaluated and what stage 3 did with it; {@link Tools#NONE} without one
  * @param passages the Knowledge Base passages the retrieval stage found, before any budget drop (empty until Epic 4)
  * @param prompt the phrasing prompt, set by the exposure filter stage
  * @param draft set by the LLM draft stage
@@ -29,6 +33,7 @@ public record TurnState(
         String dialogState,
         Nlu nlu,
         Classification classification,
+        Tools tools,
         List<PromptPayload.Passage> passages,
         Prompt prompt,
         Draft draft,
@@ -60,6 +65,34 @@ public record TurnState(
             Objects.requireNonNull(extraction, "extraction");
             groundingNotes = List.copyOf(groundingNotes);
             promptHashes = Collections.unmodifiableSortedMap(new TreeMap<>(promptHashes));
+        }
+    }
+
+    /**
+     * The tool plan and stage 3's result.
+     *
+     * @param planned the calculation classify found computable; {@code null} without one
+     * @param accountPortfolio the persona's investments today when the plan takes the portfolio from account data
+     * @param spec the spec the turn proposes or calculates; {@code null} without a calculation
+     * @param proposal whether the turn releases a parameter proposal instead of calculating (AD-24)
+     * @param results the Core results of the tools run, in run order (none for a proposal)
+     * @param ruleParameterError whether a tool needed a Rule Parameter without a version valid at the as-of date
+     */
+    public record Tools(ToolPlan.Planned planned, SourcedNumber accountPortfolio, SimulationSpec spec,
+            boolean proposal, List<CoreResult> results, boolean ruleParameterError) {
+
+        public static final Tools NONE = new Tools(null, null, null, false, List.of(), false);
+
+        public Tools {
+            results = List.copyOf(results);
+            if (proposal && spec == null) {
+                throw new IllegalArgumentException("a proposal shows a spec");
+            }
+        }
+
+        /** Every number of the Core results, in run order. */
+        public List<SourcedNumber> numbers() {
+            return results.stream().flatMap(r -> r.numbers().stream()).toList();
         }
     }
 
@@ -162,6 +195,7 @@ public record TurnState(
 
     public TurnState {
         Objects.requireNonNull(userText, "userText");
+        Objects.requireNonNull(tools, "tools");
         passages = List.copyOf(passages);
         suggestions = List.copyOf(suggestions);
         stagesRun = List.copyOf(stagesRun);
@@ -169,7 +203,7 @@ public record TurnState(
     }
 
     public static TurnState start(String userText) {
-        return new TurnState(userText, null, null, null, List.of(), null, null, null, null, null, List.of(), false,
+        return new TurnState(userText, null, null, null, Tools.NONE, List.of(), null, null, null, null, null, List.of(), false,
                 List.of(), List.of());
     }
 
@@ -180,48 +214,53 @@ public record TurnState(
 
     /** This state after {@code stage} ran and did nothing. */
     public TurnState passedThrough(TurnStage stage) {
-        return new TurnState(userText, dialogState, nlu, classification, passages, prompt, draft, checks, outcome,
+        return new TurnState(userText, dialogState, nlu, classification, tools, passages, prompt, draft, checks, outcome,
                 finalText, suggestions, noValidSource, plus(stagesRun, stage), plus(passThroughStages, stage));
     }
 
     /** This state after {@code stage} ran with the given result. */
     public TurnState ran(TurnStage stage) {
-        return new TurnState(userText, dialogState, nlu, classification, passages, prompt, draft, checks, outcome,
+        return new TurnState(userText, dialogState, nlu, classification, tools, passages, prompt, draft, checks, outcome,
                 finalText, suggestions, noValidSource, plus(stagesRun, stage), passThroughStages);
     }
 
     public TurnState withDialogState(String state) {
-        return new TurnState(userText, state, nlu, classification, passages, prompt, draft, checks, outcome,
+        return new TurnState(userText, state, nlu, classification, tools, passages, prompt, draft, checks, outcome,
                 finalText, suggestions, noValidSource, stagesRun, passThroughStages);
     }
 
     public TurnState withNlu(Nlu value) {
-        return new TurnState(userText, dialogState, value, classification, passages, prompt, draft, checks, outcome,
+        return new TurnState(userText, dialogState, value, classification, tools, passages, prompt, draft, checks, outcome,
                 finalText, suggestions, noValidSource, stagesRun, passThroughStages);
     }
 
     public TurnState withClassification(Classification value) {
-        return new TurnState(userText, dialogState, nlu, value, passages, prompt, draft, checks, outcome,
+        return new TurnState(userText, dialogState, nlu, value, tools, passages, prompt, draft, checks, outcome,
                 finalText, suggestions, noValidSource, stagesRun, passThroughStages);
     }
 
+    public TurnState withTools(Tools value) {
+        return new TurnState(userText, dialogState, nlu, classification, value, passages, prompt, draft, checks,
+                outcome, finalText, suggestions, noValidSource, stagesRun, passThroughStages);
+    }
+
     public TurnState withPassages(List<PromptPayload.Passage> value) {
-        return new TurnState(userText, dialogState, nlu, classification, value, prompt, draft, checks, outcome,
+        return new TurnState(userText, dialogState, nlu, classification, tools, value, prompt, draft, checks, outcome,
                 finalText, suggestions, noValidSource, stagesRun, passThroughStages);
     }
 
     public TurnState withPrompt(Prompt value) {
-        return new TurnState(userText, dialogState, nlu, classification, passages, value, draft, checks, outcome,
+        return new TurnState(userText, dialogState, nlu, classification, tools, passages, value, draft, checks, outcome,
                 finalText, suggestions, noValidSource, stagesRun, passThroughStages);
     }
 
     public TurnState withDraft(Draft value) {
-        return new TurnState(userText, dialogState, nlu, classification, passages, prompt, value, checks, outcome,
+        return new TurnState(userText, dialogState, nlu, classification, tools, passages, prompt, value, checks, outcome,
                 finalText, suggestions, noValidSource, stagesRun, passThroughStages);
     }
 
     public TurnState withChecks(Checks value) {
-        return new TurnState(userText, dialogState, nlu, classification, passages, prompt, draft, value, outcome,
+        return new TurnState(userText, dialogState, nlu, classification, tools, passages, prompt, draft, value, outcome,
                 finalText, suggestions, noValidSource, stagesRun, passThroughStages);
     }
 
@@ -234,7 +273,7 @@ public record TurnState(
      * @param fromNoValidSource whether the text is the no-valid-source template
      */
     public TurnState withOutcome(ResponseOutcome value, String text, List<String> chips, boolean fromNoValidSource) {
-        return new TurnState(userText, dialogState, nlu, classification, passages, prompt, draft, checks, value, text, chips,
+        return new TurnState(userText, dialogState, nlu, classification, tools, passages, prompt, draft, checks, value, text, chips,
                 fromNoValidSource, stagesRun, passThroughStages);
     }
 

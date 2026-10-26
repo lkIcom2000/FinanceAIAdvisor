@@ -114,7 +114,7 @@ describe('WealthTabComponent', () => {
     );
     expect(element.querySelector('.plan .supporting')?.textContent).toBe('a month, on day 15');
     // Holding, plan, projection, then p10, p50, p90, today's money and paid in.
-    expect(element.querySelectorAll('app-why-link button').length).toBe(8);
+    expect(element.querySelectorAll('app-why-link button').length).toBe(9);
     expect(element.textContent).not.toContain('b000000000000001');
     expect(element.textContent).not.toContain('Adjust');
 
@@ -140,6 +140,7 @@ describe('WealthTabComponent', () => {
       "High end (1 in 10 chance it's higher) 154,321.99 EUR Why?",
       "Middle outcome in today's money 54,321.00 EUR Why?",
       'Total paid in 38,004.76 EUR Why?',
+      'Value of your investments today 2,004.76 EUR Why?',
     ]);
   });
 

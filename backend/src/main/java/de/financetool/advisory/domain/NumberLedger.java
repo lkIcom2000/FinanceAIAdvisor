@@ -1,5 +1,6 @@
 package de.financetool.advisory.domain;
 
+import de.financetool.shared.domain.SourcedNumber;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -52,7 +53,19 @@ public record NumberLedger(List<Entry> entries) {
      */
     public static NumberLedger of(String userText, PromptPayload payload, int droppedHistoryTurns,
             int passagesInPrompt, Map<String, BigDecimal> ruleParameters) {
+        return of(List.of(), userText, payload, droppedHistoryTurns, passagesInPrompt, ruleParameters);
+    }
+
+    /**
+     * The ledger of a turn: first every number of its Core results ({@code add_core}, label: the {@code provId}), then
+     * the sources of {@link #of(String, PromptPayload, int, int, Map)}.
+     */
+    public static NumberLedger of(List<SourcedNumber> coreNumbers, String userText, PromptPayload payload,
+            int droppedHistoryTurns, int passagesInPrompt, Map<String, BigDecimal> ruleParameters) {
         NumberLedger ledger = EMPTY;
+        for (SourcedNumber number : coreNumbers) {
+            ledger = ledger.with(Source.CORE, number.provId(), List.of(number.value()));
+        }
         for (Map.Entry<String, BigDecimal> parameter : ruleParameters.entrySet()) {
             ledger = ledger.with(Source.RULE_PARAMETER, parameter.getKey(), List.of(parameter.getValue()));
         }

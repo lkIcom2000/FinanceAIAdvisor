@@ -1,6 +1,7 @@
 package de.financetool.advisory.web;
 
 import de.financetool.advisory.application.AnswerMessageUseCase;
+import de.financetool.advisory.application.CalculateUseCase;
 import de.financetool.advisory.application.PostMessageUseCase;
 import de.financetool.advisory.application.ShowChatUseCase;
 import de.financetool.advisory.domain.ChatMessage;
@@ -8,6 +9,10 @@ import de.financetool.advisory.domain.CheckId;
 import de.financetool.advisory.domain.ResponseOutcome;
 import de.financetool.shared.PersonaScope;
 import de.financetool.shared.ProblemCode;
+import de.financetool.shared.domain.SimulationSpec;
+import de.financetool.shared.domain.SourcedNumber;
+import de.financetool.shared.domain.Unit;
+import de.financetool.shared.web.FigureView;
 import de.financetool.shared.web.ProblemDetailsAdvice;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -17,9 +22,13 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import java.math.BigDecimal;
 import java.net.URI;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,13 +78,54 @@ class ChatController {
                             + "other messages and on fixed answers"))
             List<CheckView> checks,
             @Schema(description = "The case for a human advisor; only on answers passed to an advisor (ESCALATE)")
-            HandoverView handover) {
+            HandoverView handover,
+            @Schema(description = "\"Here's what I understood\": the values a calculation will run with; only on "
+                    + "COMPUTE answers that ask before calculating") ProposalView proposal,
+            @ArraySchema(arraySchema = @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    description = "The figures a calculated answer used, shown as figure chips; empty on other "
+                            + "messages"))
+            List<FigureView> figures) {
 
         static MessageView of(ChatMessage message) {
             return new MessageView(message.id(), Author.valueOf(message.author().name()), message.text(),
                     message.outcome(), message.replyTo(), message.suggestions(),
                     message.checks().stream().map(CheckView::of).toList(),
-                    message.handover() == null ? null : HandoverView.of(message.handover()));
+                    message.handover() == null ? null : HandoverView.of(message.handover()),
+                    message.proposal() == null ? null : ProposalView.of(message.proposal()),
+                    message.figures().stream().map(FigureView::of).toList());
+        }
+    }
+
+    @Schema(name = "ChatProposal", description = "The values a calculation will run with, shown before calculating")
+    record ProposalView(
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "OPEN: waiting for Calculate; "
+                    + "CALCULATED: answered below; CANCELLED: a later question replaced it")
+            ChatMessage.Proposal.Status status,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ProposalParameterView> parameters) {
+
+        static ProposalView of(ChatMessage.Proposal proposal) {
+            return new ProposalView(proposal.status(),
+                    proposal.spec().parameters().stream().map(ProposalParameterView::of).toList());
+        }
+    }
+
+    @Schema(name = "ChatProposalParameter", description = "One value of a proposed calculation")
+    record ProposalParameterView(
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "The key to change it by")
+            String key,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String label,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "Decimal string",
+                    pattern = FigureView.DECIMAL) String value,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Unit unit,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "QUESTION: from your question; "
+                    + "ACCOUNT_DATA: from your account data; CHANGED: changed by you")
+            SimulationSpec.Source source,
+            @Schema(description = "The figure an account-data value is; only for ACCOUNT_DATA",
+                    pattern = SourcedNumber.PROV_ID_SCHEMA_PATTERN) String provId) {
+
+        static ProposalParameterView of(SimulationSpec.Parameter parameter) {
+            return new ProposalParameterView(parameter.key(), parameter.label(), parameter.value().toPlainString(),
+                    parameter.unit(), parameter.source(), parameter.provId());
         }
     }
 
@@ -111,6 +161,25 @@ class ChatController {
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<MessageView> messages) {
     }
 
+    @Schema(name = "CalculateRequest", description = "Calculate a proposal, with the values the persona changed")
+    record CalculateRequest(
+            @ArraySchema(arraySchema = @Schema(description = "Only the changed values; empty or missing to calculate "
+                    + "as proposed"), maxItems = 10)
+            @Size(max = 10) List<@Valid ChangedValue> parameters) {
+
+        CalculateRequest {
+            parameters = parameters == null ? List.of() : parameters;
+        }
+    }
+
+    @Schema(name = "ChangedValue", description = "A value the persona changed, in the parameter's unit (a rate as a "
+            + "fraction: 0.04 = 4 %)")
+    record ChangedValue(
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) @NotBlank @Size(max = 64) String key,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, pattern = FigureView.DECIMAL)
+            @NotBlank @Pattern(regexp = FigureView.DECIMAL) @Size(max = 32) String value) {
+    }
+
     record PostMessageRequest(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, maxLength = PostMessageUseCase.MAX_LENGTH)
             @NotBlank @Size(max = PostMessageUseCase.MAX_LENGTH) String text) {
@@ -119,11 +188,14 @@ class ChatController {
     private final ShowChatUseCase showChat;
     private final PostMessageUseCase postMessage;
     private final AnswerMessageUseCase answerMessage;
+    private final CalculateUseCase calculate;
 
-    ChatController(ShowChatUseCase showChat, PostMessageUseCase postMessage, AnswerMessageUseCase answerMessage) {
+    ChatController(ShowChatUseCase showChat, PostMessageUseCase postMessage, AnswerMessageUseCase answerMessage,
+            CalculateUseCase calculate) {
         this.showChat = showChat;
         this.postMessage = postMessage;
         this.answerMessage = answerMessage;
+        this.calculate = calculate;
     }
 
     @Operation(summary = "The conversation with every saved message")
@@ -160,6 +232,47 @@ class ChatController {
             throw notFound;
         }
         return answerMessage.answer(scope, messageId).map(MessageView::of).orElseThrow(() -> notFound);
+    }
+
+    @Operation(summary = "Calculate a parameter proposal and return Fine's calculated answer",
+            description = "Nothing is calculated before this call. A proposal that was already calculated returns "
+                    + "that answer again.")
+    @ApiResponse(responseCode = "200", description = "Fine's calculated answer")
+    @ApiResponse(responseCode = "400", description = "A changed value is unknown or out of bounds")
+    @ApiResponse(responseCode = "404", description = "No such proposal for this persona")
+    @ApiResponse(responseCode = "409", description = "The proposal was cancelled by a later question")
+    @ApiResponse(responseCode = "503", description = "The answer could not be finished; the proposal stays open")
+    @PostMapping("/api/chat/messages/{id}/calculate")
+    MessageView calculate(@Parameter(hidden = true) PersonaScope scope,
+            @PathVariable @Parameter(description = "The proposal's id (a UUID)") String id,
+            @Valid @RequestBody CalculateRequest request) {
+        ErrorResponseException notFound = problem(HttpStatus.NOT_FOUND, "We couldn't find this message.", null);
+        UUID messageId;
+        try {
+            messageId = UUID.fromString(id);
+        } catch (IllegalArgumentException e) {
+            throw notFound;
+        }
+        Map<String, BigDecimal> changed = new LinkedHashMap<>();
+        for (ChangedValue value : request.parameters()) {
+            if (changed.put(value.key(), new BigDecimal(value.value())) != null) {
+                throw problem(HttpStatus.BAD_REQUEST, "Each value can be changed only once.",
+                        ProblemCode.VALIDATION_FAILED);
+            }
+        }
+        return calculate.calculate(scope, messageId, changed).map(MessageView::of).orElseThrow(() -> notFound);
+    }
+
+    @ExceptionHandler(CalculateUseCase.ProposalClosedException.class)
+    ProblemDetail proposalClosed() {
+        return problem(HttpStatus.CONFLICT, "This calculation was replaced by your next question.",
+                ProblemCode.PROPOSAL_CLOSED).getBody();
+    }
+
+    @ExceptionHandler(CalculateUseCase.InvalidValuesException.class)
+    ProblemDetail invalidValues(CalculateUseCase.InvalidValuesException ex) {
+        return problem(HttpStatus.BAD_REQUEST, String.join(" ", ex.problems()), ProblemCode.VALIDATION_FAILED)
+                .getBody();
     }
 
     @ExceptionHandler(AnswerMessageUseCase.TurnFailedException.class)

@@ -13,5 +13,7 @@ public enum ProblemCode {
     REQUEST_REJECTED,
     /** A chat turn could not be finished (model or audit unavailable); the question stays saved. */
     TURN_FAILED,
+    /** Calculate on a parameter proposal that a later question cancelled. */
+    PROPOSAL_CLOSED,
     INTERNAL_ERROR
 }

@@ -116,6 +116,21 @@ class NluExtractionTest {
         assertThat(fromInitial.extraction().computationParams()).containsEntry("portfolio", 80000.0);
     }
 
+    /** Deviation from {@code nlu.py}: the portfolio pattern would take the withdrawal's own amount. */
+    @Test
+    void theMonthlyWithdrawalsAmountIsNeverThePortfolio() {
+        NluExtraction.Grounded g = proposal("computation", "self", List.of(), Map.of()).ground(
+                "How long will my savings last if I withdraw 200 EUR a month at a 3% return?");
+
+        assertThat(g.extraction().computationParams()).containsEntry("monthly_withdrawal", 200.0)
+                .doesNotContainKey("portfolio");
+
+        NluExtraction.Grounded zeroInitial = proposal("computation", "self", List.of(),
+                Map.of("initial", 0.0)).ground(
+                "How long will my savings last if I withdraw 200 EUR a month at a 3% return?");
+        assertThat(zeroInitial.extraction().computationParams()).doesNotContainKey("portfolio");
+    }
+
     @Test
     void theSchemaIsTheExperimentsSchema() throws IOException {
         try (InputStream in = getClass().getResourceAsStream("/nlu/schema.json")) {

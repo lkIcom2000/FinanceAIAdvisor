@@ -25,6 +25,17 @@
   background: var(--mat-sys-surface);
 }
 
+// A figure from the chat is on this tab (FR-8): a small cyan dot, never the only signal (screen-reader text too).
+.tab-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--fine-highlight-ring);
+  vertical-align: middle;
+}
+
 .tab-content {
   padding: 24px;
 }

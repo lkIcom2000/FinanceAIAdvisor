@@ -12,6 +12,8 @@ import { StrictHttpResponse } from '../strict-http-response';
 
 import { answerMessage } from '../fn/chat/answer-message';
 import { AnswerMessage$Params } from '../fn/chat/answer-message';
+import { calculate } from '../fn/chat/calculate';
+import { Calculate$Params } from '../fn/chat/calculate';
 import { chat } from '../fn/chat/chat';
 import { Chat } from '../models/chat';
 import { Chat$Params } from '../fn/chat/chat';
@@ -129,6 +131,41 @@ export class ChatService extends BaseService {
    */
   answerMessage(params: AnswerMessage$Params, context?: HttpContext): Observable<ChatMessage> {
     const resp = this.answerMessage$Response(params, context);
+    return resp.pipe(
+      map((r: StrictHttpResponse<ChatMessage>): ChatMessage => r.body)
+    );
+  }
+
+  /** Path part for operation `calculate()` */
+  static readonly CalculatePath = '/api/chat/messages/{id}/calculate';
+
+  /**
+   * Calculate a parameter proposal and return Fine's calculated answer.
+   *
+   * Nothing is calculated before this call. A proposal that was already calculated returns that answer again.
+   *
+   * This method provides access to the full `HttpResponse`, allowing access to response headers.
+   * To access only the response body, use `calculate()` instead.
+   *
+   * This method sends `application/json` and handles request body of type `application/json`.
+   */
+  calculate$Response(params: Calculate$Params, context?: HttpContext): Observable<StrictHttpResponse<ChatMessage>> {
+    const obs = calculate(this.http, this.rootUrl, params, context);
+    return obs;
+  }
+
+  /**
+   * Calculate a parameter proposal and return Fine's calculated answer.
+   *
+   * Nothing is calculated before this call. A proposal that was already calculated returns that answer again.
+   *
+   * This method provides access only to the response body.
+   * To access the full response (for headers, for example), `calculate$Response()` instead.
+   *
+   * This method sends `application/json` and handles request body of type `application/json`.
+   */
+  calculate(params: Calculate$Params, context?: HttpContext): Observable<ChatMessage> {
+    const resp = this.calculate$Response(params, context);
     return resp.pipe(
       map((r: StrictHttpResponse<ChatMessage>): ChatMessage => r.body)
     );

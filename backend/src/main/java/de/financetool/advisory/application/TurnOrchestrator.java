@@ -21,15 +21,18 @@ import de.financetool.advisory.domain.ProfileCompleteness;
 import de.financetool.advisory.domain.PromptPayload;
 import de.financetool.advisory.domain.RegenerationFix;
 import de.financetool.advisory.domain.HandoverReason;
+import de.financetool.advisory.domain.MessageClass;
+import de.financetool.advisory.domain.ResponseTemplates;
+import de.financetool.advisory.domain.ToolPlan;
+import de.financetool.advisory.domain.ToolResults;
 import de.financetool.advisory.domain.ResponseOutcome;
 import de.financetool.advisory.domain.TurnStage;
 import de.financetool.advisory.domain.TurnState;
 import de.financetool.audit.AuditEntry;
 import de.financetool.audit.AuditKind;
 import de.financetool.audit.AuditWriter;
-import de.financetool.audit.EvidenceItem;
-import de.financetool.audit.EvidenceStore;
 import de.financetool.escalation.EscalationCases;
+import de.financetool.knowledge.NoValidRuleParameterException;
 import de.financetool.knowledge.RuleParamPort;
 import de.financetool.llm.LlmMessage;
 import de.financetool.llm.LlmPort;
@@ -40,11 +43,14 @@ import de.financetool.shared.RequestContext;
 import de.financetool.shared.config.AgentConfiguration;
 import de.financetool.shared.config.ComplianceLevel;
 import de.financetool.shared.config.DataExposureLevel;
+import de.financetool.shared.domain.SimulationSpec;
+import de.financetool.shared.domain.SourcedNumber;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -61,43 +67,70 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class TurnOrchestrator {
 
-    /** No turn reads a Rule Parameter until Story 3.7's tool plan; then an invalid one routes to ESCALATE. */
-    static final boolean RULE_PARAMETER_ERROR = false;
+    /**
+     * A confirmed parameter proposal: Calculate runs the turn of the proposal's question with this spec.
+     *
+     * @param proposal the proposal message (agent, status {@code OPEN})
+     * @param spec the proposal's spec with the values the persona confirmed or changed
+     */
+    public record Confirmation(ChatMessage proposal, SimulationSpec spec) {
+
+        public Confirmation {
+            Objects.requireNonNull(proposal, "proposal");
+            Objects.requireNonNull(spec, "spec");
+        }
+    }
 
     private final ChatRepository chats;
     private final PromptFiles prompts;
     private final LlmPort llm;
     private final AuditWriter audit;
-    private final EvidenceStore evidence;
     private final NluExtractor nluExtractor;
     private final EntityRegistry registry;
     private final ProfileCompleteness completeness;
     private final EscalationCases escalations;
     private final RuleParamPort ruleParameters;
+    private final ToolRegistry tools;
 
     TurnOrchestrator(ChatRepository chats, PromptFiles prompts, LlmPort llm, AuditWriter audit,
-            EvidenceStore evidence, NluExtractor nluExtractor, EntityRegistry registry,
-            ProfileCompleteness completeness, EscalationCases escalations, RuleParamPort ruleParameters) {
+            NluExtractor nluExtractor, EntityRegistry registry,
+            ProfileCompleteness completeness, EscalationCases escalations, RuleParamPort ruleParameters,
+            ToolRegistry tools) {
         this.chats = chats;
         this.prompts = prompts;
         this.llm = llm;
         this.audit = audit;
-        this.evidence = evidence;
         this.nluExtractor = nluExtractor;
         this.registry = registry;
         this.completeness = completeness;
         this.escalations = escalations;
         this.ruleParameters = ruleParameters;
+        this.tools = tools;
     }
 
     /** Runs the turn for the saved user message {@code question} and releases the agent message. */
     @Transactional(propagation = Propagation.MANDATORY)
     public ChatMessage run(RequestContext context, PersonaScope scope, ChatMessage question, String fixtureVersion) {
+        return run(context, scope, question, null, fixtureVersion);
+    }
+
+    /**
+     * Calculate on a parameter proposal: runs the turn of the proposal's {@code question} again with the confirmed
+     * spec and releases the calculated answer as the proposal's reply.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public ChatMessage calculate(RequestContext context, PersonaScope scope, ChatMessage question,
+            Confirmation confirmation, String fixtureVersion) {
+        return run(context, scope, question, Objects.requireNonNull(confirmation, "confirmation"), fixtureVersion);
+    }
+
+    private ChatMessage run(RequestContext context, PersonaScope scope, ChatMessage question,
+            Confirmation confirmation, String fixtureVersion) {
         TurnState turn = TurnState.start(question.text());
-        turn = dialogState(scope, turn);
+        turn = dialogState(scope, turn, confirmation);
         turn = nlu(context, scope, turn);
-        turn = classify(turn);
-        turn = toolPlan(turn);
+        turn = classify(context, turn, confirmation);
+        turn = toolPlan(context, turn);
         turn = kbRetrieve(turn);
         turn = exposureFilter(context, scope, question, turn);
         turn = llmDraft(context, turn);
@@ -105,13 +138,32 @@ public class TurnOrchestrator {
         turn = ruleEngine(context, turn);
         turn = judge(turn);
         turn = blockRouting(turn);
-        return auditAndRelease(context, scope, question, fixtureVersion, turn);
+        return auditAndRelease(context, scope, question, confirmation, fixtureVersion, turn);
     }
 
-    /** Consulted first. No dialog flow exists yet (parameter proposals, assessments), so the state only passes on. */
-    TurnState dialogState(PersonaScope scope, TurnState turn) {
-        return turn.withDialogState(chats.dialogState(scope).orElse(TurnState.NO_DIALOG_STATE))
-                .passedThrough(TurnStage.DIALOG_STATE);
+    /**
+     * Consulted first (AD-24). An open parameter proposal ends here: a new question cancels it, Calculate marks it
+     * calculated; either way the dialog state returns to {@code NONE}. Without an open proposal the state passes on.
+     *
+     * @throws IllegalStateException if Calculate's proposal is no longer the open one
+     */
+    TurnState dialogState(PersonaScope scope, TurnState turn, Confirmation confirmation) {
+        TurnState consulted = turn.withDialogState(chats.dialogState(scope).orElse(TurnState.NO_DIALOG_STATE));
+        Optional<UUID> open = chats.openProposal(scope);
+        if (confirmation != null) {
+            UUID proposalId = confirmation.proposal().id();
+            if (!open.equals(Optional.of(proposalId)) || !chats.updateProposalStatus(scope, proposalId,
+                    ChatMessage.Proposal.Status.OPEN, ChatMessage.Proposal.Status.CALCULATED)) {
+                throw new IllegalStateException("The proposal is no longer open");
+            }
+        } else if (open.isPresent()) {
+            chats.updateProposalStatus(scope, open.get(), ChatMessage.Proposal.Status.OPEN,
+                    ChatMessage.Proposal.Status.CANCELLED);
+        } else {
+            return consulted.passedThrough(TurnStage.DIALOG_STATE);
+        }
+        chats.saveDialogState(scope, chats.conversation(scope), null);
+        return consulted.ran(TurnStage.DIALOG_STATE);
     }
 
     /**
@@ -124,18 +176,56 @@ public class TurnOrchestrator {
     }
 
     /**
-     * Pure rules pick exactly one class (FR-9): no stored profile until Epic 6, and nothing is computable until the
-     * tool plan exists (Story 3.7).
+     * Pure rules pick exactly one class (FR-9); no stored profile until Epic 6. A message is computable if the pure
+     * {@link ToolPlan} has every parameter (the experiment plans before it classifies); a portfolio from account
+     * data needs investments above zero, so their value is read here. A confirmed proposal is {@code COMPUTE}.
      */
-    TurnState classify(TurnState turn) {
+    TurnState classify(RequestContext context, TurnState turn, Confirmation confirmation) {
+        if (confirmation != null) {
+            Classification confirmed = new Classification(MessageClass.COMPUTE,
+                    List.of("parameter proposal confirmed"), List.of(), List.of(), List.of(),
+                    turn.nlu().extraction().topic());
+            return turn.withClassification(confirmed)
+                    .withTools(new TurnState.Tools(null, null, confirmation.spec(), false, List.of(), false))
+                    .ran(TurnStage.CLASSIFY);
+        }
+        Optional<ToolPlan.Planned> planned = ToolPlan.plan(turn.nlu().extraction(), turn.userText());
+        SourcedNumber accountPortfolio = null;
+        if (planned.isPresent() && planned.get().portfolioFromAccount()) {
+            accountPortfolio = tools.accountPortfolio(context).filter(f -> f.value().signum() > 0).orElse(null);
+            if (accountPortfolio == null) {
+                planned = Optional.empty();
+            }
+        }
         Classification classification = Classifier.classify(turn.nlu().extraction(), Map.of(), completeness,
-                registry, false, turn.userText());
-        return turn.withClassification(classification).ran(TurnStage.CLASSIFY);
+                registry, planned.isPresent(), turn.userText());
+        return turn.withClassification(classification)
+                .withTools(new TurnState.Tools(planned.orElse(null), accountPortfolio, null, false, List.of(), false))
+                .ran(TurnStage.CLASSIFY);
     }
 
-    /** Pass-through: no tools are planned yet. */
-    TurnState toolPlan(TurnState turn) {
-        return turn.passedThrough(TurnStage.TOOL_PLAN);
+    /**
+     * Stage 3, only for {@code COMPUTE}: parameters from the message become a proposal and nothing is computed
+     * (AD-24); a confirmed spec runs its whitelisted tool through the {@link ToolRegistry}. A tool missing a valid
+     * Rule Parameter version marks the turn for {@code ESCALATE}.
+     */
+    TurnState toolPlan(RequestContext context, TurnState turn) {
+        TurnState.Tools planned = turn.tools();
+        if (turn.messageClass() != MessageClass.COMPUTE) {
+            return turn.passedThrough(TurnStage.TOOL_PLAN);
+        }
+        if (planned.spec() == null) {
+            SimulationSpec spec = ToolPlan.spec(planned.planned(), planned.accountPortfolio());
+            return turn.withTools(new TurnState.Tools(planned.planned(), planned.accountPortfolio(), spec, true,
+                    List.of(), false)).ran(TurnStage.TOOL_PLAN);
+        }
+        try {
+            return turn.withTools(new TurnState.Tools(null, null, planned.spec(), false,
+                    tools.run(context, planned.spec()), false)).ran(TurnStage.TOOL_PLAN);
+        } catch (NoValidRuleParameterException e) {
+            return turn.withTools(new TurnState.Tools(null, null, planned.spec(), false, List.of(), true))
+                    .ran(TurnStage.TOOL_PLAN);
+        }
     }
 
     /** Pass-through until the Knowledge Base exists (Epic 4). */
@@ -146,15 +236,17 @@ public class TurnOrchestrator {
     /**
      * Applies the Data Exposure Level to the message, the last released turns, the profile context and the Core
      * results, and fits the phrasing prompt into the context budget (FR-43, FR-45, AD-5); the system part ends with
-     * the class instruction. No Core results, passages or profile exist yet: those inputs stay empty. The turn's
-     * {@link NumberLedger} is built from the same inputs plus the Rule Parameters valid at the as-of date.
+     * the class instruction. The Core results go in as {@code TOOL RESULTS}; no passages or profile exist yet. The
+     * turn's {@link NumberLedger} is built from the same inputs plus the Rule Parameters valid at the as-of date, with
+     * every Core number first (label: its {@code provId}).
      */
     TurnState exposureFilter(RequestContext context, PersonaScope scope, ChatMessage question, TurnState turn) {
         AgentConfiguration agent = context.agentConfig();
         List<PromptPayload.HistoryTurn> history =
                 chats.releasedTurnsBefore(scope, question.id(), ExposureFilter.HISTORY_TURNS);
         PromptPayload payload = ExposureFilter.apply(level(agent.dataExposure()), turn.userText(),
-                turn.nlu().extraction().depersonalizedQuestion(), history, Map.of(), "", turn.passages());
+                turn.nlu().extraction().depersonalizedQuestion(), history, Map.of(),
+                ToolResults.format(turn.tools().results()), turn.passages());
         PromptFiles.Prompt rolePrompt = prompts.rolePrompt(agent.rolePrompt());
         PromptFiles.Prompt rules = prompts.complianceRules();
         PromptFiles.Prompt instruction = prompts.classInstruction(turn.messageClass());
@@ -166,8 +258,8 @@ public class TurnOrchestrator {
                 instruction.fileName(), instruction.hash());
         Map<String, BigDecimal> parameters = new LinkedHashMap<>();
         ruleParameters.allValid(context.asOf()).forEach(p -> parameters.put(p.key(), p.value()));
-        NumberLedger ledger = NumberLedger.of(turn.userText(), payload, phrasing.droppedHistoryTurns(),
-                passagesInPrompt(payload, phrasing), parameters);
+        NumberLedger ledger = NumberLedger.of(turn.tools().numbers(), turn.userText(), payload,
+                phrasing.droppedHistoryTurns(), passagesInPrompt(payload, phrasing), parameters);
         return turn.withPrompt(new TurnState.Prompt(payload, phrasing, new TreeMap<>(hashes), ledger))
                 .ran(TurnStage.EXPOSURE_FILTER);
     }
@@ -182,9 +274,14 @@ public class TurnOrchestrator {
 
     /**
      * The phrasing role drafts the answer: prompt files as system message, everything else in the user part. A blank
-     * draft fails the turn only if block routing would release it.
+     * draft fails the turn only if block routing would release it. A parameter proposal is not phrased: its draft is
+     * the fixed proposal text.
      */
     TurnState llmDraft(RequestContext context, TurnState turn) {
+        if (turn.tools().proposal()) {
+            return turn.withDraft(new TurnState.Draft(ResponseTemplates.PARAMETER_PROPOSAL, null, null, false))
+                    .passedThrough(TurnStage.LLM_DRAFT);
+        }
         PhrasingPrompt phrasing = turn.prompt().phrasing();
         LlmResult result = llm.generate(LlmRole.PHRASING,
                 List.of(LlmMessage.system(phrasing.system()), LlmMessage.user(phrasing.user())),
@@ -216,7 +313,7 @@ public class TurnOrchestrator {
      */
     TurnState ruleEngine(RequestContext context, TurnState turn) {
         TurnState.Checks checks = turn.checks();
-        if (checks.flags().shadowMode() || RULE_PARAMETER_ERROR) {
+        if (checks.flags().shadowMode() || turn.tools().ruleParameterError()) {
             return turn.ran(TurnStage.RULE_ENGINE);
         }
         Optional<String> fix = RegenerationFix.of(checks.shadow().failed(), passagesInPrompt(turn),
@@ -257,7 +354,7 @@ public class TurnOrchestrator {
                     .passedThrough(TurnStage.BLOCK_ROUTING);
         }
         BlockRouting.Route route = BlockRouting.route(checks.finalResults().failed(), turn.classification(),
-                RULE_PARAMETER_ERROR);
+                turn.tools().ruleParameterError());
         TurnState routed = turn.withChecks(checks.withRoute(route));
         if (route.released()) {
             String text = checks.regenerated() ? checks.regeneration().text() : checks.draftText();
@@ -311,18 +408,33 @@ public class TurnOrchestrator {
 
     /**
      * Writes the agent message, its evidence, an {@code ESCALATE} turn's case for a human advisor and the Audit
-     * Record; the turn id is the agent message's id.
+     * Record; the turn id is the agent message's id. A released proposal opens the {@code PARAMETER_PROPOSAL} dialog
+     * state; a calculated answer replies to its proposal and lists its figures, unless block routing released a
+     * template.
      */
     ChatMessage auditAndRelease(RequestContext context, PersonaScope scope, ChatMessage question,
-            String fixtureVersion, TurnState turn) {
+            Confirmation confirmation, String fixtureVersion, TurnState turn) {
         TurnState released = turn.ran(TurnStage.AUDIT_RELEASE);
         UUID turnId = UUID.randomUUID();
-        // Under level A the results are shadow results: they stay in the Audit Record, the card shows no checks.
-        List<ChatMessage.Check> shownChecks = released.checks().flags().shadowMode() ? List.of()
+        TurnState.Tools turnTools = released.tools();
+        boolean proposal = turnTools.proposal() && released.outcome() == ResponseOutcome.COMPUTE;
+        // Under level A the results are shadow results: they stay in the Audit Record, the card shows no checks. A
+        // proposal is fixed text; its card shows the parameters instead.
+        List<ChatMessage.Check> shownChecks = released.checks().flags().shadowMode() || proposal ? List.of()
                 : released.checks().finalResults().applicable().stream().map(ChatMessage.Check::of).toList();
+        boolean draftReleased = released.checks().route() == null || released.checks().route().released();
+        List<SourcedNumber> figures = turnTools.spec() != null && !turnTools.proposal() && draftReleased
+                ? ToolRegistry.figures(turnTools.spec(), turnTools.results()) : List.of();
         ChatMessage answer = new ChatMessage(turnId, ChatMessage.Author.AGENT, released.finalText(),
-                released.outcome(), question.id(), released.suggestions(), shownChecks);
-        chats.insert(scope, chats.conversation(scope), answer);
+                released.outcome(), confirmation == null ? question.id() : confirmation.proposal().id(),
+                released.suggestions(), shownChecks, null,
+                proposal ? new ChatMessage.Proposal(turnTools.spec(), ChatMessage.Proposal.Status.OPEN) : null,
+                figures);
+        UUID conversation = chats.conversation(scope);
+        chats.insert(scope, conversation, answer);
+        if (proposal) {
+            chats.saveDialogState(scope, conversation, turnId);
+        }
         UUID caseId = null;
         if (released.outcome() == ResponseOutcome.ESCALATE) {
             Optional<HandoverReason> reason = HandoverReason.of(released.checks().route().route());
@@ -331,8 +443,6 @@ public class TurnOrchestrator {
             answer = answer.withHandover(new ChatMessage.Handover(reason.map(HandoverReason::text).orElse(null),
                     ChatMessage.Handover.Status.OPEN));
         }
-        List<EvidenceItem> items = List.of();
-        evidence.putIfAbsent(items);
         TurnState.Draft draft = released.draft();
         TurnState.Prompt prompt = released.prompt();
         PhrasingPrompt phrasing = prompt.phrasing();
@@ -348,7 +458,7 @@ public class TurnOrchestrator {
                         classification.outOfScope(), nlu.extraction().toMap(), nlu.groundingNotes(), nlu.modelTag(),
                         nlu.modelDigest(), nlu.promptHashes(), nlu.cacheHit(), nlu.parseOk(),
                         nlu.extraction().instructionOverrideAttempt(), released.noValidSource(),
-                        items.stream().map(EvidenceItem::provId).toList(), checks.shadow().results(),
+                        turnTools.numbers().stream().map(SourcedNumber::provId).toList(), checks.shadow().results(),
                         checks.finalResults().results(), checks.routedOn().results(),
                         route == null ? BlockRouting.RELEASED : route.route(),
                         route == null ? List.of() : route.fired(), caseId, checks.flags().shadowMode(), checks.flags(),
@@ -358,7 +468,8 @@ public class TurnOrchestrator {
                         context.agentConfig().dataExposure(), prompt.payload().messageWithheld(), draft.text(),
                         released.finalText(), regeneration != null, regeneration == null ? null : regeneration.fix(),
                         regeneration == null ? null : regeneration.text(), context.agentConfig().compliance().value(),
-                        released.passThroughStages(), prompt.ledger().entries())));
+                        released.passThroughStages(), prompt.ledger().entries(), released.dialogState(),
+                        turnTools.spec(), proposal, turnTools.ruleParameterError())));
         return answer;
     }
 

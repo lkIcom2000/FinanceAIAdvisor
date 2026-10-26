@@ -31,10 +31,12 @@ import de.financetool.core.domain.RuleParameterValue;
 import de.financetool.core.domain.ShortfallDetection;
 import de.financetool.core.domain.VariableSpending;
 import de.financetool.core.domain.WealthFigures;
+import de.financetool.core.domain.WithdrawalDuration;
 import de.financetool.knowledge.RuleParamPort;
 import de.financetool.knowledge.RuleParameter;
 import de.financetool.shared.RequestContext;
 import de.financetool.shared.domain.SourcedNumber;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -127,27 +129,12 @@ class CoreGatewayService implements CoreGateway {
         LocalDate asOf = context.asOf();
         BankSnapshot snapshot = bank.snapshot(context.personaId(), asOf);
 
-        List<WealthFigures.Holding> holdings = snapshot.holdings().stream()
-                .map(h -> new WealthFigures.Holding(h.name(), BankMapping.assetClass(h.assetClass()), h.units(),
-                        record(context, origin, Investments.holdingValue(h.id().toString(), h.name(), h.units(),
-                                h.unitPrice(), h.valuationDate()), List.of(), Map.of())))
-                .toList();
-        List<WealthFigures.SavingsPlan> plans = snapshot.savingsPlans().stream()
-                .filter(p -> !p.startDate().isAfter(asOf))
-                .map(p -> new WealthFigures.SavingsPlan(p.name(),
-                        record(context, origin, Investments.savingsPlanAmount(p.id().toString(), p.name(),
-                                p.amount(), p.dayOfMonth(), p.startDate()), List.of(), Map.of()),
-                        p.dayOfMonth()))
-                .toList();
+        List<WealthFigures.Holding> holdings = holdings(context, origin, snapshot);
+        List<WealthFigures.SavingsPlan> plans = plans(context, origin, snapshot);
         if (holdings.isEmpty() && plans.isEmpty()) {
             return new WealthFigures(List.of(), List.of(), null, null, List.of(), List.of());
         }
-
-        CoreResult totals = record(context, origin, Investments.totals(
-                holdings.stream().map(h -> h.value().number(Investments.HOLDING_OUTPUT)).toList(),
-                holdings.stream().map(WealthFigures.Holding::name).toList(),
-                plans.stream().map(p -> p.amount().number(Investments.PLAN_OUTPUT)).toList(),
-                plans.stream().map(WealthFigures.SavingsPlan::name).toList()), List.of(), Map.of());
+        CoreResult totals = totals(context, origin, holdings, plans);
 
         RuleParameterValue horizon = parameter(MonteCarloProjection.HORIZON, asOf);
         RuleParameterValue ter = parameter(MonteCarloProjection.TER, asOf);
@@ -196,6 +183,55 @@ class CoreGatewayService implements CoreGateway {
         return new InsuranceFigures(rows,
                 record(context, origin, duplicates.computation(), List.of(), Map.of()), duplicates.flags(),
                 record(context, origin, missing.computation(), List.of(), Map.of()), missing.flags());
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Optional<CoreResult> investmentTotals(RequestContext context, EvidenceOrigin origin) {
+        BankSnapshot snapshot = bank.snapshot(context.personaId(), context.asOf());
+        List<WealthFigures.Holding> holdings = holdings(context, origin, snapshot);
+        List<WealthFigures.SavingsPlan> plans = plans(context, origin, snapshot);
+        return holdings.isEmpty() && plans.isEmpty() ? Optional.empty()
+                : Optional.of(totals(context, origin, holdings, plans));
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public CoreResult withdrawalDuration(RequestContext context, EvidenceOrigin origin, BigDecimal portfolio,
+            SourcedNumber portfolioFigure, BigDecimal monthlyWithdrawal, BigDecimal annualRate) {
+        return record(context, origin,
+                WithdrawalDuration.compute(portfolio, portfolioFigure, monthlyWithdrawal, annualRate), List.of(),
+                Map.of());
+    }
+
+    private List<WealthFigures.Holding> holdings(RequestContext context, EvidenceOrigin origin,
+            BankSnapshot snapshot) {
+        return snapshot.holdings().stream()
+                .map(h -> new WealthFigures.Holding(h.name(), BankMapping.assetClass(h.assetClass()), h.units(),
+                        record(context, origin, Investments.holdingValue(h.id().toString(), h.name(), h.units(),
+                                h.unitPrice(), h.valuationDate()), List.of(), Map.of())))
+                .toList();
+    }
+
+    /** The savings plans active at {@code asOf}. */
+    private List<WealthFigures.SavingsPlan> plans(RequestContext context, EvidenceOrigin origin,
+            BankSnapshot snapshot) {
+        return snapshot.savingsPlans().stream()
+                .filter(p -> !p.startDate().isAfter(context.asOf()))
+                .map(p -> new WealthFigures.SavingsPlan(p.name(),
+                        record(context, origin, Investments.savingsPlanAmount(p.id().toString(), p.name(),
+                                p.amount(), p.dayOfMonth(), p.startDate()), List.of(), Map.of()),
+                        p.dayOfMonth()))
+                .toList();
+    }
+
+    private CoreResult totals(RequestContext context, EvidenceOrigin origin, List<WealthFigures.Holding> holdings,
+            List<WealthFigures.SavingsPlan> plans) {
+        return record(context, origin, Investments.totals(
+                holdings.stream().map(h -> h.value().number(Investments.HOLDING_OUTPUT)).toList(),
+                holdings.stream().map(WealthFigures.Holding::name).toList(),
+                plans.stream().map(p -> p.amount().number(Investments.PLAN_OUTPUT)).toList(),
+                plans.stream().map(WealthFigures.SavingsPlan::name).toList()), List.of(), Map.of());
     }
 
     private static BankSnapshot.Account currentAccount(BankSnapshot snapshot, RequestContext context) {

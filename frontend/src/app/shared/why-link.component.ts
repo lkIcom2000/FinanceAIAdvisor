@@ -26,6 +26,8 @@ function openDialog(dialog: MatDialog, data: WhyDialogData): void {
 @Component({
   selector: 'app-why-link',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  // The figure key lets a chat answer find this figure in the Overview (FR-8).
+  host: { '[attr.data-prov-id]': 'provId()' },
   template: `<button type="button" class="why" (click)="open()">Why?</button>`,
   styles: `
     .why {

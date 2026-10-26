@@ -216,9 +216,18 @@ public record NluExtraction(
         }
         if (p.containsKey("monthly_withdrawal") && !p.containsKey("portfolio")) {
             Matcher m = PORTFOLIO.matcher(message);
-            if (m.find()) {
+            Matcher monthly = MONTHLY.matcher(message);
+            int monthlyStart = monthly.find() ? monthly.start() : -1;
+            boolean found = false;
+            // Deviation from nlu.py: the amount of the monthly withdrawal is never the portfolio ("my savings ...
+            // if I withdraw 200 EUR a month" has no portfolio amount).
+            while (!found && m.find()) {
+                found = m.start(2) != monthlyStart;
+            }
+            if (found) {
                 p.put("portfolio", amount(m.group(2)));
-            } else if (p.containsKey("initial")) {
+            } else if (p.getOrDefault("initial", 0.0) > 0) {
+                // Deviation from nlu.py: the model fills "initial": 0.0 for "my savings", which is no portfolio.
                 p.put("portfolio", p.get("initial"));
             }
             if (p.containsKey("portfolio")) {

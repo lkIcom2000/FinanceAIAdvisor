@@ -11,7 +11,14 @@
       (animationDone)="restoreScroll()"
     >
       @for (t of tabs; track t.key) {
-        <mat-tab [label]="t.label">
+        <mat-tab>
+          <ng-template mat-tab-label>
+            {{ t.label }}
+            @if (links.dots().has(t.key)) {
+              <span class="tab-dot" aria-hidden="true"></span>
+              <span class="visually-hidden">(shows a figure from the chat)</span>
+            }
+          </ng-template>
           <section class="tab-content" [attr.data-tab]="t.key">
             @if (t.key === 'home') {
               <app-home-tab />

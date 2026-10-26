@@ -1,4 +1,4 @@
-import { formatFigure } from './figure.pipe';
+import { formatFigure, fractionToPercent, percentToFraction } from './figure.pipe';
 
 describe('formatFigure', () => {
   it('formats EUR with thousands separators and the backend precision', () => {
@@ -25,5 +25,20 @@ describe('formatFigure', () => {
     expect(formatFigure('1.5', 'MONTHS')).toBe('1.5 months');
     expect(formatFigure('-1', 'MONTHS')).toBe('−1 month');
     expect(formatFigure('1250', 'COUNT')).toBe('1,250');
+  });
+});
+
+describe('percentage fields', () => {
+  it('shows a share as a percentage and reads a typed percentage back as a share, as text', () => {
+    expect(fractionToPercent('0.04')).toBe('4');
+    expect(fractionToPercent('0.045')).toBe('4.5');
+    expect(fractionToPercent('-0.02')).toBe('-2');
+    expect(percentToFraction('4')).toBe('0.04');
+    expect(percentToFraction('4.5')).toBe('0.045');
+    expect(percentToFraction('12')).toBe('0.12');
+    expect(percentToFraction('120')).toBe('1.2');
+    expect(percentToFraction('-2')).toBe('-0.02');
+    expect(percentToFraction('0')).toBe('0');
+    expect(percentToFraction('3.50')).toBe('0.035');
   });
 });

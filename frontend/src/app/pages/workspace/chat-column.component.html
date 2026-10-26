@@ -49,6 +49,100 @@
           </div>
         }
         <p class="body">{{ m.text }}</p>
+        @if (m.proposal; as proposal) {
+          <section
+            class="proposal"
+            [class.cancelled]="proposal.status === 'CANCELLED'"
+            [attr.aria-labelledby]="'proposal-' + m.id"
+          >
+            <h3 class="proposal-title" [id]="'proposal-' + m.id">Here's what I understood</h3>
+            @if (proposal.status === 'CANCELLED') {
+              <p class="proposal-status">Cancelled</p>
+            }
+            <dl class="proposal-rows">
+              @for (p of proposal.parameters; track p.key) {
+                <div class="proposal-row">
+                  <dt>{{ p.label }}</dt>&ngsp;
+                  <dd>
+                    @if (isEditing(m) && proposal.status === 'OPEN') {
+                      <span class="field">
+                        <input
+                          type="text"
+                          inputmode="decimal"
+                          [attr.aria-label]="p.label"
+                          [value]="editing()!.values[p.key]"
+                          (input)="edit(p.key, $event)"
+                        />
+                        <span class="unit">{{ p.unit === 'FRACTION' ? '%' : p.unit }}</span>
+                      </span>&ngsp;
+                    } @else {
+                      <span class="value">{{ p.value | figure: p.unit }}</span>&ngsp;
+                    }
+                    <span class="source-tag">{{ sourceTags[p.source] }}</span>
+                  </dd>
+                </div>
+              }
+            </dl>
+            @if (calculateError()?.messageId === m.id) {
+              <p class="proposal-error" role="alert">{{ calculateError()!.text }}</p>
+            }
+            @if (proposal.status === 'OPEN') {
+              <div class="proposal-actions">
+                <button
+                  mat-flat-button
+                  type="button"
+                  class="calculate"
+                  [disabled]="isBusy()"
+                  (click)="calculate(m)"
+                >
+                  Calculate
+                </button>
+                @if (!isEditing(m)) {
+                  <button
+                    mat-stroked-button
+                    type="button"
+                    class="change-values"
+                    [disabled]="isBusy()"
+                    (click)="startEditing(m)"
+                  >
+                    Change values
+                  </button>
+                }
+              </div>
+            }
+          </section>
+        }
+        @if (m.figures.length) {
+          <ul class="figures" aria-label="Figures in this answer">
+            @for (f of m.figures; track f.provId) {
+              <li class="figure">
+                <button
+                  type="button"
+                  class="figure-chip"
+                  (click)="openWhy(f.provId)"
+                  (mouseenter)="links.highlight([f.provId])"
+                  (focus)="links.highlight([f.provId])"
+                >
+                  <span class="figure-label">{{ f.label }}</span>&ngsp;
+                  <span class="figure-value">{{ f.value | figure: f.unit }}</span>
+                </button>
+                @if (links.isInOverview(f.provId)) {
+                  <button
+                    type="button"
+                    class="show-in-overview"
+                    aria-label="Show in overview"
+                    title="Show in overview"
+                    (click)="links.show(f.provId)"
+                  >
+                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                      <path [attr.d]="icons['link']" />
+                    </svg>
+                  </button>
+                }
+              </li>
+            }
+          </ul>
+        }
         <!-- A handover shows at most a plain reason class, never the draft or a technical reason. -->
         @if (m.handover; as handover) {
           @if (handover.reason) {

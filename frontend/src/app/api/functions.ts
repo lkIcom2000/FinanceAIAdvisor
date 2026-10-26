@@ -15,6 +15,8 @@ export type { PostMessage$Params as PostMessage$Params } from './fn/chat/post-me
 export { postMessage as postMessage } from './fn/chat/post-message';
 export type { AnswerMessage$Params as AnswerMessage$Params } from './fn/chat/answer-message';
 export { answerMessage as answerMessage } from './fn/chat/answer-message';
+export type { Calculate$Params as Calculate$Params } from './fn/chat/calculate';
+export { calculate as calculate } from './fn/chat/calculate';
 export type { Home$Params as Home$Params } from './fn/overview/home';
 export { home as home } from './fn/overview/home';
 export type { Liquidity$Params as Liquidity$Params } from './fn/overview/liquidity';

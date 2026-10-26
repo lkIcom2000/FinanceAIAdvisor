@@ -3,6 +3,8 @@
 
 import { ChatCheck } from '../models/chat-check';
 import { ChatHandover } from '../models/chat-handover';
+import { ChatProposal } from '../models/chat-proposal';
+import { Figure } from '../models/figure';
 
 /**
  * One message of the conversation
@@ -16,6 +18,11 @@ export interface ChatMessage {
   checks: Array<ChatCheck>;
 
   /**
+   * The figures a calculated answer used, shown as figure chips; empty on other messages
+   */
+  figures: Array<Figure>;
+
+  /**
    * The case for a human advisor; only on answers passed to an advisor (ESCALATE)
    */
   handover?: ChatHandover;
@@ -25,6 +32,11 @@ export interface ChatMessage {
    * How the turn ended; only on Fine's answers
    */
   outcome?: 'INFORM' | 'ASK_PROFILE' | 'RECOMMEND_CATEGORY' | 'COMPUTE' | 'REFUSE_OUT_OF_SCOPE' | 'DETECT_TRAP' | 'ESCALATE';
+
+  /**
+   * "Here's what I understood": the values a calculation will run with; only on COMPUTE answers that ask before calculating
+   */
+  proposal?: ChatProposal;
 
   /**
    * The question an answer replies to; only on Fine's answers

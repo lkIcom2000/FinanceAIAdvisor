@@ -20,6 +20,7 @@ import de.financetool.core.domain.WealthFigures;
 import de.financetool.shared.PersonaScope;
 import de.financetool.shared.domain.SourcedNumber;
 import de.financetool.shared.domain.Unit;
+import de.financetool.shared.web.FigureView;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -42,41 +43,28 @@ class OverviewController {
 
     private static final String DECIMAL = "^-?\\d+(\\.\\d+)?$";
 
-    @Schema(description = "A figure from Fine's calculation engine with the key of its provenance")
-    record Figure(
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, pattern = SourcedNumber.PROV_ID_SCHEMA_PATTERN) String provId,
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String label,
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "Decimal string",
-                    pattern = DECIMAL, example = "1974.00") String value,
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Unit unit) {
-
-        static Figure of(SourcedNumber number) {
-            return new Figure(number.provId(), number.label(), number.value().toPlainString(), number.unit());
-        }
-    }
-
     @Schema(description = "A balance on a day, e.g. the first forecast day below zero")
     record DatedFigure(
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Figure amount,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) FigureView amount,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDate date,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, pattern = "^-?\\d+$", example = "-90",
                     description = "The amount rounded to whole euros (half up), for the chart marker and running text")
             String wholeEuros) {
 
         static DatedFigure of(SourcedNumber number, LocalDate date) {
-            return new DatedFigure(Figure.of(number), date,
+            return new DatedFigure(FigureView.of(number), date,
                     number.value().setScale(0, RoundingMode.HALF_UP).toPlainString());
         }
     }
 
     @Schema(description = "The emergency fund (overnight deposit) against its target")
     record EmergencyFund(
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Figure current,
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "Minimum target") Figure target,
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Figure targetMax,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) FigureView current,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "Minimum target") FigureView target,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) FigureView targetMax,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "Months of expenses in the target")
-            Figure months,
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Figure monthlyExpenses) {
+            FigureView months,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) FigureView monthlyExpenses) {
     }
 
     @Schema(description = "One forecast day: the expected balance and its possible range")
@@ -91,16 +79,16 @@ class OverviewController {
     record Forecast(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, pattern = SourcedNumber.PROV_ID_SCHEMA_PATTERN,
                     description = "Key of the forecast's provenance") String provId,
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Figure expectedEnd,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) FigureView expectedEnd,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ForecastPoint> points,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<String> assumptions) {
     }
 
     record LiquidityOverview(
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Figure currentAccount,
-            @Schema(description = "Absent if there is no overnight deposit") Figure overnightDeposit,
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Figure liquidAssets,
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Figure variableSpending,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) FigureView currentAccount,
+            @Schema(description = "Absent if there is no overnight deposit") FigureView overnightDeposit,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) FigureView liquidAssets,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) FigureView variableSpending,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) EmergencyFund emergencyFund,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Forecast forecast,
             @Schema(description = "The first day the expected balance is below zero; absent if it never is")
@@ -116,7 +104,7 @@ class OverviewController {
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String policyholder,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                     description = "Whether you are co-insured on someone else's policy") boolean coInsured,
-            @Schema(description = "The premium per payment interval; absent if you don't pay it") Figure premium,
+            @Schema(description = "The premium per payment interval; absent if you don't pay it") FigureView premium,
             @Schema(description = "Absent without a premium", allowableValues = {"monthly", "quarterly", "yearly"})
             String paymentInterval,
             @Schema(description = "The next due date after today; absent without a premium") LocalDate nextDueDate) {
@@ -145,7 +133,7 @@ class OverviewController {
     }
 
     record HomeOverview(
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Figure currentAccount,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) FigureView currentAccount,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
                     description = "The lowest expected balance in the next three months") DatedFigure lowestBalance,
             @Schema(description = "The first day the expected balance is below zero; absent if it never is")
@@ -161,13 +149,13 @@ class OverviewController {
                     example = "Equity ETF") String assetClass,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, pattern = DECIMAL, example = "17.842300")
             String units,
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Figure value) {
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) FigureView value) {
     }
 
     @Schema(description = "An active savings plan")
     record SavingsPlan(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Figure monthlyAmount,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) FigureView monthlyAmount,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "1", maximum = "31") int dayOfMonth) {
     }
 
@@ -192,13 +180,13 @@ class OverviewController {
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, pattern = SourcedNumber.PROV_ID_SCHEMA_PATTERN,
                     description = "Key of the projection's provenance (its middle outcome)") String provId,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "1") int years,
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Figure p10,
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Figure p50,
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Figure p90,
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Figure paidIn,
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Figure p50TodaysMoney,
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Figure startingValue,
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Figure monthlyContribution,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) FigureView p10,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) FigureView p50,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) FigureView p90,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) FigureView paidIn,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) FigureView p50TodaysMoney,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) FigureView startingValue,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) FigureView monthlyContribution,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ProjectionPoint> points,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<String> assumptions,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) WholeEuros wholeEuros) {
@@ -230,14 +218,14 @@ class OverviewController {
         List<InsuranceContract> contracts = insurance.contracts().stream()
                 .map(c -> new InsuranceContract(c.contract().id(), c.contract().cover().typeName(),
                         c.contract().policyholder(), c.contract().coInsured(),
-                        c.premium() == null ? null : Figure.of(c.premium().number(InsurancePremium.OUTPUT)),
+                        c.premium() == null ? null : FigureView.of(c.premium().number(InsurancePremium.OUTPUT)),
                         c.premium() == null ? null : c.contract().intervalWords(), c.nextDueDate()))
                 .toList();
         List<InsuranceFlag> flags = new ArrayList<>();
         insurance.duplicateFlags().forEach(flag -> flags.add(flag(flag, insurance.duplicates())));
         insurance.missingFlags().forEach(flag -> flags.add(flag(flag, insurance.missing())));
         return new HomeOverview(
-                Figure.of(f.currentAccount().number(AccountBalance.OUTPUT)),
+                FigureView.of(f.currentAccount().number(AccountBalance.OUTPUT)),
                 DatedFigure.of(f.shortfall().number(ShortfallDetection.OUTPUT_LOWEST), f.lowestDate()),
                 shortfall(f),
                 emergencyFund(f.emergencyFund()),
@@ -256,11 +244,11 @@ class OverviewController {
 
     private static EmergencyFund emergencyFund(CoreResult fund) {
         return new EmergencyFund(
-                Figure.of(fund.number(EmergencyFundTarget.OUTPUT_CURRENT)),
-                Figure.of(fund.number(EmergencyFundTarget.OUTPUT_TARGET)),
-                Figure.of(fund.number(EmergencyFundTarget.OUTPUT_TARGET_MAX)),
-                Figure.of(fund.number(EmergencyFundTarget.OUTPUT_MONTHS)),
-                Figure.of(fund.number(EmergencyFundTarget.OUTPUT_MONTHLY_EXPENSES)));
+                FigureView.of(fund.number(EmergencyFundTarget.OUTPUT_CURRENT)),
+                FigureView.of(fund.number(EmergencyFundTarget.OUTPUT_TARGET)),
+                FigureView.of(fund.number(EmergencyFundTarget.OUTPUT_TARGET_MAX)),
+                FigureView.of(fund.number(EmergencyFundTarget.OUTPUT_MONTHS)),
+                FigureView.of(fund.number(EmergencyFundTarget.OUTPUT_MONTHLY_EXPENSES)));
     }
 
     @Operation(summary = "The Liquidity tab: balances, emergency fund and the three-month cash-flow forecast")
@@ -269,12 +257,12 @@ class OverviewController {
         LiquidityFigures f = showLiquidity.show(scope);
         SourcedNumber expectedEnd = f.forecast().number(CashFlowForecast.OUTPUT_EXPECTED);
         return new LiquidityOverview(
-                Figure.of(f.currentAccount().number(AccountBalance.OUTPUT)),
-                f.overnightDeposit() == null ? null : Figure.of(f.overnightDeposit().number(AccountBalance.OUTPUT)),
-                Figure.of(f.liquidAssets().number(Liquidity.OUTPUT)),
-                Figure.of(f.variableSpending().number(VariableSpending.OUTPUT)),
+                FigureView.of(f.currentAccount().number(AccountBalance.OUTPUT)),
+                f.overnightDeposit() == null ? null : FigureView.of(f.overnightDeposit().number(AccountBalance.OUTPUT)),
+                FigureView.of(f.liquidAssets().number(Liquidity.OUTPUT)),
+                FigureView.of(f.variableSpending().number(VariableSpending.OUTPUT)),
                 emergencyFund(f.emergencyFund()),
-                new Forecast(expectedEnd.provId(), Figure.of(expectedEnd),
+                new Forecast(expectedEnd.provId(), FigureView.of(expectedEnd),
                         f.points().stream().map(p -> new ForecastPoint(p.date(), p.low().toPlainString(),
                                 p.expected().toPlainString(), p.high().toPlainString())).toList(),
                         f.forecastAssumptions()),
@@ -288,10 +276,10 @@ class OverviewController {
         WealthFigures f = showWealth.show(scope);
         List<Holding> holdings = f.holdings().stream()
                 .map(h -> new Holding(h.name(), h.assetClass(), h.units().toPlainString(),
-                        Figure.of(h.value().number(Investments.HOLDING_OUTPUT))))
+                        FigureView.of(h.value().number(Investments.HOLDING_OUTPUT))))
                 .toList();
         List<SavingsPlan> plans = f.savingsPlans().stream()
-                .map(p -> new SavingsPlan(p.name(), Figure.of(p.amount().number(Investments.PLAN_OUTPUT)),
+                .map(p -> new SavingsPlan(p.name(), FigureView.of(p.amount().number(Investments.PLAN_OUTPUT)),
                         p.dayOfMonth()))
                 .toList();
         if (f.projection() == null) {
@@ -302,11 +290,11 @@ class OverviewController {
         SourcedNumber p50 = projection.number(MonteCarloProjection.OUTPUT_P50);
         SourcedNumber p90 = projection.number(MonteCarloProjection.OUTPUT_P90);
         return new WealthOverview(holdings, plans, new Projection(p50.provId(), f.points().getLast().year(),
-                Figure.of(p10), Figure.of(p50), Figure.of(p90),
-                Figure.of(projection.number(MonteCarloProjection.OUTPUT_PAID_IN)),
-                Figure.of(projection.number(MonteCarloProjection.OUTPUT_P50_REAL)),
-                Figure.of(f.totals().number(Investments.OUTPUT_INITIAL)),
-                Figure.of(f.totals().number(Investments.OUTPUT_MONTHLY)),
+                FigureView.of(p10), FigureView.of(p50), FigureView.of(p90),
+                FigureView.of(projection.number(MonteCarloProjection.OUTPUT_PAID_IN)),
+                FigureView.of(projection.number(MonteCarloProjection.OUTPUT_P50_REAL)),
+                FigureView.of(f.totals().number(Investments.OUTPUT_INITIAL)),
+                FigureView.of(f.totals().number(Investments.OUTPUT_MONTHLY)),
                 f.points().stream().map(p -> new ProjectionPoint(p.year(), p.p10().toPlainString(),
                         p.p50().toPlainString(), p.p90().toPlainString())).toList(),
                 f.assumptions(),
