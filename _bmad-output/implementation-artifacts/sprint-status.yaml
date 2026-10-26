@@ -42,7 +42,7 @@
 #   configuration with a derivedFrom block (AD-25). Check E3 before 3.9, E1 before 4.2/4.3.
 
 generated: 10-21-2026 13:52
-last_updated: 10-22-2026 17:19
+last_updated: 10-26-2026 11:24
 project: FinanceTool
 project_key: NOKEY
 tracking_system: file-system
@@ -66,7 +66,7 @@ development_status:
   2-5-home-tab-with-summary-and-your-insurance: done  # start 2026-10-22, end 2026-10-22; joint review 2.3-2.5 (13 fixes)
   epic-2-retrospective: done
 
-  epic-3: in-progress  # [critical-path]
+  epic-3: done  # [critical-path] closed 2026-10-26 without 3.9 (Commc)
   3-1-chat-column-with-atomic-turn-release: done  # end 2026-10-22; block A review done 2026-10-23; Epic 1 A7 export test added
   3-2-data-exposure-filter-and-prompt-budget: done  # [code-review] data exposure to the LLM (Epic 1 A6, Commc 2026-10-22); end 2026-10-23; 4-layer review, 12 fixes, 1 deferred to 3.8
   3-3-deterministic-classification-of-every-message: done  # end 2026-10-23; block A review (3.1+3.3, four layers), 9 fixes; ports experiments/finlab nlu+classify at b72a70e
@@ -76,7 +76,7 @@ development_status:
   3-7-calculated-answers-with-parameter-proposal-and-figure-chips: done
   3-8-transparent-refusals-trap-detection-and-injection-resistance: done  # [code-review] injection resistance (Epic 1 A6, Commc 2026-10-22); end 2026-10-26; 4-layer review, 7 fixes
   3-9-block-only-judge-under-a-b-c: backlog  # NOT BUILT: E3 selected A+B (2026-10-23); reserve item 1 activated by Commc 2026-10-26, FR-26 not active
-  epic-3-retrospective: optional
+  epic-3-retrospective: done
   # >>> CHECKPOINT (after Epic 3): measure velocity (actual days per story), project the
   # >>> UAT date; if too late, activate the reserve list (scope proposal §6) in order.
 
@@ -242,3 +242,59 @@ action_items:
     owner: "Commc"
     status: done
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-10-22.md"
+  - id: "epic-3-retro-item-15-a1-route-ruleparametererror-to-escalate"
+    epic: 3
+    action: "A1: Route ruleParameterError to ESCALATE before the routing-off branch
+      so level A never releases a figure-less COMPUTE draft; test at level A"
+    owner: "Dev (Claude)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-10-26.md"
+  - id: "epic-3-retro-item-16-a2-pair-a-calculated-turn-history-with-t"
+    epic: 3
+    action: "A2: Pair a calculated turn history with the Calculate answer in releasedTurnsBefore;
+      add E2E tests for failed Calculate and Calculate to ESCALATE"
+    owner: "Dev (Claude)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-10-26.md"
+  - id: "epic-3-retro-item-17-a3-own-label-for-the-open-or-cancelled-p"
+    epic: 3
+    action: "A3: Own label for the open or cancelled parameter-proposal card instead
+      of Calculated for you"
+    owner: "Dev (Claude)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-10-26.md"
+  - id: "epic-3-retro-item-18-a4-keep-the-first-draft-in-the-escalatio"
+    epic: 3
+    action: "A4: Keep the first draft in the escalation snapshot after a blank regeneration;
+      at none source ledger numbers from what the model saw"
+    owner: "Dev (Claude)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-10-26.md"
+  - id: "epic-3-retro-item-19-a5-at-epic-4-start-check-turnorchestrato"
+    epic: 3
+    action: "A5: At Epic 4 start check TurnOrchestrator size before adding the retrieval
+      stage; extract stage classes if it keeps growing"
+    owner: "Dev (Claude)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-10-26.md"
+  - id: "epic-3-retro-item-20-a6-story-13-1-consolidates-number-parsin"
+    epic: 3
+    action: "A6: Story 13.1 consolidates number parsing across ExposureFilter, NluExtraction
+      and NumberParser or records why they stay apart"
+    owner: "Dev (Claude)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-10-26.md"
+  - id: "epic-3-retro-item-21-a7-mark-story-3-9-in-epics-md-as-not-bui"
+    epic: 3
+    action: "A7: Mark Story 3.9 in epics.md as not built (E3 to A+B, FR-26 inactive,
+      reserve item 1)"
+    owner: "Commc"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-10-26.md"
+  - id: "epic-3-retro-item-22-a8-epic-end-keeps-one-cross-story-seam-r"
+    epic: 3
+    action: "A8: Epic end keeps one cross-story seam reviewer over the main-code diff
+      and a live turn with numbers for every deviation that changes the model input"
+    owner: "Commc"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-10-26.md"
