@@ -1708,7 +1708,7 @@ As a persona,
 I want calculated answers, their follow-ups and blocked turns to behave consistently,
 So that what-if questions and handovers build on the right context.
 
-**Gap:** Epic 3 retrospective (`epic-3-retro-2026-10-26.md`, R1–R5, action items A1–A4). **Do before Epic 7**, which builds on the history after a calculation and reuses the proposal card.
+**Gap:** Epic 3 retrospective (`epic-3-retro-2026-10-26.md`, R1–R5, action items A1–A4). **Do before Epic 8** (planned before Epic 7, missed; joint 6/7 retro, Commc 2026-10-26): Epic 7 builds on the history after a calculation and reuses the proposal card.
 
 **Acceptance Criteria:**
 

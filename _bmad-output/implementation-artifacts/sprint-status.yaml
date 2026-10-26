@@ -42,7 +42,7 @@
 #   configuration with a derivedFrom block (AD-25). Check E3 before 3.9, E1 before 4.2/4.3.
 
 generated: 10-21-2026 13:52
-last_updated: 10-26-2026 17:30
+last_updated: 10-26-2026 21:52
 project: FinanceTool
 project_key: NOKEY
 tracking_system: file-system
@@ -84,22 +84,22 @@ development_status:
   4-1-versioned-rule-parameters-and-the-subsidy-calculator: done
   4-2-knowledge-base-ingest-with-a-pinned-snapshot: backlog  # NOT BUILT: E1 selected e1-llama3 without retrieval; reserve item 2 (off) activated by Commc 2026-10-26, FR-23 not active
   4-3-explanations-with-cited-valid-sources: backlog  # NOT BUILT: reserve item 2 (off), Commc 2026-10-26; retrieval on gives the no-valid-source answer (3.3)
-  epic-4-retrospective: optional  # folded into the next epic retro held (Commc 2026-10-26); inputs in epic-4-handoff.md
+  epic-4-retrospective: done      # folded into the next epic retro held (Commc 2026-10-26); inputs in epic-4-handoff.md
 
   epic-5: backlog  # [non-blocking] Advisor; not needed for the UAT, may run in parallel or after
   5-1-advisor-handles-a-case-end-to-end-through-the-advisor-endpoi: backlog
   epic-5-retrospective: optional
 
-  epic-6: in-progress  # [critical-path] Epic 5 skipped (non-blocking), Commc 2026-10-26
+  epic-6: done  # [critical-path] Epic 5 skipped (non-blocking), Commc 2026-10-26; closed 2026-10-26 with the joint 6/7 retro (accepted-with-open-items)
   6-1-profile-module-and-the-completeness-gate: done  # end 2026-10-26; combined review + Blind Hunter, 8 fixes, 2 deferred to 6.2
   6-2-suitability-assessment-in-one-form-card: done  # end 2026-10-26; combined review + Blind Hunter, 8 fixes; live Ollama check done
-  6-3-category-recommendation-with-a-suitability-statement: done  # end 2026-10-26; combined review, 6 fixes; live Ollama check pending
-  6-4-short-demands-and-needs-statement-idd: done  # end 2026-10-26; combined review + Blind Hunter, 7 fixes; live Ollama check pending
-  epic-6-retrospective: optional
+  6-3-category-recommendation-with-a-suitability-statement: done  # end 2026-10-26; combined review, 6 fixes; live Ollama check done
+  6-4-short-demands-and-needs-statement-idd: done  # end 2026-10-26; combined review + Blind Hunter, 7 fixes; live Ollama check done
+  epic-6-retrospective: done
 
-  epic-7: in-progress  # [critical-path] before the joint Epic 6/7 end tasks, Commc 2026-10-26
+  epic-7: done  # [critical-path] closed 2026-10-26 with the joint 6/7 retro (accepted-with-open-items)
   7-1-what-if-from-chat-with-a-range-chart: done
-  epic-7-retrospective: optional
+  epic-7-retrospective: done
 
   epic-8: backlog  # [critical-path]
   8-1-autonomy-gate-and-action-proposals: backlog  # [code-review] Autonomy Gate
@@ -141,7 +141,7 @@ development_status:
 
   epic-13: backlog  # Follow-up fixes (Commc 2026-10-26); placement relative to the UAT open
   13-1-fine-answers-in-german-when-written-to-in-german: backlog
-  13-2-epic-3-seam-fixes-technical-debt: backlog  # before Epic 7 (Epic 3 retro A1-A4)
+  13-2-epic-3-seam-fixes-technical-debt: backlog  # before Epic 8 (Epic 3 retro A1-A4; missed "before Epic 7", Commc 2026-10-26)
   epic-13-retrospective: optional
 action_items:
   - id: "epic-1-retro-item-1-a1-archunit-rules-for-ad-21-ar3-transact"
@@ -297,5 +297,74 @@ action_items:
     action: "A8: Epic end keeps one cross-story seam reviewer over the main-code diff
       and a live turn with numbers for every deviation that changes the model input"
     owner: "Commc"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-10-26.md"
+  - id: "epic-6-retro-item-23-c1-run-story-13-2-epic-3-seam-fixes-a1-a"
+    epic: 6
+    action: "C1: Run Story 13.2 (Epic 3 seam fixes A1-A4) before Epic 8; A1 also guards
+      the subsidy what-if escalation at level A, A3 the 7.1 proposal card"
+    owner: "Dev (Claude)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-6-7-retro-2026-10-26.md"
+  - id: "epic-6-retro-item-24-c2-extract-stage-classes-from-turnorches"
+    epic: 6
+    action: "C2: Extract stage classes from TurnOrchestrator (tool plan, block routing)
+      before the next stage or tool is added"
+    owner: "Dev (Claude)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-6-7-retro-2026-10-26.md"
+  - id: "epic-6-retro-item-25-c3-needs-statement-text-must-agree-with"
+    epic: 6
+    action: "C3: Needs statement text must agree with the stored Needs Profile (household,
+      dependants); extend IDD_NEEDS or use a fixed facts sentence"
+    owner: "Dev (Claude)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-6-7-retro-2026-10-26.md"
+  - id: "epic-6-retro-item-26-c4-reconcile-the-6-3-ac-savings-plan-fol"
+    epic: 6
+    action: "C4: Reconcile the 6.3 AC savings-plan follow-up with CategorySelection
+      (follow-up category or AC wording)"
+    owner: "Commc"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-6-7-retro-2026-10-26.md"
+  - id: "epic-6-retro-item-27-c5-before-the-uat-2027-riester-rule-para"
+    epic: 6
+    action: "C5: Before the UAT, 2027 Riester rule parameters or UAT simulated dates
+      up to 2026-12-31"
+    owner: "Commc"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-6-7-retro-2026-10-26.md"
+  - id: "epic-6-retro-item-28-p1-send-independent-reads-greps-and-edit"
+    epic: 6
+    action: "P1: Send independent reads, greps and edits in one message; aim at 80
+      or fewer API calls per story session"
+    owner: "Dev (Claude)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-6-7-retro-2026-10-26.md"
+  - id: "epic-6-retro-item-29-p2-no-whole-file-reads-of-files-over-abo"
+    epic: 6
+    action: "P2: No whole-file reads of files over about 300 lines; grep -n then sed
+      windows of 80 lines or fewer"
+    owner: "Dev (Claude)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-6-7-retro-2026-10-26.md"
+  - id: "epic-6-retro-item-30-p3-live-checks-always-in-their-own-fresh"
+    epic: 6
+    action: "P3: Live checks always in their own fresh session from the handoff, one
+      per epic block"
+    owner: "Dev (Claude)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-6-7-retro-2026-10-26.md"
+  - id: "epic-6-retro-item-31-p4-trim-the-build-loop-economy-memory-to"
+    epic: 6
+    action: "P4: Trim the build-loop-economy memory to the rules in force; do not
+      re-read it at session start"
+    owner: "Dev (Claude)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-6-7-retro-2026-10-26.md"
+  - id: "epic-6-retro-item-32-p5-handoff-notes-list-scheduled-prerequi"
+    epic: 6
+    action: "P5: Handoff notes list scheduled prerequisites under Next"
+    owner: "Dev (Claude)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-6-7-retro-2026-10-26.md"
