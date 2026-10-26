@@ -15,5 +15,7 @@ public enum ProblemCode {
     TURN_FAILED,
     /** Calculate on a parameter proposal that a later question cancelled. */
     PROPOSAL_CLOSED,
+    /** Save on an assessment card that a later question cancelled. */
+    ASSESSMENT_CLOSED,
     INTERNAL_ERROR
 }

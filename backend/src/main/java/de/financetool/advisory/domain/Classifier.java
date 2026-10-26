@@ -48,6 +48,17 @@ public final class Classifier {
      */
     public static Classification classify(NluExtraction nlu, Map<String, Object> storedProfile,
             ProfileCompleteness completeness, EntityRegistry registry, boolean computable, String message) {
+        return classify(nlu, storedProfile, completeness, registry, computable, message, false);
+    }
+
+    /**
+     * @param strict the strict FR-17 rule of a persona workspace: a recommendation needs the stored profile alone to
+     *     meet the topic minimum and hold every strict field; the stated facts do not count, and the missing strict
+     *     fields join the missing fields of {@code ASK_PROFILE}
+     */
+    public static Classification classify(NluExtraction nlu, Map<String, Object> storedProfile,
+            ProfileCompleteness completeness, EntityRegistry registry, boolean computable, String message,
+            boolean strict) {
         List<String> reasons = new ArrayList<>();
         String topic = nlu.topic();
         if (nlu.instructionOverrideAttempt()) {
@@ -86,6 +97,19 @@ public final class Classifier {
         }
 
         if (PERSONAL_TYPES.contains(type) || type.equals("computation")) {
+            if (strict) {
+                ProfileCompleteness.Result result = completeness.check(storedProfile, Map.of(), topic);
+                List<String> strictMissing = completeness.strictMissing(storedProfile, topic);
+                if (result.complete() && strictMissing.isEmpty()) {
+                    reasons.add("confirmed profile complete for topic '" + topic + "' (strict FR-17)");
+                    return new Classification(MessageClass.RECOMMEND_CATEGORY, reasons, List.of(), List.of(),
+                            List.of(), topic);
+                }
+                reasons.add("confirmed profile incomplete for topic '" + topic + "' (strict FR-17)");
+                List<String> missing = new ArrayList<>(result.missingFields());
+                strictMissing.stream().filter(f -> !missing.contains(f)).forEach(missing::add);
+                return new Classification(MessageClass.ASK_PROFILE, reasons, missing, List.of(), List.of(), topic);
+            }
             ProfileCompleteness.Result result = completeness.check(storedProfile, nlu.statedProfile(), topic);
             if (result.complete()) {
                 reasons.add("profile minimum met for topic '" + topic + "'");

@@ -140,8 +140,7 @@ class CheckChainEndToEndTest extends PostgresIntegrationTest {
         Turn t = turn(PERSONAL);
 
         assertThat(t.answer()).containsEntry("outcome", "ASK_PROFILE")
-                .containsEntry("text", ResponseTemplates.askProfile(List.of("monthly_surplus or net_income",
-                        "risk_tolerance or loss_aversion")));
+                .containsEntry("text", ResponseTemplates.askProfile(ClassificationEndToEndTest.PERSONAL_MISSING));
         assertThat(t.body()).containsEntry("route", "block_profile")
                 .containsEntry("firedChecks", List.of("PROFILE_COMPLETE"));
         assertThat(t.shadow(CheckId.PROFILE_COMPLETE)).containsEntry("reasonCode", "verdict_without_profile");

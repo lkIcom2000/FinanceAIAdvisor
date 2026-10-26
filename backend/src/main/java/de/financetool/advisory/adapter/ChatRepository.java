@@ -27,10 +27,12 @@ import tools.jackson.databind.json.JsonMapper;
 public class ChatRepository {
 
     private static final String MESSAGE_COLUMNS = "id, author, text, outcome, reply_to, suggestions, checks::text AS checks, "
-            + "proposal::text AS proposal, figures::text AS figures, premise";
+            + "proposal::text AS proposal, figures::text AS figures, premise, assessment::text AS assessment";
 
     /** The dialog state while a parameter proposal is open (AD-24). */
     public static final String PARAMETER_PROPOSAL = "PARAMETER_PROPOSAL";
+    /** The dialog state while an assessment card is open (AD-24). */
+    public static final String ASSESSMENT = "ASSESSMENT";
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
     private static final TypeReference<List<ChatMessage.Check>> CHECKS = new TypeReference<>() {
@@ -58,14 +60,25 @@ public class ChatRepository {
     public void insert(PersonaScope scope, UUID conversationId, ChatMessage message) {
         jdbc.sql("""
                 INSERT INTO messages (id, conversation_id, persona_id, author, text, outcome, reply_to, suggestions,
-                    checks, proposal, figures, premise)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?::jsonb, ?)""")
+                    checks, proposal, figures, premise, assessment)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?::jsonb, ?, ?::jsonb)""")
                 .params(message.id(), conversationId, scope.id(), message.author().name(), message.text(),
                         message.outcome() == null ? null : message.outcome().name(), message.replyTo(),
                         message.suggestions().toArray(String[]::new), JSON.writeValueAsString(message.checks()),
                         message.proposal() == null ? null : JSON.writeValueAsString(message.proposal()),
-                        JSON.writeValueAsString(message.figures()), message.premise())
+                        JSON.writeValueAsString(message.figures()), message.premise(),
+                        message.assessment() == null ? null : JSON.writeValueAsString(message.assessment()))
                 .update();
+    }
+
+    /** Sets the status of the scope's assessment message; returns whether it was {@code from} and is now changed. */
+    public boolean updateAssessmentStatus(PersonaScope scope, UUID messageId, ChatMessage.Assessment.Status from,
+            ChatMessage.Assessment.Status to) {
+        return jdbc.sql("""
+                UPDATE messages SET assessment = jsonb_set(assessment, '{status}', to_jsonb(?::text))
+                WHERE id = ? AND persona_id = ? AND assessment ->> 'status' = ?""")
+                .params(to.name(), messageId, scope.id(), from.name())
+                .update() == 1;
     }
 
     /** Sets the status of the scope's proposal message; returns whether it was {@code from} and is now changed. */
@@ -76,6 +89,14 @@ public class ChatRepository {
                 WHERE id = ? AND persona_id = ? AND proposal ->> 'status' = ?""")
                 .params(to.name(), messageId, scope.id(), from.name())
                 .update() == 1;
+    }
+
+    /** Locks the scope's message row until the transaction ends; nothing happens for an unknown id. */
+    public void lock(PersonaScope scope, UUID id) {
+        jdbc.sql("SELECT id FROM messages WHERE id = ? AND persona_id = ? FOR UPDATE")
+                .params(id, scope.id())
+                .query(UUID.class)
+                .optional();
     }
 
     /** The message, only if it belongs to the scope's persona. */
@@ -139,14 +160,33 @@ public class ChatRepository {
                 .map(UUID::fromString);
     }
 
+    /** The assessment message the persona's {@code ASSESSMENT} dialog state holds, if it is in that state. */
+    public Optional<UUID> openAssessment(PersonaScope scope) {
+        return jdbc.sql("SELECT payload ->> 'assessmentId' FROM dialog_states WHERE persona_id = ? AND state = ?")
+                .params(scope.id(), ASSESSMENT)
+                .query(String.class)
+                .optional()
+                .map(UUID::fromString);
+    }
+
     /** Stores the persona's dialog state: {@code PARAMETER_PROPOSAL} with the proposal's id, or {@code NONE}. */
     public void saveDialogState(PersonaScope scope, UUID conversationId, UUID proposalId) {
+        save(scope, conversationId, proposalId == null ? "NONE" : PARAMETER_PROPOSAL,
+                proposalId == null ? null : Map.of("proposalId", proposalId));
+    }
+
+    /** Stores the persona's {@code ASSESSMENT} dialog state: the card's id and its field queue. */
+    public void saveAssessmentState(PersonaScope scope, UUID conversationId, UUID assessmentId,
+            List<String> fieldQueue) {
+        save(scope, conversationId, ASSESSMENT, Map.of("assessmentId", assessmentId, "fieldQueue", fieldQueue));
+    }
+
+    private void save(PersonaScope scope, UUID conversationId, String state, Map<String, Object> payload) {
         jdbc.sql("""
                 INSERT INTO dialog_states (persona_id, conversation_id, state, payload)
                 VALUES (?, ?, ?, ?::jsonb)
                 ON CONFLICT (persona_id) DO UPDATE SET state = EXCLUDED.state, payload = EXCLUDED.payload""")
-                .params(scope.id(), conversationId, proposalId == null ? "NONE" : PARAMETER_PROPOSAL,
-                        proposalId == null ? null : JSON.writeValueAsString(Map.of("proposalId", proposalId)))
+                .params(scope.id(), conversationId, state, payload == null ? null : JSON.writeValueAsString(payload))
                 .update();
     }
 
@@ -167,7 +207,9 @@ public class ChatRepository {
                 JSON.readValue(rs.getString("checks"), CHECKS), null,
                 rs.getString("proposal") == null ? null
                         : JSON.readValue(rs.getString("proposal"), ChatMessage.Proposal.class),
-                JSON.readValue(rs.getString("figures"), FIGURES), rs.getString("premise"));
+                JSON.readValue(rs.getString("figures"), FIGURES), rs.getString("premise"),
+                rs.getString("assessment") == null ? null
+                        : JSON.readValue(rs.getString("assessment"), ChatMessage.Assessment.class));
     }
 
     private static List<String> suggestions(Array array) throws SQLException {

@@ -69,17 +69,41 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class TurnOrchestrator {
 
+    /** A turn that continues an open card (AD-24): its answer replies to the card, not to the question. */
+    public sealed interface Continuation permits Confirmation, SavedAssessment {
+
+        /** The card message the answer replies to. */
+        ChatMessage card();
+    }
+
     /**
      * A confirmed parameter proposal: Calculate runs the turn of the proposal's question with this spec.
      *
      * @param proposal the proposal message (agent, status {@code OPEN})
      * @param spec the proposal's spec with the values the persona confirmed or changed
      */
-    public record Confirmation(ChatMessage proposal, SimulationSpec spec) {
+    public record Confirmation(ChatMessage proposal, SimulationSpec spec) implements Continuation {
 
         public Confirmation {
             Objects.requireNonNull(proposal, "proposal");
             Objects.requireNonNull(spec, "spec");
+        }
+
+        @Override
+        public ChatMessage card() {
+            return proposal;
+        }
+    }
+
+    /**
+     * A saved assessment card: the answers are stored, so the card's question runs again on the stored profile.
+     *
+     * @param card the assessment message (agent, status {@code OPEN})
+     */
+    public record SavedAssessment(ChatMessage card) implements Continuation {
+
+        public SavedAssessment {
+            Objects.requireNonNull(card, "card");
         }
     }
 
@@ -94,11 +118,13 @@ public class TurnOrchestrator {
     private final RuleParamPort ruleParameters;
     private final ToolRegistry tools;
     private final Profiles profiles;
+    private final DialogStates dialogStates;
+    private final AssessmentCards assessments;
 
     TurnOrchestrator(ChatRepository chats, PromptFiles prompts, LlmPort llm, AuditWriter audit,
             NluExtractor nluExtractor, EntityRegistry registry,
             ProfileCompleteness completeness, EscalationCases escalations, RuleParamPort ruleParameters,
-            ToolRegistry tools, Profiles profiles) {
+            ToolRegistry tools, Profiles profiles, DialogStates dialogStates, AssessmentCards assessments) {
         this.chats = chats;
         this.prompts = prompts;
         this.llm = llm;
@@ -110,6 +136,8 @@ public class TurnOrchestrator {
         this.ruleParameters = ruleParameters;
         this.tools = tools;
         this.profiles = profiles;
+        this.dialogStates = dialogStates;
+        this.assessments = assessments;
     }
 
     /** Runs the turn for the saved user message {@code question} and releases the agent message. */
@@ -128,12 +156,22 @@ public class TurnOrchestrator {
         return run(context, scope, question, Objects.requireNonNull(confirmation, "confirmation"), fixtureVersion);
     }
 
+    /**
+     * Save on an assessment card: the answers are stored already; runs the turn of the card's {@code question} again
+     * on the stored profile and releases the answer as the card's reply.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public ChatMessage resume(RequestContext context, PersonaScope scope, ChatMessage question,
+            SavedAssessment saved, String fixtureVersion) {
+        return run(context, scope, question, Objects.requireNonNull(saved, "saved"), fixtureVersion);
+    }
+
     private ChatMessage run(RequestContext context, PersonaScope scope, ChatMessage question,
-            Confirmation confirmation, String fixtureVersion) {
+            Continuation continuation, String fixtureVersion) {
         TurnState turn = TurnState.start(question.text());
-        turn = dialogState(scope, turn, confirmation);
+        turn = dialogState(scope, turn, continuation);
         turn = nlu(context, scope, turn);
-        turn = classify(context, scope, turn, confirmation);
+        turn = classify(context, scope, turn, continuation instanceof Confirmation c ? c : null);
         turn = toolPlan(context, turn);
         turn = kbRetrieve(turn);
         turn = exposureFilter(context, scope, question, turn);
@@ -142,32 +180,12 @@ public class TurnOrchestrator {
         turn = ruleEngine(context, turn);
         turn = judge(turn);
         turn = blockRouting(turn);
-        return auditAndRelease(context, scope, question, confirmation, fixtureVersion, turn);
+        return auditAndRelease(context, scope, question, continuation, fixtureVersion, turn);
     }
 
-    /**
-     * Consulted first (AD-24). An open parameter proposal ends here: a new question cancels it, Calculate marks it
-     * calculated; either way the dialog state returns to {@code NONE}. Without an open proposal the state passes on.
-     *
-     * @throws CalculateUseCase.ProposalClosedException if Calculate's proposal is no longer the open one
-     */
-    TurnState dialogState(PersonaScope scope, TurnState turn, Confirmation confirmation) {
-        TurnState consulted = turn.withDialogState(chats.dialogState(scope).orElse(TurnState.NO_DIALOG_STATE));
-        Optional<UUID> open = chats.openProposal(scope);
-        if (confirmation != null) {
-            UUID proposalId = confirmation.proposal().id();
-            if (!open.equals(Optional.of(proposalId)) || !chats.updateProposalStatus(scope, proposalId,
-                    ChatMessage.Proposal.Status.OPEN, ChatMessage.Proposal.Status.CALCULATED)) {
-                throw new CalculateUseCase.ProposalClosedException();
-            }
-        } else if (open.isPresent()) {
-            chats.updateProposalStatus(scope, open.get(), ChatMessage.Proposal.Status.OPEN,
-                    ChatMessage.Proposal.Status.CANCELLED);
-        } else {
-            return consulted.passedThrough(TurnStage.DIALOG_STATE);
-        }
-        chats.saveDialogState(scope, chats.conversation(scope), null);
-        return consulted.ran(TurnStage.DIALOG_STATE);
+    /** Stage 1, consulted first (AD-24): see {@link DialogStates}. */
+    TurnState dialogState(PersonaScope scope, TurnState turn, Continuation continuation) {
+        return dialogStates.consult(scope, turn, continuation);
     }
 
     /**
@@ -181,7 +199,8 @@ public class TurnOrchestrator {
 
     /**
      * Pure rules pick exactly one class (FR-9) on the persona's stored profile and the facts the message states
-     * (AD-23; the stated facts are never stored). A message is computable if the pure
+     * (AD-23; the stated facts are never stored); a persona workspace turn (no acceptance run) follows the strict
+     * FR-17 rule. A message is computable if the pure
      * {@link ToolPlan} has every parameter (the experiment plans before it classifies); a portfolio from account
      * data needs investments above zero, so their value is read here. A confirmed proposal is {@code COMPUTE}.
      */
@@ -203,7 +222,7 @@ public class TurnOrchestrator {
             }
         }
         Classification classification = Classifier.classify(turn.nlu().extraction(), profiles.stored(scope),
-                completeness, registry, planned.isPresent(), turn.userText());
+                completeness, registry, planned.isPresent(), turn.userText(), context.runId() == null);
         return turn.withClassification(classification)
                 .withTools(new TurnState.Tools(planned.orElse(null), accountPortfolio, null, false, List.of(), false))
                 .ran(TurnStage.CLASSIFY);
@@ -459,11 +478,12 @@ public class TurnOrchestrator {
     /**
      * Writes the agent message, its evidence, an {@code ESCALATE} turn's case for a human advisor and the Audit
      * Record; the turn id is the agent message's id. A released proposal opens the {@code PARAMETER_PROPOSAL} dialog
-     * state; a calculated answer replies to its proposal and lists its figures, unless block routing released a
-     * template.
+     * state, an {@code ASK_PROFILE} answer with fields to ask the {@code ASSESSMENT} state with its card; a calculated
+     * answer replies to its proposal and lists its figures, unless block routing released a template; a resumed
+     * answer replies to its card.
      */
     ChatMessage auditAndRelease(RequestContext context, PersonaScope scope, ChatMessage question,
-            Confirmation confirmation, String fixtureVersion, TurnState turn) {
+            Continuation continuation, String fixtureVersion, TurnState turn) {
         TurnState released = turn.ran(TurnStage.AUDIT_RELEASE);
         UUID turnId = UUID.randomUUID();
         TurnState.Tools turnTools = released.tools();
@@ -475,17 +495,21 @@ public class TurnOrchestrator {
         boolean draftReleased = released.checks().route() == null || released.checks().route().released();
         List<SourcedNumber> figures = turnTools.spec() != null && !turnTools.proposal() && draftReleased
                 ? ToolRegistry.figures(turnTools.spec(), turnTools.results()) : List.of();
+        ChatMessage.Assessment assessment = released.outcome() == ResponseOutcome.ASK_PROFILE
+                ? assessments.open(context, released.classification().missingFields()).orElse(null) : null;
         ChatMessage answer = new ChatMessage(turnId, ChatMessage.Author.AGENT, released.finalText(),
-                released.outcome(), confirmation == null ? question.id() : confirmation.proposal().id(),
+                released.outcome(), continuation == null ? question.id() : continuation.card().id(),
                 released.suggestions(), shownChecks, null,
                 proposal ? new ChatMessage.Proposal(turnTools.spec(), ChatMessage.Proposal.Status.OPEN) : null,
                 figures, released.outcome() == ResponseOutcome.DETECT_TRAP
                         ? ResponseTemplates.premiseCallout(released.classification().unverifiedPremises(),
-                                released.userText()) : null);
+                                released.userText()) : null, assessment);
         UUID conversation = chats.conversation(scope);
         chats.insert(scope, conversation, answer);
         if (proposal) {
             chats.saveDialogState(scope, conversation, turnId);
+        } else if (assessment != null) {
+            chats.saveAssessmentState(scope, conversation, turnId, assessment.keys());
         }
         UUID caseId = null;
         if (released.outcome() == ResponseOutcome.ESCALATE) {

@@ -4,7 +4,8 @@
 
 - Epic 5 skipped (non-blocking, Commc 2026-10-26); Epic 6 started. Epic 4 retro inputs still in `epic-4-handoff.md` (folded into the Epic 6 retro).
 - Story 6.1 done (spec `spec-6-1-…`, context `epic-6-context.md`): `profile` module (`Profiles.stored/confirm`, `ProfileCompleteness`, `ProfileFields`, V13 tables, `ProfileResetter`); the classifier and the prompt's profile context read the stored profile; `ASK_PROFILE` drafts start with `ResponseTemplates.WHY_ASK_PROFILE`; `RECOMMEND_CATEGORY` with strict fields unknown ends with the limitations sentence.
-- Next: Story 6.2 (assessment form card, DialogState `ASSESSMENT`, confirm endpoint over `Profiles.confirm`).
+- Story 6.2 done (spec `spec-6-2-…`): `ASK_PROFILE` answers carry the assessment card (`ChatMessage.Assessment`, V14, DialogState `ASSESSMENT`), pre-filled from `CoreGateway.profileFigures` (new `monthlyNetIncome`); `POST /api/chat/messages/{id}/assessment` → `SaveAssessmentUseCase` → `Profiles.confirm` (validates via `profile.AssessmentFields`) → `TurnOrchestrator.resume`; stage 1 lives in `DialogStates`. Workspace turns (no `runId`) follow the strict FR-17 rule (`Classifier.classify(..., strict)`, `ProfileCompleteness.strictMissing`).
+- Next: Story 6.3 (category selection + Suitability Statement). Live check showed a saved-profile recommendation escalating via `block_suitability` until 6.3 fills `CheckChain.Facts` category selection.
 
 ## Checklist per story (lean loop, memory build-loop-economy)
 
@@ -16,8 +17,8 @@
 
 ## Open
 
-- From the 6.1 review, for 6.2: validate value types per field and reject NUL characters at the form endpoint; test that `ProfileFields.NEEDS_TOPICS` matches the yaml.
-- Retro A5: `TurnOrchestrator` ~535 lines; extract stage classes when 6.2 adds the assessment card.
-- Live Ollama check due with 6.2 (6.1 changed `class-RECOMMEND_CATEGORY.txt` and the profile context).
-- Whether Marco needs a seeded profile for the 6.3 scenario (fixtures hold none) is decided in 6.3.
+- Retro A5: `TurnOrchestrator` ~545 lines after extracting stage 1; extract more stages if 6.3 grows it.
+- Whether Marco needs a seeded profile for the 6.3 scenario (fixtures hold none) is decided in 6.3; the card now lets him enter one live (stored values: amounts 2 decimals, read back as doubles; choices as option keys, risk tolerance `very low`…`very high`).
+- 6.3 category rules map risk tolerance keys with spaces (`very low`) to `category_rules.yaml` keys with underscores (`very_low`).
+- Compose image predates V14: rebuild at epic end (compose check).
 - Verify ECB rates against the ECB before moving the reference date (`data/rules/README.md`).

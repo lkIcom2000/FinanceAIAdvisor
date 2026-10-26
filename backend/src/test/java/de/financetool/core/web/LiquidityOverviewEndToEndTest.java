@@ -81,12 +81,12 @@ class LiquidityOverviewEndToEndTest extends PostgresIntegrationTest {
         assertThat((String) JsonPath.read(body, "$.forecast.provId"))
                 .isEqualTo(JsonPath.read(body, "$.forecast.expectedEnd.provId"));
 
-        // Every figure is stored as evidence for Lena, with origin overview.
+        // Every figure is stored once as evidence for Lena: origin overview, or turn if an assessment card keyed it first.
         List<String> provIds = JsonPath.read(body, "$..provId");
         assertThat(provIds).hasSizeGreaterThanOrEqualTo(12).allSatisfy(id -> assertThat(id).matches("[0-9a-f]{16}"));
         for (String provId : provIds) {
             assertThat(jdbc.queryForList("SELECT origin FROM evidence_items WHERE prov_id = ? AND persona_id = ?",
-                    String.class, provId, "p-lena")).containsExactly("overview");
+                    String.class, provId, "p-lena")).hasSize(1).first().isIn("overview", "turn");
         }
         // The same call again gives the same keys.
         assertThat((List<String>) JsonPath.read(liquidity(lena), "$..provId")).isEqualTo(provIds);

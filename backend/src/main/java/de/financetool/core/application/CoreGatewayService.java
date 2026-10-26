@@ -27,6 +27,8 @@ import de.financetool.core.domain.Investments;
 import de.financetool.core.domain.LiquidityFigures;
 import de.financetool.core.domain.MissingEssentialCover;
 import de.financetool.core.domain.MonteCarloProjection;
+import de.financetool.core.domain.MonthlyNetIncome;
+import de.financetool.core.domain.ProfileFigures;
 import de.financetool.core.domain.RiesterSubsidy;
 import de.financetool.core.domain.RuleParameterValue;
 import de.financetool.core.domain.ShortfallDetection;
@@ -124,6 +126,29 @@ class CoreGatewayService implements CoreGateway {
         return new LiquidityFigures(currentBalance, overnightBalance, liquidAssets, variable, emergencyFund,
                 forecastResult, forecast.points(), forecast.assumptions(), shortfallResult,
                 shortfall.shortfallDate(), shortfall.lowestDate());
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY, noRollbackFor = NoValidRuleParameterException.class)
+    public ProfileFigures profileFigures(RequestContext context, EvidenceOrigin origin) {
+        LocalDate asOf = context.asOf();
+        BankSnapshot snapshot = bank.snapshot(context.personaId(), asOf);
+        BankSnapshot.Account current = currentAccount(snapshot, context);
+        SourcedNumber overnightFigure = snapshot.accounts().stream()
+                .filter(a -> a.type() == AccountType.OVERNIGHT)
+                .findFirst()
+                .map(a -> balance(context, origin, snapshot, a, AccountBalance.Account.OVERNIGHT)
+                        .number(AccountBalance.OUTPUT))
+                .orElse(null);
+        List<LedgerEntry> currentEntries = BankMapping.entries(snapshot, current.id());
+        RuleParameterValue monthsMin = parameter(EmergencyFundTarget.MONTHS_MIN, asOf);
+        RuleParameterValue monthsMax = parameter(EmergencyFundTarget.MONTHS_MAX, asOf);
+        CoreResult emergencyFund = record(context, origin,
+                EmergencyFundTarget.of(overnightFigure, currentEntries, asOf, monthsMin, monthsMax), List.of(),
+                Map.of(monthsMin.key(), monthsMin, monthsMax.key(), monthsMax));
+        CoreResult netIncome = record(context, origin, MonthlyNetIncome.of(currentEntries, asOf), List.of(),
+                Map.of());
+        return new ProfileFigures(netIncome, emergencyFund);
     }
 
     @Override

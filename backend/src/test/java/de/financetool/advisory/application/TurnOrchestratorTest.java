@@ -1,12 +1,14 @@
 package de.financetool.advisory.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import de.financetool.advisory.adapter.ChatRepository;
@@ -96,9 +98,10 @@ class TurnOrchestratorTest {
     final ToolRegistry tools = mock(ToolRegistry.class);
     final Profiles profiles = mock(Profiles.class);
     ProfileCompleteness profile = ProfileCompleteness.INCOMPLETE;
+    final AssessmentCards assessments = mock(AssessmentCards.class);
     final TurnOrchestrator orchestrator = new TurnOrchestrator(chats, prompts, llm, audit, nluExtractor,
             registry, (stored, stated, topic) -> profile.check(stored, stated, topic), escalations,
-            ruleParameters, tools, profiles);
+            ruleParameters, tools, profiles, new DialogStates(chats), assessments);
 
     final PersonaScope scope = new PersonaScope(TestContexts.LENA);
     final RequestContext context = TestContexts.context();
@@ -126,6 +129,12 @@ class TurnOrchestratorTest {
     /** A turn whose phrasing calls return the drafts in order (the last one repeats). */
     ChatMessage run(ChatMessage asked, List<String> drafts, RequestContext turnContext, boolean modelTruncated,
             NluExtraction nlu) {
+        stubTurn(asked, drafts, turnContext, modelTruncated, nlu);
+        return orchestrator.run(turnContext, scope, asked, "fv-1");
+    }
+
+    void stubTurn(ChatMessage asked, List<String> drafts, RequestContext turnContext, boolean modelTruncated,
+            NluExtraction nlu) {
         when(nluExtractor.extract(any(), eq(scope), eq(asked.text()))).thenReturn(new TurnState.Nlu(nlu, List.of("note"),
                 "nlu-m", "sha256:n1", new java.util.TreeMap<>(NLU_HASHES), false, true));
         when(chats.dialogState(scope)).thenReturn(Optional.empty());
@@ -140,7 +149,6 @@ class TurnOrchestratorTest {
                 TestContexts.DECODING, 10, modelTruncated, Duration.ZERO)).toList();
         when(llm.generate(eq(LlmRole.PHRASING), anyList(), eq(TestContexts.DECODING), isNull()))
                 .thenReturn(results.getFirst(), results.subList(1, results.size()).toArray(LlmResult[]::new));
-        return orchestrator.run(turnContext, scope, asked, "fv-1");
     }
 
     @SuppressWarnings("unchecked")
@@ -548,6 +556,12 @@ class TurnOrchestratorTest {
                 RequestContext.NO_KB_SNAPSHOT, TestContexts.SEEDS, TestContexts.AS_OF, TestContexts.LENA, null);
     }
 
+    /** The context in an acceptance run: the AD-23 rule instead of the strict FR-17 rule. */
+    static RequestContext inRun(RequestContext c) {
+        return new RequestContext(c.agentConfig(), c.configFingerprint(), c.thresholds(), c.kbSnapshot(), c.seeds(),
+                c.asOf(), c.personaId(), "run-1");
+    }
+
     LlmResult result(String text) {
         return new LlmResult(text, "m1", "sha256:d1", TestContexts.DECODING, 10, false, Duration.ZERO);
     }
@@ -779,7 +793,7 @@ class TurnOrchestratorTest {
         profile = (stored, stated, topic) -> new ProfileCompleteness.Result(true, List.of(),
                 List.of("goal", "risk_tolerance"));
         ChatMessage answer = run(question, "A savings plan in a broad equity fund fits; losses are possible.",
-                with(ComplianceLevel.A, false), false,
+                inRun(with(ComplianceLevel.A, false)), false,
                 nlu("personal_recommendation", "savings_plan", List.of("etf"), List.of()));
 
         assertThat(answer.outcome()).isEqualTo(ResponseOutcome.RECOMMEND_CATEGORY);
@@ -787,6 +801,68 @@ class TurnOrchestratorTest {
                 + "risk tolerance.");
         assertThat(auditBody().classReasons())
                 .contains("not known yet (limitations): goal, risk_tolerance");
+    }
+
+    @Test
+    void anAskProfileAnswerOpensTheAssessmentCardAndItsDialogState() {
+        ChatMessage.Assessment card = new ChatMessage.Assessment(List.of(
+                new ChatMessage.Assessment.Field("investment_horizon_years", null, null)),
+                ChatMessage.Assessment.Status.OPEN);
+        when(assessments.open(any(), eq(List.of("investment_horizon_years")))).thenReturn(Optional.of(card));
+        profile = (stored, stated, topic) -> new ProfileCompleteness.Result(false, List.of("investment_horizon_years"));
+        ChatMessage answer = run(question, "Broad funds spread risk.", with(ComplianceLevel.A, false), false,
+                nlu("personal_recommendation", "savings_plan", List.of("etf"), List.of()));
+
+        assertThat(answer.outcome()).isEqualTo(ResponseOutcome.ASK_PROFILE);
+        assertThat(answer.assessment()).isEqualTo(card);
+        verify(chats).saveAssessmentState(scope, conversation, answer.id(), List.of("investment_horizon_years"));
+    }
+
+    @Test
+    void aNewQuestionCancelsAnOpenAssessmentCard() {
+        UUID open = UUID.randomUUID();
+        when(chats.openAssessment(scope)).thenReturn(Optional.of(open));
+        run("An ETF is a fund traded on an exchange.");
+
+        verify(chats).updateAssessmentStatus(scope, open, ChatMessage.Assessment.Status.OPEN,
+                ChatMessage.Assessment.Status.CANCELLED);
+        verify(chats).saveDialogState(scope, conversation, null);
+    }
+
+    @Test
+    void aSavedCardRepliesToTheCardAndClosesIt() {
+        ChatMessage card = new ChatMessage(UUID.randomUUID(), ChatMessage.Author.AGENT, "Before I can say",
+                ResponseOutcome.ASK_PROFILE, question.id(), List.of(), List.of(), null, null, List.of(), null,
+                new ChatMessage.Assessment(List.of(new ChatMessage.Assessment.Field("goal", null, null)),
+                        ChatMessage.Assessment.Status.OPEN));
+        when(chats.openAssessment(scope)).thenReturn(Optional.of(card.id()));
+        when(chats.updateAssessmentStatus(scope, card.id(), ChatMessage.Assessment.Status.OPEN,
+                ChatMessage.Assessment.Status.SAVED)).thenReturn(true);
+        stubTurn(question, List.of("An ETF is a fund traded on an exchange."), context, false,
+                NluExtraction.defaults());
+
+        ChatMessage answer = orchestrator.resume(context, scope, question,
+                new TurnOrchestrator.SavedAssessment(card), "fv-1");
+
+        assertThat(answer.replyTo()).isEqualTo(card.id());
+        verify(chats).saveDialogState(scope, conversation, null);
+    }
+
+    @Test
+    void aSavedCardThatIsNoLongerOpenIsRefused() {
+        ChatMessage card = new ChatMessage(UUID.randomUUID(), ChatMessage.Author.AGENT, "Before I can say",
+                ResponseOutcome.ASK_PROFILE, question.id(), List.of(), List.of(), null, null, List.of(), null,
+                new ChatMessage.Assessment(List.of(new ChatMessage.Assessment.Field("goal", null, null)),
+                        ChatMessage.Assessment.Status.CANCELLED));
+        // Still the open card in the dialog state, but its status is no longer OPEN: the claim fails.
+        when(chats.openAssessment(scope)).thenReturn(Optional.of(card.id()));
+        when(chats.updateAssessmentStatus(scope, card.id(), ChatMessage.Assessment.Status.OPEN,
+                ChatMessage.Assessment.Status.SAVED)).thenReturn(false);
+        stubTurn(question, List.of("An ETF is a fund."), context, false, NluExtraction.defaults());
+
+        assertThatThrownBy(() -> orchestrator.resume(context, scope, question,
+                new TurnOrchestrator.SavedAssessment(card), "fv-1"))
+                .isInstanceOf(SaveAssessmentUseCase.AssessmentClosedException.class);
     }
 
     @Test

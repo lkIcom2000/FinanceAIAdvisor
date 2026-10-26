@@ -49,6 +49,11 @@ class ClassificationEndToEndTest extends PostgresIntegrationTest {
     static final String TRAP = "Does the Savings Bonus Act 2026 apply to me?";
     static final String KNOWN_LAW = "How does MiFID II protect me?";
     static final String PERSONAL = "Should I put 200 EUR a month into an ETF?";
+    /** Lena has no stored profile: the savings plan minimum's groups, then every strict FR-17 field (Story 6.2). */
+    static final List<String> PERSONAL_MISSING = List.of("monthly_surplus or net_income",
+            "risk_tolerance or loss_aversion", "goal", "investment_horizon_years", "net_income", "monthly_expenses",
+            "emergency_fund", "loss_bearing_capacity", "risk_tolerance", "knowledge_experience",
+            "sustainability_preference");
 
     static final String REFUSAL = "Knock-out certificates are not part of this service. Instead, I can look at a "
             + "diversified ETF savings plan with you.";
@@ -207,33 +212,53 @@ class ClassificationEndToEndTest extends PostgresIntegrationTest {
                 .containsEntry("text", ResponseTemplates.WHY_ASK_PROFILE
                         + " Could you tell me your income and your risk tolerance?");
         assertThat(t.body()).containsEntry("class", "ASK_PROFILE")
-                .containsEntry("missingFields", List.of("monthly_surplus or net_income",
-                        "risk_tolerance or loss_aversion"))
-                .containsEntry("classReasons", List.of("profile minimum not met for topic 'savings_plan'"));
+                .containsEntry("missingFields", PERSONAL_MISSING)
+                .containsEntry("classReasons",
+                        List.of("confirmed profile incomplete for topic 'savings_plan' (strict FR-17)"));
         assertThat(lastSystemPart()).contains("then ask for: monthly surplus or net income, risk tolerance or "
-                + "loss aversion.");
+                + "loss aversion, goal, investment horizon years,");
         assertThat(jdbc.queryForObject("SELECT (SELECT count(*) FROM suitability_profiles) "
                 + "+ (SELECT count(*) FROM needs_profiles)", Long.class))
                 .as("the stated requested_monthly_amount is never persisted (AD-23)").isZero();
     }
 
     @Test
-    void aConfirmedStoredProfileMeetsTheMinimumAndTheUnknownStrictFieldsAreDisclosed() throws Exception {
+    void inTheWorkspaceAStoredProfileOnTheMinimumWithoutTheStrictFieldsStillAsks() throws Exception {
         tx.executeWithoutResult(status -> profiles.confirm(new PersonaScope(TestContexts.LENA),
                 Map.of("net_income", 3200, "risk_tolerance", "medium"), Instant.parse("2026-10-26T10:00:00Z")));
+        try {
+            llm.answer("A savings plan in a broad equity fund can fit; losses are possible.");
+            Turn t = turn(PERSONAL);
+
+            // The strict FR-17 rule (Story 6.2): the AD-23 minimum is met, the strict fields are not.
+            assertThat(t.answer()).containsEntry("outcome", "ASK_PROFILE");
+            assertThat(t.body()).containsEntry("class", "ASK_PROFILE").containsEntry("missingFields",
+                    List.of("goal", "investment_horizon_years", "monthly_expenses", "emergency_fund",
+                            "loss_bearing_capacity", "knowledge_experience", "sustainability_preference"));
+            assertThat(llm.calls(LlmRole.PHRASING).getLast().messages().get(1).content()).contains("risk_tolerance")
+                    .doesNotContain("3200");
+        } finally {
+            jdbc.update("DELETE FROM suitability_profiles");
+        }
+    }
+
+    @Test
+    void inTheWorkspaceACompleteConfirmedProfileGetsTheRecommendationWithoutLimitations() throws Exception {
+        Map<String, Object> strict = new java.util.HashMap<>(Map.of("goal", "retirement",
+                "investment_horizon_years", 20, "net_income", 3200, "monthly_expenses", 2400, "emergency_fund",
+                9000, "loss_bearing_capacity", "low", "risk_tolerance", "medium", "knowledge_experience", "basic"));
+        strict.put("sustainability_preference", "none");
+        tx.executeWithoutResult(status -> profiles.confirm(new PersonaScope(TestContexts.LENA), strict,
+                Instant.parse("2026-10-26T10:00:00Z")));
         try {
             llm.answer("A savings plan in a broad equity fund can fit your situation; losses are possible and "
                     + "ongoing costs apply.");
             Turn t = turn(PERSONAL);
 
-            assertThat(t.answer()).containsEntry("outcome", "RECOMMEND_CATEGORY");
-            assertThat((String) t.answer().get("text")).endsWith("Not known yet: goal, investment horizon years, "
-                    + "monthly expenses, emergency fund, loss bearing capacity, knowledge experience, sustainability "
-                    + "preference.");
-            assertThat(t.body()).containsEntry("class", "RECOMMEND_CATEGORY");
-            assertThat(lastSystemPart()).contains("Not known yet: goal,");
-            assertThat(llm.calls(LlmRole.PHRASING).getLast().messages().get(1).content()).contains("risk_tolerance")
-                    .doesNotContain("3200");
+            assertThat(t.answer()).containsEntry("outcome", "RECOMMEND_CATEGORY").containsEntry("assessment", null);
+            assertThat((String) t.answer().get("text")).doesNotContain("Not known yet");
+            assertThat(t.body()).containsEntry("classReasons",
+                    List.of("confirmed profile complete for topic 'savings_plan' (strict FR-17)"));
         } finally {
             jdbc.update("DELETE FROM suitability_profiles");
         }

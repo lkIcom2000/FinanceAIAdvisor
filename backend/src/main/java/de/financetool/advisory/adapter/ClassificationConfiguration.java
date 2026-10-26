@@ -38,11 +38,20 @@ public class ClassificationConfiguration {
      */
     @Bean
     ProfileCompleteness classifierProfileCompleteness(de.financetool.profile.ProfileCompleteness evaluator) {
-        return (stored, stated, topic) -> {
-            de.financetool.profile.ProfileCompleteness.Result result = evaluator.evaluate(stored, stated, topic);
-            return new ProfileCompleteness.Result(result.complete(), result.missingFields().stream()
-                    .filter(f -> !f.equals(de.financetool.profile.ProfileCompleteness.TOPIC_NOT_SUPPORTED)).toList(),
-                    result.limitations());
+        return new ProfileCompleteness() {
+
+            @Override
+            public Result check(Map<String, Object> stored, Map<String, Object> stated, String topic) {
+                de.financetool.profile.ProfileCompleteness.Result result = evaluator.evaluate(stored, stated, topic);
+                return new ProfileCompleteness.Result(result.complete(), result.missingFields().stream()
+                        .filter(f -> !f.equals(de.financetool.profile.ProfileCompleteness.TOPIC_NOT_SUPPORTED))
+                        .toList(), result.limitations());
+            }
+
+            @Override
+            public List<String> strictMissing(Map<String, Object> stored, String topic) {
+                return evaluator.strictMissing(stored, topic);
+            }
         };
     }
 

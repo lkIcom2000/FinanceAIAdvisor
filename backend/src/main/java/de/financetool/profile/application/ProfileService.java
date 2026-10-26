@@ -1,5 +1,6 @@
 package de.financetool.profile.application;
 
+import de.financetool.profile.AssessmentFields;
 import de.financetool.profile.ProfileCompleteness;
 import de.financetool.profile.ProfileFields;
 import de.financetool.profile.Profiles;
@@ -39,12 +40,14 @@ class ProfileService implements Profiles {
         answers.keySet().stream().filter(field -> !ProfileFields.known(field)).findFirst().ifPresent(field -> {
             throw new IllegalArgumentException("Unknown profile field: " + field);
         });
+        Map<String, Object> values = new LinkedHashMap<>();
         answers.forEach((field, value) -> {
             if (!ProfileCompleteness.present(value)) {
                 throw new IllegalArgumentException("Empty value for profile field: " + field);
             }
+            values.put(field, AssessmentFields.normalize(field, value));
         });
-        answers.forEach((field, value) -> profiles.upsert(scope, ProfileFields.NEEDS.contains(field) ? Table.NEEDS
+        values.forEach((field, value) -> profiles.upsert(scope, ProfileFields.NEEDS.contains(field) ? Table.NEEDS
                 : Table.SUITABILITY, field, value, confirmedAt));
     }
 }

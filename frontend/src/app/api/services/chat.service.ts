@@ -20,6 +20,8 @@ import { Chat$Params } from '../fn/chat/chat';
 import { ChatMessage } from '../models/chat-message';
 import { postMessage } from '../fn/chat/post-message';
 import { PostMessage$Params } from '../fn/chat/post-message';
+import { saveAssessment } from '../fn/chat/save-assessment';
+import { SaveAssessment$Params } from '../fn/chat/save-assessment';
 
 
 /**
@@ -131,6 +133,41 @@ export class ChatService extends BaseService {
    */
   answerMessage(params: AnswerMessage$Params, context?: HttpContext): Observable<ChatMessage> {
     const resp = this.answerMessage$Response(params, context);
+    return resp.pipe(
+      map((r: StrictHttpResponse<ChatMessage>): ChatMessage => r.body)
+    );
+  }
+
+  /** Path part for operation `saveAssessment()` */
+  static readonly SaveAssessmentPath = '/api/chat/messages/{id}/assessment';
+
+  /**
+   * Save my answers on an assessment card and return Fine's answer to the original question.
+   *
+   * The answers are stored only by this call, through the profile confirm control. A card that was already saved returns that answer again.
+   *
+   * This method provides access to the full `HttpResponse`, allowing access to response headers.
+   * To access only the response body, use `saveAssessment()` instead.
+   *
+   * This method sends `application/json` and handles request body of type `application/json`.
+   */
+  saveAssessment$Response(params: SaveAssessment$Params, context?: HttpContext): Observable<StrictHttpResponse<ChatMessage>> {
+    const obs = saveAssessment(this.http, this.rootUrl, params, context);
+    return obs;
+  }
+
+  /**
+   * Save my answers on an assessment card and return Fine's answer to the original question.
+   *
+   * The answers are stored only by this call, through the profile confirm control. A card that was already saved returns that answer again.
+   *
+   * This method provides access only to the response body.
+   * To access the full response (for headers, for example), `saveAssessment$Response()` instead.
+   *
+   * This method sends `application/json` and handles request body of type `application/json`.
+   */
+  saveAssessment(params: SaveAssessment$Params, context?: HttpContext): Observable<ChatMessage> {
+    const resp = this.saveAssessment$Response(params, context);
     return resp.pipe(
       map((r: StrictHttpResponse<ChatMessage>): ChatMessage => r.body)
     );

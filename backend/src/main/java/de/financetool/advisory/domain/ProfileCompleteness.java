@@ -33,6 +33,14 @@ public interface ProfileCompleteness {
      */
     Result check(Map<String, Object> stored, Map<String, Object> stated, String topic);
 
+    /**
+     * The strict FR-17 fields the stored profile lacks for the topic, whether or not its minimum is met (none for the
+     * needs topics); none by default.
+     */
+    default List<String> strictMissing(Map<String, Object> stored, String topic) {
+        return List.of();
+    }
+
     /** "Incomplete, no missing fields known". */
     ProfileCompleteness INCOMPLETE = (stored, stated, topic) -> {
         Objects.requireNonNull(topic, "topic");

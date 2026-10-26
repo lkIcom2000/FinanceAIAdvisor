@@ -3,10 +3,12 @@ package de.financetool.advisory.web;
 import de.financetool.advisory.application.AnswerMessageUseCase;
 import de.financetool.advisory.application.CalculateUseCase;
 import de.financetool.advisory.application.PostMessageUseCase;
+import de.financetool.advisory.application.SaveAssessmentUseCase;
 import de.financetool.advisory.application.ShowChatUseCase;
 import de.financetool.advisory.domain.ChatMessage;
 import de.financetool.advisory.domain.CheckId;
 import de.financetool.advisory.domain.ResponseOutcome;
+import de.financetool.profile.AssessmentFields;
 import de.financetool.shared.PersonaScope;
 import de.financetool.shared.ProblemCode;
 import de.financetool.shared.domain.SimulationSpec;
@@ -22,6 +24,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
@@ -86,7 +89,9 @@ class ChatController {
                             + "messages"))
             List<FigureView> figures,
             @Schema(description = "The false assumption a question makes, in one sentence; only on DETECT_TRAP "
-                    + "answers") String premise) {
+                    + "answers") String premise,
+            @Schema(description = "The form with every profile question still open; only on ASK_PROFILE answers")
+            AssessmentView assessment) {
 
         static MessageView of(ChatMessage message) {
             return new MessageView(message.id(), Author.valueOf(message.author().name()), message.text(),
@@ -94,8 +99,60 @@ class ChatController {
                     message.checks().stream().map(CheckView::of).toList(),
                     message.handover() == null ? null : HandoverView.of(message.handover()),
                     message.proposal() == null ? null : ProposalView.of(message.proposal()),
-                    message.figures().stream().map(FigureView::of).toList(), message.premise());
+                    message.figures().stream().map(FigureView::of).toList(), message.premise(),
+                    message.assessment() == null ? null : AssessmentView.of(message.assessment()));
         }
+    }
+
+    @Schema(name = "ChatAssessment", description = "The assessment card: every open profile question in one form")
+    record AssessmentView(
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "OPEN: waiting for Save my answers; "
+                    + "SAVED: answered below; CANCELLED: a later question replaced it")
+            ChatMessage.Assessment.Status status,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<AssessmentFieldView> fields) {
+
+        static AssessmentView of(ChatMessage.Assessment assessment) {
+            return new AssessmentView(assessment.status(),
+                    assessment.fields().stream().map(AssessmentFieldView::of).toList());
+        }
+    }
+
+    @Schema(name = "ChatAssessmentField", description = "One question of the assessment card")
+    record AssessmentFieldView(
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "The key to answer it by")
+            String key,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String label,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "CHOICE: choice chips; EUR: amount "
+                    + "in euros; NUMBER: whole number; SLIDER: options from the lower to the upper end; TEXT: short "
+                    + "text") AssessmentFields.Input input,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "The choices of CHOICE and SLIDER; "
+                    + "empty otherwise") List<AssessmentOptionView> options,
+            @Schema(description = "The unit after a NUMBER field, e.g. years") String unit,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "Smallest NUMBER or EUR value")
+            int min,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "Largest NUMBER or EUR value, or the "
+                    + "longest TEXT") int max,
+            @Schema(description = "The value from your account data, as a decimal string; only on pre-filled "
+                    + "questions", pattern = FigureView.DECIMAL) String value,
+            @Schema(description = "The figure a pre-filled value is; only on pre-filled questions",
+                    pattern = SourcedNumber.PROV_ID_SCHEMA_PATTERN) String provId) {
+
+        static AssessmentFieldView of(ChatMessage.Assessment.Field field) {
+            // A field no longer in the catalog still shows, as a short text, so the chat history never breaks.
+            AssessmentFields.Field definition = AssessmentFields.of(field.key()).orElseGet(() ->
+                    new AssessmentFields.Field(field.key(), field.key().replace('_', ' '),
+                            AssessmentFields.Input.TEXT, List.of(), null, 0, 200));
+            return new AssessmentFieldView(field.key(), definition.label(), definition.input(),
+                    definition.options().stream().map(o -> new AssessmentOptionView(o.key(), o.label())).toList(),
+                    definition.unit(), definition.min(), definition.max(), field.value(), field.provId());
+        }
+    }
+
+    @Schema(name = "ChatAssessmentOption", description = "One choice of an assessment question")
+    record AssessmentOptionView(
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "The value to answer with")
+            String key,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String label) {
     }
 
     @Schema(name = "ChatProposal", description = "The values a calculation will run with, shown before calculating")
@@ -182,6 +239,28 @@ class ChatController {
             @NotBlank @Pattern(regexp = FigureView.DECIMAL) @Size(max = 32) String value) {
     }
 
+    @Schema(name = "SaveAssessmentRequest", description = "Save my answers: one answer per question of the card")
+    record SaveAssessmentRequest(
+            @ArraySchema(arraySchema = @Schema(requiredMode = Schema.RequiredMode.REQUIRED), maxItems = 40)
+            @Size(max = 40) List<@Valid @NotNull Answer> answers) {
+
+        SaveAssessmentRequest {
+            // Missing answers are refused by the card check (which names the first question), after the id check.
+            answers = answers == null ? List.of() : answers;
+        }
+    }
+
+    @Schema(name = "AssessmentAnswer", description = "The answer to one question: a choice key, an amount or number "
+            + "as a decimal string, or a short text")
+    record Answer(
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, pattern = ANSWER_KEY)
+            @NotBlank @Pattern(regexp = ANSWER_KEY) String key,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, maxLength = 200)
+            @NotNull @Size(max = 200) String value) {
+    }
+
+    static final String ANSWER_KEY = "[a-z_]{1,64}";
+
     record PostMessageRequest(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, maxLength = PostMessageUseCase.MAX_LENGTH)
             @NotBlank @Size(max = PostMessageUseCase.MAX_LENGTH) String text) {
@@ -191,13 +270,15 @@ class ChatController {
     private final PostMessageUseCase postMessage;
     private final AnswerMessageUseCase answerMessage;
     private final CalculateUseCase calculate;
+    private final SaveAssessmentUseCase saveAssessment;
 
     ChatController(ShowChatUseCase showChat, PostMessageUseCase postMessage, AnswerMessageUseCase answerMessage,
-            CalculateUseCase calculate) {
+            CalculateUseCase calculate, SaveAssessmentUseCase saveAssessment) {
         this.showChat = showChat;
         this.postMessage = postMessage;
         this.answerMessage = answerMessage;
         this.calculate = calculate;
+        this.saveAssessment = saveAssessment;
     }
 
     @Operation(summary = "The conversation with every saved message")
@@ -263,6 +344,48 @@ class ChatController {
             }
         }
         return calculate.calculate(scope, messageId, changed).map(MessageView::of).orElseThrow(() -> notFound);
+    }
+
+    @Operation(summary = "Save my answers on an assessment card and return Fine's answer to the original question",
+            description = "The answers are stored only by this call, through the profile confirm control. A card "
+                    + "that was already saved returns that answer again.")
+    @ApiResponse(responseCode = "200", description = "Fine's answer to the question the card was opened for")
+    @ApiResponse(responseCode = "400", description = "An answer is missing, not on the card or does not fit")
+    @ApiResponse(responseCode = "404", description = "No such assessment card for this persona")
+    @ApiResponse(responseCode = "409", description = "The card was cancelled by a later question")
+    @ApiResponse(responseCode = "503", description = "The answer could not be finished; nothing is stored and the "
+            + "card stays open")
+    @PostMapping("/api/chat/messages/{id}/assessment")
+    MessageView saveAssessment(@Parameter(hidden = true) PersonaScope scope,
+            @PathVariable @Parameter(description = "The card's id (a UUID)") String id,
+            @Valid @RequestBody SaveAssessmentRequest request) {
+        ErrorResponseException notFound = problem(HttpStatus.NOT_FOUND, "We couldn't find this message.", null);
+        UUID messageId;
+        try {
+            messageId = UUID.fromString(id);
+        } catch (IllegalArgumentException e) {
+            throw notFound;
+        }
+        Map<String, String> answers = new LinkedHashMap<>();
+        for (Answer answer : request.answers()) {
+            if (answers.put(answer.key(), answer.value()) != null) {
+                throw problem(HttpStatus.BAD_REQUEST, "Each question can be answered only once.",
+                        ProblemCode.VALIDATION_FAILED);
+            }
+        }
+        return saveAssessment.save(scope, messageId, answers).map(MessageView::of).orElseThrow(() -> notFound);
+    }
+
+    @ExceptionHandler(SaveAssessmentUseCase.AssessmentClosedException.class)
+    ProblemDetail assessmentClosed() {
+        return problem(HttpStatus.CONFLICT, "This form was replaced by your next question.",
+                ProblemCode.ASSESSMENT_CLOSED).getBody();
+    }
+
+    @ExceptionHandler(SaveAssessmentUseCase.InvalidAnswersException.class)
+    ProblemDetail invalidAnswers(SaveAssessmentUseCase.InvalidAnswersException ex) {
+        return problem(HttpStatus.BAD_REQUEST, String.join(" ", ex.problems()), ProblemCode.VALIDATION_FAILED)
+                .getBody();
     }
 
     @ExceptionHandler(CalculateUseCase.ProposalClosedException.class)

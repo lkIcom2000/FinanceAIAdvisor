@@ -204,6 +204,85 @@
         "tags" : [ "chat" ]
       }
     },
+    "/api/chat/messages/{id}/assessment" : {
+      "post" : {
+        "description" : "The answers are stored only by this call, through the profile confirm control. A card that was already saved returns that answer again.",
+        "operationId" : "saveAssessment",
+        "parameters" : [ {
+          "description" : "The card's id (a UUID)",
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SaveAssessmentRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChatMessage"
+                }
+              }
+            },
+            "description" : "Fine's answer to the question the card was opened for"
+          },
+          "400" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChatMessage"
+                }
+              }
+            },
+            "description" : "An answer is missing, not on the card or does not fit"
+          },
+          "404" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChatMessage"
+                }
+              }
+            },
+            "description" : "No such assessment card for this persona"
+          },
+          "409" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChatMessage"
+                }
+              }
+            },
+            "description" : "The card was cancelled by a later question"
+          },
+          "503" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChatMessage"
+                }
+              }
+            },
+            "description" : "The answer could not be finished; nothing is stored and the card stays open"
+          }
+        },
+        "summary" : "Save my answers on an assessment card and return Fine's answer to the original question",
+        "tags" : [ "chat" ]
+      }
+    },
     "/api/chat/messages/{id}/calculate" : {
       "post" : {
         "description" : "Nothing is calculated before this call. A proposal that was already calculated returns that answer again.",
@@ -410,6 +489,23 @@
   },
   "components" : {
     "schemas" : {
+      "AssessmentAnswer" : {
+        "type" : "object",
+        "description" : "The answer to one question: a choice key, an amount or number as a decimal string, or a short text",
+        "properties" : {
+          "key" : {
+            "type" : "string",
+            "minLength" : 1,
+            "pattern" : "[a-z_]{1,64}"
+          },
+          "value" : {
+            "type" : "string",
+            "maxLength" : 200,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "key", "value" ]
+      },
       "CalculateRequest" : {
         "type" : "object",
         "description" : "Calculate a proposal, with the values the persona changed",
@@ -460,6 +556,88 @@
         },
         "required" : [ "messages", "personaName" ]
       },
+      "ChatAssessment" : {
+        "type" : "object",
+        "description" : "The assessment card: every open profile question in one form",
+        "properties" : {
+          "fields" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/ChatAssessmentField"
+            }
+          },
+          "status" : {
+            "type" : "string",
+            "description" : "OPEN: waiting for Save my answers; SAVED: answered below; CANCELLED: a later question replaced it",
+            "enum" : [ "OPEN", "SAVED", "CANCELLED" ]
+          }
+        },
+        "required" : [ "fields", "status" ]
+      },
+      "ChatAssessmentField" : {
+        "type" : "object",
+        "description" : "One question of the assessment card",
+        "properties" : {
+          "input" : {
+            "type" : "string",
+            "description" : "CHOICE: choice chips; EUR: amount in euros; NUMBER: whole number; SLIDER: options from the lower to the upper end; TEXT: short text",
+            "enum" : [ "CHOICE", "EUR", "NUMBER", "SLIDER", "TEXT" ]
+          },
+          "key" : {
+            "type" : "string",
+            "description" : "The key to answer it by"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "max" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Largest NUMBER or EUR value, or the longest TEXT"
+          },
+          "min" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Smallest NUMBER or EUR value"
+          },
+          "options" : {
+            "type" : "array",
+            "description" : "The choices of CHOICE and SLIDER; empty otherwise",
+            "items" : {
+              "$ref" : "#/components/schemas/ChatAssessmentOption"
+            }
+          },
+          "provId" : {
+            "type" : "string",
+            "description" : "The figure a pre-filled value is; only on pre-filled questions",
+            "pattern" : "^[0-9a-f]{16}$"
+          },
+          "unit" : {
+            "type" : "string",
+            "description" : "The unit after a NUMBER field, e.g. years"
+          },
+          "value" : {
+            "type" : "string",
+            "description" : "The value from your account data, as a decimal string; only on pre-filled questions",
+            "pattern" : "^-?\\d+(\\.\\d+)?$"
+          }
+        },
+        "required" : [ "input", "key", "label", "max", "min", "options" ]
+      },
+      "ChatAssessmentOption" : {
+        "type" : "object",
+        "description" : "One choice of an assessment question",
+        "properties" : {
+          "key" : {
+            "type" : "string",
+            "description" : "The value to answer with"
+          },
+          "label" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "key", "label" ]
+      },
       "ChatCheck" : {
         "type" : "object",
         "description" : "One check on Fine's answer",
@@ -499,6 +677,10 @@
         "type" : "object",
         "description" : "One message of the conversation",
         "properties" : {
+          "assessment" : {
+            "$ref" : "#/components/schemas/ChatAssessment",
+            "description" : "The form with every profile question still open; only on ASK_PROFILE answers"
+          },
           "author" : {
             "type" : "string",
             "enum" : [ "USER", "AGENT", "ADVISOR" ]
@@ -947,7 +1129,7 @@
       "ProblemCode" : {
         "type" : "string",
         "description" : "Closed set of machine-readable error codes.",
-        "enum" : [ "VALIDATION_FAILED", "BAD_CREDENTIALS", "UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "REQUEST_REJECTED", "TURN_FAILED", "PROPOSAL_CLOSED", "INTERNAL_ERROR" ]
+        "enum" : [ "VALIDATION_FAILED", "BAD_CREDENTIALS", "UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND", "REQUEST_REJECTED", "TURN_FAILED", "PROPOSAL_CLOSED", "ASSESSMENT_CLOSED", "INTERNAL_ERROR" ]
       },
       "ProblemDetail" : {
         "type" : "object",
@@ -1183,6 +1365,21 @@
           }
         },
         "required" : [ "description", "kind" ]
+      },
+      "SaveAssessmentRequest" : {
+        "type" : "object",
+        "description" : "Save my answers: one answer per question of the card",
+        "properties" : {
+          "answers" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/AssessmentAnswer"
+            },
+            "maxItems" : 40,
+            "minItems" : 0
+          }
+        },
+        "required" : [ "answers" ]
       },
       "SavingsPlan" : {
         "type" : "object",

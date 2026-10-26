@@ -57,6 +57,20 @@ public final class ProfileCompleteness {
         return new Result(missing.isEmpty(), missing, limitations);
     }
 
+    /**
+     * The strict FR-17 fields the stored profile lacks, whether or not the topic's minimum is met: what a persona
+     * workspace still needs before a recommendation (FR-17). None for the needs topics, and none for a topic without
+     * minimums (no personal recommendation exists for it).
+     */
+    public List<String> strictMissing(Map<String, Object> stored, String topic) {
+        Objects.requireNonNull(topic, "topic");
+        if (!topics.containsKey(topic) || ProfileFields.NEEDS_TOPICS.contains(topic)) {
+            return List.of();
+        }
+        Map<String, Object> profile = stored == null ? Map.of() : stored;
+        return strictFields.stream().filter(field -> !present(profile.get(field))).toList();
+    }
+
     /** {@code effective_profile}: stated facts override stored ones for this turn only; nothing is persisted. */
     public static Map<String, Object> effective(Map<String, Object> stored, Map<String, Object> stated) {
         Map<String, Object> out = new LinkedHashMap<>(stored == null ? Map.of() : stored);

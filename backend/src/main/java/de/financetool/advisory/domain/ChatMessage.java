@@ -19,10 +19,11 @@ import java.util.UUID;
  * @param figures the Core figures a calculated answer used, shown as figure chips; empty for other messages
  * @param premise the premise callout of a {@code DETECT_TRAP} answer: one sentence naming the unverified premise;
  *     {@code null} for other messages
+ * @param assessment the assessment card an {@code ASK_PROFILE} answer starts (AD-24); {@code null} otherwise
  */
 public record ChatMessage(UUID id, Author author, String text, ResponseOutcome outcome, UUID replyTo,
         List<String> suggestions, List<Check> checks, Handover handover, Proposal proposal,
-        List<SourcedNumber> figures, String premise) {
+        List<SourcedNumber> figures, String premise, Assessment assessment) {
 
     /** At most three chips per card (UX). */
     public static final int MAX_SUGGESTIONS = 3;
@@ -80,6 +81,50 @@ public record ChatMessage(UUID id, Author author, String text, ResponseOutcome o
         }
     }
 
+    /**
+     * The assessment card: every profile field still missing, in one form (UX-DR14). Answers are stored only on Save
+     * through the profile confirm control.
+     *
+     * @param fields the fields in card order
+     * @param status {@code OPEN} until the persona saves it or asks something else
+     */
+    public record Assessment(List<Field> fields, Status status) {
+
+        public enum Status {
+            OPEN, SAVED, CANCELLED
+        }
+
+        /**
+         * One field of the card.
+         *
+         * @param key the profile field
+         * @param value the value pre-filled from account data as a decimal string; {@code null} for a field to answer
+         * @param provId the Core figure a pre-filled value is; {@code null} without one
+         */
+        public record Field(String key, String value, String provId) {
+
+            public Field {
+                Objects.requireNonNull(key, "key");
+                if ((value == null) != (provId == null)) {
+                    throw new IllegalArgumentException("a pre-filled value is a Core figure");
+                }
+            }
+        }
+
+        public Assessment {
+            fields = List.copyOf(fields);
+            Objects.requireNonNull(status, "status");
+            if (fields.isEmpty()) {
+                throw new IllegalArgumentException("an assessment asks for at least one field");
+            }
+        }
+
+        /** The card's field keys, in card order. */
+        public List<String> keys() {
+            return fields.stream().map(Field::key).toList();
+        }
+    }
+
     public ChatMessage {
         Objects.requireNonNull(id, "id");
         Objects.requireNonNull(author, "author");
@@ -90,6 +135,13 @@ public record ChatMessage(UUID id, Author author, String text, ResponseOutcome o
         if (suggestions.size() > MAX_SUGGESTIONS) {
             throw new IllegalArgumentException("At most " + MAX_SUGGESTIONS + " suggestions per message");
         }
+    }
+
+    /** A message without an assessment card. */
+    public ChatMessage(UUID id, Author author, String text, ResponseOutcome outcome, UUID replyTo,
+            List<String> suggestions, List<Check> checks, Handover handover, Proposal proposal,
+            List<SourcedNumber> figures, String premise) {
+        this(id, author, text, outcome, replyTo, suggestions, checks, handover, proposal, figures, premise, null);
     }
 
     /** A message without a premise callout. */
@@ -114,14 +166,21 @@ public record ChatMessage(UUID id, Author author, String text, ResponseOutcome o
     /** This message with the handover of its case. */
     public ChatMessage withHandover(Handover value) {
         return new ChatMessage(id, author, text, outcome, replyTo, suggestions, checks, value, proposal, figures,
-                premise);
+                premise, assessment);
     }
 
     /** This proposal message with a new status. */
     public ChatMessage withProposalStatus(Proposal.Status value) {
         Objects.requireNonNull(proposal, "proposal");
         return new ChatMessage(id, author, text, outcome, replyTo, suggestions, checks, handover,
-                new Proposal(proposal.spec(), value), figures, premise);
+                new Proposal(proposal.spec(), value), figures, premise, assessment);
+    }
+
+    /** This assessment message with a new status. */
+    public ChatMessage withAssessmentStatus(Assessment.Status value) {
+        Objects.requireNonNull(assessment, "assessment");
+        return new ChatMessage(id, author, text, outcome, replyTo, suggestions, checks, handover, proposal, figures,
+                premise, new Assessment(assessment.fields(), value));
     }
 
     /** A message without checks. */

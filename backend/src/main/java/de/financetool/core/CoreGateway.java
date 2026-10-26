@@ -4,6 +4,7 @@ import de.financetool.audit.EvidenceOrigin;
 import de.financetool.core.domain.CoreResult;
 import de.financetool.core.domain.InsuranceFigures;
 import de.financetool.core.domain.LiquidityFigures;
+import de.financetool.core.domain.ProfileFigures;
 import de.financetool.core.domain.WealthFigures;
 import de.financetool.shared.RequestContext;
 import de.financetool.shared.domain.SourcedNumber;
@@ -21,6 +22,13 @@ public interface CoreGateway {
 
     /** The output of {@link #investmentTotals} that is the value of the persona's investments today. */
     String INVESTMENTS_TODAY = "holdingsValue";
+
+    /** The output of {@link ProfileFigures#netIncome}: the average monthly net income. */
+    String NET_INCOME = "monthly";
+    /** The output of {@link ProfileFigures#emergencyFund} that is the emergency fund today. */
+    String EMERGENCY_FUND = "current";
+    /** The output of {@link ProfileFigures#emergencyFund} that is the average monthly expenses. */
+    String MONTHLY_EXPENSES = "monthlyExpenses";
 
     /** The persona's current account balance at the end of {@code asOf} (function {@code accountBalance}). */
     CoreResult currentAccountBalance(RequestContext context, EvidenceOrigin origin);
@@ -42,6 +50,15 @@ public interface CoreGateway {
      * @throws IllegalStateException if a Rule Parameter has no version valid at {@code asOf}
      */
     WealthFigures wealth(RequestContext context, EvidenceOrigin origin);
+
+    /**
+     * What the assessment card pre-fills from account data at the end of {@code asOf}: the monthly net income
+     * (function {@code monthlyNetIncome}) and the emergency fund with the monthly expenses (function
+     * {@code emergencyFundTarget}, same keys as in {@link #liquidity}).
+     *
+     * @throws IllegalStateException if a Rule Parameter has no version valid at {@code asOf}
+     */
+    ProfileFigures profileFigures(RequestContext context, EvidenceOrigin origin);
 
     /**
      * The insurance figures at the end of {@code asOf}: each contract started by then with its keyed premium and next

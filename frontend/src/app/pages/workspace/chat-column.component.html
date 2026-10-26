@@ -115,6 +115,133 @@
             }
           </section>
         }
+        @if (m.assessment; as assessment) {
+          <section
+            class="proposal assessment"
+            [class.cancelled]="assessment.status === 'CANCELLED'"
+            [attr.aria-labelledby]="'assessment-' + m.id"
+          >
+            <h3 class="proposal-title" [id]="'assessment-' + m.id">A few questions about you</h3>
+            @if (assessment.status === 'CANCELLED') {
+              <p class="proposal-status">Cancelled</p>
+            } @else if (assessment.status === 'SAVED') {
+              <p class="proposal-status">Saved</p>
+            }
+            <div class="assessment-fields">
+              @for (f of assessment.fields; track f.key) {
+                <div class="assessment-field" role="group" [attr.aria-labelledby]="'q-' + m.id + '-' + f.key">
+                  <span class="assessment-label" [id]="'q-' + m.id + '-' + f.key">{{ f.label }}</span>
+                  @if (assessment.status !== 'OPEN') {
+                    @if (f.value) {
+                      <span class="value">{{ f.value | figure: 'EUR' }}</span>
+                    }
+                  } @else if (f.value && !isChanging(m, f.key)) {
+                    <span class="prefilled">
+                      <span class="value">{{ f.value | figure: 'EUR' }}</span>&ngsp;
+                      <span class="source-tag">From your account data</span>
+                    </span>
+                    <span class="prefill-actions">
+                      <button
+                        mat-stroked-button
+                        type="button"
+                        class="looks-right"
+                        [attr.aria-pressed]="isConfirmed(m, f.key)"
+                        [disabled]="isBusy()"
+                        (click)="confirmPrefill(m, f)"
+                      >
+                        Looks right
+                      </button>
+                      <button
+                        mat-button
+                        type="button"
+                        class="change"
+                        [disabled]="isBusy()"
+                        (click)="changePrefill(m, f)"
+                      >
+                        Change
+                      </button>
+                    </span>
+                  } @else {
+                    @switch (f.input) {
+                      @case ('CHOICE') {
+                        <span class="chips" role="radiogroup" [attr.aria-label]="f.label">
+                          @for (o of f.options; track o.key) {
+                            <button
+                              type="button"
+                              class="choice-chip"
+                              role="radio"
+                              [attr.aria-checked]="answerOf(m, f.key) === o.key"
+                              [disabled]="isBusy()"
+                              (click)="setAnswer(m, f.key, o.key)"
+                            >
+                              {{ o.label }}
+                            </button>
+                          }
+                        </span>
+                      }
+                      @case ('SLIDER') {
+                        <span class="slider">
+                          <input
+                            type="range"
+                            min="0"
+                            [max]="f.options.length - 1"
+                            step="1"
+                            [attr.aria-label]="f.label"
+                            [attr.aria-valuetext]="sliderLabel(m, f)"
+                            [value]="sliderIndex(m, f)"
+                            [disabled]="isBusy()"
+                            (input)="slide(m, f, $event)"
+                            (click)="slide(m, f, $event)"
+                          />
+                          <span class="slider-ends">
+                            <span>{{ f.options[0].label }}</span>&ngsp;
+                            <span>{{ f.options[f.options.length - 1].label }}</span>
+                          </span>
+                          <span class="value">{{ sliderLabel(m, f) ?? 'Move the slider' }}</span>
+                        </span>
+                      }
+                      @default {
+                        <span class="field">
+                          <input
+                            type="text"
+                            [attr.inputmode]="f.input === 'TEXT' ? 'text' : f.input === 'EUR' ? 'decimal' : 'numeric'"
+                            [attr.maxlength]="f.input === 'TEXT' ? f.max : 12"
+                            [class.text]="f.input === 'TEXT'"
+                            [attr.aria-label]="f.label"
+                            [value]="answerOf(m, f.key) ?? ''"
+                            [disabled]="isBusy()"
+                            (input)="type(m, f, $event)"
+                          />
+                          @if (f.input === 'EUR') {
+                            <span class="unit">EUR</span>
+                          } @else if (f.unit) {
+                            <span class="unit">{{ f.unit }}</span>
+                          }
+                        </span>
+                      }
+                    }
+                  }
+                </div>
+              }
+            </div>
+            @if (assessmentError()?.messageId === m.id) {
+              <p class="proposal-error" role="alert">{{ assessmentError()!.text }}</p>
+            }
+            @if (assessment.status === 'OPEN') {
+              <div class="proposal-actions">
+                <button
+                  mat-flat-button
+                  type="button"
+                  class="save-answers"
+                  [disabled]="isBusy()"
+                  (click)="saveAnswers(m)"
+                >
+                  Save my answers
+                </button>
+              </div>
+            }
+          </section>
+        }
         @if (m.figures.length) {
           <ul class="figures" aria-label="Figures in this answer">
             @for (f of m.figures; track f.provId) {

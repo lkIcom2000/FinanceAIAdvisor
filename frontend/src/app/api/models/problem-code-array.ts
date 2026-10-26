@@ -15,5 +15,6 @@ export const PROBLEM_CODE: ProblemCode[] = [
   'REQUEST_REJECTED',
   'TURN_FAILED',
   'PROPOSAL_CLOSED',
+  'ASSESSMENT_CLOSED',
   'INTERNAL_ERROR'
 ];

@@ -79,11 +79,12 @@ class HomeOverviewEndToEndTest extends PostgresIntegrationTest {
         assertThat((List<String>) JsonPath.read(home, "$.insurance.flags[*].coverage"))
                 .containsExactly("occupational disability");
 
-        // Every key is stored as overview evidence for Lena, and the same call gives the same keys.
+        // Every key is stored once as evidence for Lena (overview, or turn if an assessment card keyed it first), and the
+        // same call gives the same keys.
         List<String> provIds = JsonPath.read(home, "$..provId");
         for (String provId : provIds) {
             assertThat(jdbc.queryForList("SELECT origin FROM evidence_items WHERE prov_id = ? AND persona_id = ?",
-                    String.class, provId, "p-lena")).as(provId).containsExactly("overview");
+                    String.class, provId, "p-lena")).as(provId).hasSize(1).first().isIn("overview", "turn");
         }
         assertThat((List<String>) JsonPath.read(get200(lena, "/api/overview/home"), "$..provId")).isEqualTo(provIds);
     }

@@ -15,6 +15,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { FigureLinksService } from '../../shared/figure-links.service';
 import { FigurePipe, fractionToPercent, percentToFraction } from '../../shared/figure.pipe';
 import { openChecksDialog, openWhyDialog } from '../../shared/why-link.component';
+import { ChatAssessmentField } from '../../api/models/chat-assessment-field';
 import { ChatMessage } from '../../api/models/chat-message';
 import { ChatProposalParameter } from '../../api/models/chat-proposal-parameter';
 import { ChatService } from '../../api/services/chat.service';
@@ -87,10 +88,19 @@ type Pending =
 
 type LoadState = 'loading' | 'ready' | 'failed';
 
+/** What the persona has entered on the open assessment card so far. */
+interface AssessmentForm {
+  messageId: string;
+  answers: Record<string, string>;
+  confirmed: string[];
+  changing: string[];
+}
+
 /**
  * The chat column: greeting, message log, waiting and failed cards, response cards and the composer. A turn is two
  * calls: posting saves the question, answering returns one complete, checked answer. Try again repeats only the
- * answer call. A parameter proposal is calculated only on Calculate (AD-24); a new question cancels it. Figure chips
+ * answer call. A parameter proposal is calculated only on Calculate (AD-24); an assessment card's answers are stored
+ * only on Save my answers (UX-DR14); a new question cancels either. Figure chips
  * open "Why?" and link to the Overview (FR-8).
  */
 @Component({
@@ -124,6 +134,13 @@ export class ChatColumnComponent {
   protected readonly editing = signal<{ messageId: string; values: Record<string, string> } | null>(null);
   /** Why the last Calculate of a proposal did not go through, shown on its card. */
   protected readonly calculateError = signal<{ messageId: string; text: string } | null>(null);
+  /**
+   * The open assessment card's answers by field key, the pre-filled fields the persona confirmed ("Looks right") and
+   * those they chose to change.
+   */
+  protected readonly form = signal<AssessmentForm | null>(null);
+  /** Why the last Save of an assessment card did not go through, shown on its card. */
+  protected readonly assessmentError = signal<{ messageId: string; text: string } | null>(null);
 
   private readonly log = viewChild<ElementRef<HTMLElement>>('log');
   private readonly composer = viewChild(ChatComposerComponent);
@@ -281,6 +298,134 @@ export class ChatColumnComponent {
     });
   }
 
+  /** The answer entered for a field of the card; a pre-filled value counts until the persona changes it. */
+  protected answerOf(message: ChatMessage, key: string): string | undefined {
+    const form = this.form();
+    const entered = form?.messageId === message.id ? form.answers[key] : undefined;
+    if (entered !== undefined) {
+      return entered;
+    }
+    const field = message.assessment?.fields.find((f) => f.key === key);
+    return field?.value && !this.isChanging(message, key) ? field.value : undefined;
+  }
+
+  protected setAnswer(message: ChatMessage, key: string, value: string): void {
+    this.assessmentError.set(null);
+    this.form.update((form) => {
+      const current = this.formFor(message, form);
+      return { ...current, answers: { ...current.answers, [key]: value } };
+    });
+  }
+
+  protected type(message: ChatMessage, field: ChatAssessmentField, event: Event): void {
+    const text = (event.target as HTMLInputElement).value;
+    this.setAnswer(message, field.key, field.input === 'TEXT' ? text : text.trim().replace(',', '.'));
+  }
+
+  protected slide(message: ChatMessage, field: ChatAssessmentField, event: Event): void {
+    const index = Number((event.target as HTMLInputElement).value);
+    this.setAnswer(message, field.key, field.options[index].key);
+  }
+
+  /** The slider's position: its answer, or the middle until the persona moves it. */
+  protected sliderIndex(message: ChatMessage, field: ChatAssessmentField): number {
+    const index = field.options.findIndex((o) => o.key === this.answerOf(message, field.key));
+    return index >= 0 ? index : Math.floor((field.options.length - 1) / 2);
+  }
+
+  /** The slider's answer in words; nothing until the persona moves it. */
+  protected sliderLabel(message: ChatMessage, field: ChatAssessmentField): string | null {
+    return field.options.find((o) => o.key === this.answerOf(message, field.key))?.label ?? null;
+  }
+
+  protected isConfirmed(message: ChatMessage, key: string): boolean {
+    const form = this.form();
+    return form?.messageId === message.id && form.confirmed.includes(key);
+  }
+
+  protected isChanging(message: ChatMessage, key: string): boolean {
+    const form = this.form();
+    return form?.messageId === message.id && form.changing.includes(key);
+  }
+
+  /** "Looks right": the pre-filled value is the answer. */
+  protected confirmPrefill(message: ChatMessage, field: ChatAssessmentField): void {
+    this.assessmentError.set(null);
+    this.form.update((form) => {
+      const current = this.formFor(message, form);
+      return {
+        ...current,
+        answers: { ...current.answers, [field.key]: field.value! },
+        confirmed: [...current.confirmed.filter((k) => k !== field.key), field.key],
+      };
+    });
+  }
+
+  /** "Change": the pre-filled value becomes a field to type into. */
+  protected changePrefill(message: ChatMessage, field: ChatAssessmentField): void {
+    this.assessmentError.set(null);
+    this.form.update((form) => {
+      const current = this.formFor(message, form);
+      return {
+        ...current,
+        answers: { ...current.answers, [field.key]: field.value! },
+        confirmed: current.confirmed.filter((k) => k !== field.key),
+        changing: [...current.changing.filter((k) => k !== field.key), field.key],
+      };
+    });
+  }
+
+  /**
+   * Save my answers: every question needs an answer and every pre-filled value a "Looks right" or a change. Only
+   * now are the answers stored (through the profile confirm control); the original question is answered below.
+   */
+  protected saveAnswers(message: ChatMessage): void {
+    if (this.isBusy() || !message.assessment) {
+      return;
+    }
+    const answers: { key: string; value: string }[] = [];
+    for (const f of message.assessment.fields) {
+      const value = this.answerOf(message, f.key);
+      if (f.value && !this.isConfirmed(message, f.key) && !this.isChanging(message, f.key)) {
+        this.assessmentError.set({ messageId: message.id, text: `Please confirm or change: ${f.label}.` });
+        return;
+      }
+      if (value === undefined || value.trim() === '') {
+        this.assessmentError.set({ messageId: message.id, text: `Please answer: ${f.label}.` });
+        return;
+      }
+      answers.push({ key: f.key, value });
+    }
+    this.assessmentError.set(null);
+    this.startWaiting(null);
+    this.scrollToBottom();
+    this.chat.saveAssessment({ id: message.id, body: { answers } }).subscribe({
+      next: (answer) => {
+        this.stopWaiting();
+        this.pending.set(null);
+        this.form.set(null);
+        this.setAssessmentStatus(message.id, 'SAVED');
+        this.append(answer, true);
+        this.announceFigures(answer);
+      },
+      error: (error: HttpErrorResponse) => {
+        this.stopWaiting();
+        this.pending.set(null);
+        if (error.status === 409) {
+          this.setAssessmentStatus(message.id, 'CANCELLED');
+        } else {
+          this.assessmentError.set({
+            messageId: message.id,
+            text:
+              error.status === 400 && typeof error.error?.detail === 'string'
+                ? error.error.detail
+                : "Something went wrong on our side, so I couldn't save your answers. Please try again.",
+          });
+        }
+      },
+    });
+  }
+
   protected openWhy(provId: string): void {
     openWhyDialog(this.dialog, provId);
   }
@@ -319,15 +464,37 @@ export class ChatColumnComponent {
     }
   }
 
-  /** A new question cancels every open proposal (the backend resets the dialog state in the same turn). */
+  /**
+   * A new question cancels every open proposal and assessment card (the backend resets the dialog state in the same
+   * turn).
+   */
   private cancelOpenProposals(): void {
     this.editing.set(null);
     this.calculateError.set(null);
+    this.form.set(null);
+    this.assessmentError.set(null);
     for (const m of this.messages()) {
       if (m.proposal?.status === 'OPEN') {
         this.setProposalStatus(m.id, 'CANCELLED');
       }
+      if (m.assessment?.status === 'OPEN') {
+        this.setAssessmentStatus(m.id, 'CANCELLED');
+      }
     }
+  }
+
+  private formFor(message: ChatMessage, form: AssessmentForm | null): AssessmentForm {
+    return form?.messageId === message.id
+      ? form
+      : { messageId: message.id, answers: {}, confirmed: [], changing: [] };
+  }
+
+  private setAssessmentStatus(messageId: string, status: 'SAVED' | 'CANCELLED'): void {
+    this.messages.update((messages) =>
+      messages.map((m) =>
+        m.id === messageId && m.assessment ? { ...m, assessment: { ...m.assessment, status } } : m,
+      ),
+    );
   }
 
   private setProposalStatus(messageId: string, status: 'CALCULATED' | 'CANCELLED'): void {

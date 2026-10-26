@@ -230,6 +230,57 @@ class ClassifierTest {
         assertThat(Classifier.isName("Savings")).isFalse();
     }
 
+    /** The strict rule's port: minimum met on the stored profile, the given strict fields still unknown. */
+    static ProfileCompleteness strictPort(boolean minimumMet, List<String> strictMissing) {
+        return new ProfileCompleteness() {
+
+            @Override
+            public Result check(Map<String, Object> stored, Map<String, Object> stated, String topic) {
+                return new Result(minimumMet || !stated.isEmpty(), minimumMet ? List.of()
+                        : List.of("risk_tolerance or loss_aversion"), strictMissing);
+            }
+
+            @Override
+            public List<String> strictMissing(Map<String, Object> stored, String topic) {
+                return strictMissing;
+            }
+        };
+    }
+
+    static Classification strict(ProfileCompleteness port, Map<String, Object> stated) {
+        NluExtraction nlu = new NluExtraction("personal_recommendation", "personal", "savings_plan", List.of("etf"),
+                List.of(), false, false, stated, Map.of(), "");
+        return Classifier.classify(nlu, Map.of(), port, REGISTRY, false, "Which savings plan fits me?", true);
+    }
+
+    @Test
+    void theStrictRuleRecommendsOnlyOnACompleteConfirmedProfile() {
+        Classification complete = strict(strictPort(true, List.of()), Map.of());
+        assertThat(complete.messageClass()).isEqualTo(MessageClass.RECOMMEND_CATEGORY);
+        assertThat(complete.limitations()).isEmpty();
+
+        Classification lacking = strict(strictPort(true, List.of("goal", "net_income")), Map.of());
+        assertThat(lacking.messageClass()).isEqualTo(MessageClass.ASK_PROFILE);
+        assertThat(lacking.missingFields()).containsExactly("goal", "net_income");
+        assertThat(lacking.reasons()).contains("confirmed profile incomplete for topic 'savings_plan' (strict FR-17)");
+    }
+
+    @Test
+    void theStrictRuleAsksForTheMinimumAndTheStrictFieldsAndIgnoresStatedFacts() {
+        Classification asked = strict(strictPort(false, List.of("goal", "risk_tolerance")),
+                Map.of("risk_tolerance", "high"));
+        assertThat(asked.messageClass()).isEqualTo(MessageClass.ASK_PROFILE);
+        assertThat(asked.missingFields()).containsExactly("risk_tolerance or loss_aversion", "goal",
+                "risk_tolerance");
+
+        NluExtraction nlu = new NluExtraction("personal_recommendation", "personal", "savings_plan", List.of("etf"),
+                List.of(), false, false, Map.of("risk_tolerance", "high"), Map.of(), "");
+        Classification lenient = Classifier.classify(nlu, Map.of(), strictPort(false, List.of("goal")), REGISTRY,
+                false, "Which savings plan fits me?", false);
+        assertThat(lenient.messageClass()).isEqualTo(MessageClass.RECOMMEND_CATEGORY);
+        assertThat(lenient.limitations()).containsExactly("goal");
+    }
+
     @Test
     void theLimitationsPlaceholderNamesTheUnknownFieldsOrStaysEmpty() {
         Classification limited = new Classification(MessageClass.RECOMMEND_CATEGORY, List.of(), List.of(), List.of(),

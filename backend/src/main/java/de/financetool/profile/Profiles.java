@@ -15,8 +15,10 @@ public interface Profiles {
 
     /**
      * Stores the confirmed answers, replacing earlier values of the same fields; runs in the caller's transaction.
+     * Values of fields the assessment card asks for are stored in {@link AssessmentFields#normalize} form.
      *
-     * @throws IllegalArgumentException for a field not in {@link ProfileFields} or an empty value; nothing is stored
+     * @throws IllegalArgumentException for a field not in {@link ProfileFields}, an empty value or a value that does
+     *     not fit its card field (the message is a plain sentence); nothing is stored
      */
     void confirm(PersonaScope scope, Map<String, Object> answers, Instant confirmedAt);
 }

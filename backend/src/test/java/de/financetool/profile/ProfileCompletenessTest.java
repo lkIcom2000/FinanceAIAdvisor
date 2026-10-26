@@ -108,4 +108,37 @@ class ProfileCompletenessTest {
             assertThat(COMPLETENESS.evaluate(all, Map.of(), topic).complete()).as(topic).isTrue();
         }
     }
+
+    @Test
+    void strictMissingListsTheAbsentStrictFieldsWhetherOrNotTheMinimumIsMet() {
+        assertThat(COMPLETENESS.strictMissing(Map.of(), "savings_plan")).containsExactly("goal",
+                "investment_horizon_years", "net_income", "monthly_expenses", "emergency_fund",
+                "loss_bearing_capacity", "risk_tolerance", "knowledge_experience", "sustainability_preference");
+        assertThat(COMPLETENESS.strictMissing(Map.of("goal", "retirement", "risk_tolerance", "low"),
+                "asset_allocation")).doesNotContain("goal", "risk_tolerance").contains("net_income");
+        assertThat(COMPLETENESS.strictMissing(STRICT, "savings_plan")).isEmpty();
+        assertThat(COMPLETENESS.strictMissing(Map.of(), "protection_needs")).isEmpty();
+        assertThat(COMPLETENESS.strictMissing(Map.of(), "market_timing")).isEmpty();
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void theNeedsTopicsAreExactlyTheYamlTopicsAnsweredFromNeedsFields() throws IOException {
+        Map<String, List<List<String>>> topics;
+        try (Reader reader = Files.newBufferedReader(Path.of("..", "config", "profile-minimums.yaml"))) {
+            Map<String, Object> root = (Map<String, Object>) ((Map<String, Object>) new Yaml(
+                    new SafeConstructor(new LoaderOptions())).load(reader)).get("profileMinimums");
+            topics = (Map<String, List<List<String>>>) root.get("topics");
+        }
+        List<String> needsTopics = topics.entrySet().stream()
+                .filter(e -> e.getValue().stream().flatMap(List::stream).allMatch(ProfileFields.NEEDS::contains))
+                .map(Map.Entry::getKey)
+                // A contract switch (e.g. of a pension contract) is a suitability question asked from a needs fact.
+                .filter(topic -> !topic.equals("contract_switch"))
+                .toList();
+        assertThat(ProfileFields.NEEDS_TOPICS).containsExactlyInAnyOrderElementsOf(needsTopics);
+        // The assessment card can ask for every field a minimum names, so a saved card always meets it.
+        assertThat(topics.values().stream().flatMap(List::stream).flatMap(List::stream).distinct())
+                .allSatisfy(field -> assertThat(AssessmentFields.askable(field)).as(field).isTrue());
+    }
 }

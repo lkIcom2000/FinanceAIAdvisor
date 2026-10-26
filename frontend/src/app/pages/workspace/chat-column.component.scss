@@ -319,6 +319,71 @@
   margin-top: 12px;
 }
 
+/* The assessment card (UX-DR14): every open question in one form, no stepper. */
+.assessment-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 0;
+  border-top: 1px solid var(--mat-sys-outline-variant);
+
+  &:first-child {
+    border-top: 0;
+  }
+}
+
+.prefilled,
+.prefill-actions,
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.prefilled .source-tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--fine-ice);
+}
+
+.choice-chip {
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 1px solid var(--mat-sys-outline);
+  border-radius: 8px;
+  background: var(--mat-sys-surface);
+  font: var(--fine-body-sm);
+  cursor: pointer;
+}
+
+.choice-chip[aria-checked='true'],
+.looks-right[aria-pressed='true'] {
+  border-color: var(--mat-sys-primary);
+  background: var(--mat-sys-secondary-container);
+}
+
+.slider {
+  display: grid;
+  max-width: 320px;
+  accent-color: var(--mat-sys-primary);
+}
+
+.slider-ends {
+  display: flex;
+  justify-content: space-between;
+}
+
+.assessment-label,
+.slider-ends {
+  font: var(--fine-body-sm);
+}
+
+.field input.text {
+  width: min(280px, 100%);
+  text-align: left;
+}
+
 /* Figure chips (UX-DR6): ice background, small radius, tabular figures; the link icon shows it in the Overview. */
 .figures {
   display: flex;

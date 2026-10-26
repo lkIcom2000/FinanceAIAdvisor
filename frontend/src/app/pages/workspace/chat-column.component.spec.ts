@@ -682,4 +682,132 @@ describe('ChatColumnComponent', () => {
 
     expect(element.querySelectorAll('.show-in-overview').length).toBe(1);
   });
+
+  const personal: ChatMessage = { ...question, id: 'q6', text: 'Should I put 200 EUR a month into an ETF?' };
+  const card: ChatMessage = {
+    id: 'k6',
+    author: 'AGENT',
+    text: 'Before I can say whether this fits you, I need to know a bit more about your situation.',
+    outcome: 'ASK_PROFILE',
+    replyTo: 'q6',
+    suggestions: [],
+    checks: [],
+    figures: [],
+    assessment: {
+      status: 'OPEN',
+      fields: [
+        { key: 'goal', label: 'What are you saving or investing for?', input: 'CHOICE', min: 0, max: 0,
+          options: [{ key: 'retirement', label: 'Retirement' }, { key: 'purchase', label: 'A larger purchase' }] },
+        { key: 'investment_horizon_years', label: 'How long can the money stay invested?', input: 'NUMBER',
+          unit: 'years', min: 0, max: 60, options: [] },
+        { key: 'net_income', label: 'Your monthly net income', input: 'EUR', min: 0, max: 10000000, options: [],
+          value: '3100.00', provId: 'inc000000000000a' },
+        { key: 'risk_tolerance', label: 'How much up and down in value are you comfortable with?', input: 'SLIDER',
+          min: 0, max: 0, options: [{ key: 'very low', label: 'Very little' }, { key: 'medium', label: 'Some' },
+            { key: 'very high', label: 'Very much' }] },
+      ],
+    },
+  };
+  const recommended: ChatMessage = { ...answer, id: 'r6', outcome: 'RECOMMEND_CATEGORY', replyTo: 'k6',
+    text: 'A savings plan in a broad equity fund can fit your situation.' };
+
+  function answerCard(): void {
+    element.querySelectorAll<HTMLButtonElement>('.choice-chip')[0].click();
+    const years = element.querySelector<HTMLInputElement>('.assessment input[inputmode="numeric"]')!;
+    years.value = '25';
+    years.dispatchEvent(new Event('input'));
+    const slider = element.querySelector<HTMLInputElement>('.assessment input[type="range"]')!;
+    slider.value = '2';
+    slider.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+  }
+
+  it('shows every open question in one form with the account value tagged and the fitting inputs', () => {
+    render([personal, card]);
+
+    expect(text(element.querySelector('.assessment .proposal-title'))).toBe('A few questions about you');
+    expect(element.querySelectorAll('.assessment-field').length).toBe(4);
+    expect(Array.from(element.querySelectorAll('.choice-chip')).map(text)).toEqual(['Retirement', 'A larger purchase']);
+    expect(text(element.querySelector('.prefilled'))).toBe('3,100.00 EUR From your account data');
+    expect(element.querySelector('.looks-right')).not.toBeNull();
+    expect(text(element.querySelector('.slider-ends'))).toBe('Very little Very much');
+    expect(text(element.querySelector('.slider .value'))).toBe('Move the slider');
+    expect(element.querySelector('.save-answers')).not.toBeNull();
+
+    // Clicking the thumb where it stands answers with the middle option.
+    element.querySelector<HTMLInputElement>('.assessment input[type="range"]')!.click();
+    fixture.detectChanges();
+    expect(text(element.querySelector('.slider .value'))).toBe('Some');
+  });
+
+  it('asks to confirm or change a pre-filled value before saving', () => {
+    render([personal, card]);
+    answerCard();
+    element.querySelector<HTMLButtonElement>('.save-answers')!.click();
+    fixture.detectChanges();
+
+    expect(text(element.querySelector('.assessment .proposal-error'))).toBe(
+      'Please confirm or change: Your monthly net income.',
+    );
+  });
+
+  it('saves every answer on Save my answers and shows the answer to the original question', () => {
+    render([personal, card]);
+    answerCard();
+    element.querySelector<HTMLButtonElement>('.looks-right')!.click();
+    fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('.save-answers')!.click();
+    fixture.detectChanges();
+
+    const call = http.expectOne('/api/chat/messages/k6/assessment');
+    expect(call.request.body).toEqual({
+      answers: [
+        { key: 'goal', value: 'retirement' },
+        { key: 'investment_horizon_years', value: '25' },
+        { key: 'net_income', value: '3100.00' },
+        { key: 'risk_tolerance', value: 'very high' },
+      ],
+    });
+    call.flush(recommended);
+    fixture.detectChanges();
+
+    expect(text(element.querySelector('.assessment .proposal-status'))).toBe('Saved');
+    expect(element.querySelector('.save-answers')).toBeNull();
+    expect(text(element.querySelectorAll('.response .body')[1])).toBe(recommended.text);
+  });
+
+  it('sends a changed pre-filled value and shows a refused answer on the card', () => {
+    render([personal, card]);
+    answerCard();
+    element.querySelector<HTMLButtonElement>('.change')!.click();
+    fixture.detectChanges();
+    const income = element.querySelector<HTMLInputElement>('.assessment input[inputmode="decimal"]')!;
+    expect(income.value).toBe('3100.00');
+    income.value = '2900,50';
+    income.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('.save-answers')!.click();
+
+    const call = http.expectOne('/api/chat/messages/k6/assessment');
+    expect(call.request.body.answers[2]).toEqual({ key: 'net_income', value: '2900.50' });
+    call.flush({ detail: 'Please enter a number for: Your monthly net income.' },
+      { status: 400, statusText: 'Bad Request' });
+    fixture.detectChanges();
+
+    expect(text(element.querySelector('.assessment .proposal-error'))).toBe(
+      'Please enter a number for: Your monthly net income.',
+    );
+  });
+
+  it('greys an open card as Cancelled when a new question is sent', () => {
+    render([personal, card]);
+    typeAndSend('What is an ETF?');
+    http.expectOne('/api/chat/messages').flush({ ...question, id: 'q7' });
+    fixture.detectChanges();
+
+    expect(element.querySelector('.assessment')?.classList).toContain('cancelled');
+    expect(text(element.querySelector('.assessment .proposal-status'))).toBe('Cancelled');
+    expect(element.querySelector('.save-answers')).toBeNull();
+    http.expectOne('/api/chat/messages/q7/answer');
+  });
 });

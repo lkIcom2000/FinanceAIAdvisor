@@ -52,11 +52,11 @@ class ProfileIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void confirmedAnswersAreStoredPerTableWithConfirmedAtAndReadPersonaScoped() {
-        confirm(TIM, Map.of("risk_tolerance", "medium", "net_income", 3200, "household", "own"));
+        confirm(TIM, Map.of("risk_tolerance", "medium", "net_income", 3200, "household", "single"));
         confirm(JONAS, Map.of("occupation", "student"));
 
         assertThat(stored(TIM))
-                .isEqualTo(Map.of("risk_tolerance", "medium", "net_income", 3200, "household", "own"));
+                .isEqualTo(Map.of("risk_tolerance", "medium", "net_income", 3200.0, "household", "single"));
         assertThat(jdbc.queryForList(
                 "SELECT field FROM suitability_profiles WHERE persona_id = 'p-tim' ORDER BY field", String.class))
                 .containsExactly("net_income", "risk_tolerance");
@@ -90,8 +90,17 @@ class ProfileIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void aValueThatDoesNotFitItsCardFieldIsRejectedAndNothingIsStored() {
+        assertThatThrownBy(() -> confirm(TIM, Map.of("risk_tolerance", "medium", "goal", "lottery")))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("pick one of the choices");
+        assertThatThrownBy(() -> confirm(TIM, Map.of("pension_situation", "a\u0000b")))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(stored(TIM)).isEmpty();
+    }
+
+    @Test
     void resetDeletesOnlyThePersonasProfile() {
-        confirm(TIM, Map.of("risk_tolerance", "medium", "household", "own"));
+        confirm(TIM, Map.of("risk_tolerance", "medium", "household", "single"));
         confirm(JONAS, Map.of("occupation", "student"));
 
         PersonaResettable owner = owners.stream().filter(o -> o.module().equals("profile")).findFirst().orElseThrow();
