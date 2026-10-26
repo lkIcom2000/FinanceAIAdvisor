@@ -264,6 +264,8 @@ When the Rule Engine blocks a drafted response, the block reason determines the 
 - On the Q&A test set, `ESCALATE` counts as a mismatch for SM-4 and is counted in SM-C2.
 
 #### FR-26: Block-only Judge
+*Not active, justified by E3 (2026-10-23: `e3-AB` won; reserve list item 1, see §11).*
+
 Under `A+B+C`, the Judge reviews the drafted response after the Rule Engine. It may return **block** or **escalate**. Any other output is ignored. The Judge can never turn a Rule Engine rejection into an approval.
 
 #### FR-27: No commission incentive
@@ -632,6 +634,7 @@ All draft assumptions were confirmed by the author on 2026-10-20:
 - §8.5 SM-7: red-team set extended beyond CSV item 65.
 - 2026-10-20 (Correct Course): the evaluation is split into an Experiment Track (Colab, independent of the application) and an Artifact Evaluation (requirement verification plus user acceptance test). The platform is Java Spring Boot and Angular, deployed locally and on Azure. See `../../sprint-change-proposal-2026-10-20.md`.
 - 2026-10-21 (Correct Course): the Letter & Contract Assistant is added (UJ-7, §4.14, FR-53 to FR-61, SM-10, §8.7). Letters are in English. The user acceptance test includes a planted-error task with prior notice and debriefing. See `../../sprint-change-proposal-2026-10-21.md`.
+- 2026-10-26 (E2–E4 results, decision Commc): Reference Configuration is advisor role prompt, `A+B`, exposure `none` (`experiments/results/agent_config_derived.yaml`). Reserve list item 1 activated: FR-26 is not active, justified by E3; Story 3.9 is not built, under `A+B+C` the application records the Judge as not implemented and otherwise runs like `A+B`.
 - 2026-10-23 (E1 result, decision Commc): FR-13 applies its source rule when retrieval is on; with retrieval off (E1 winner) `INFORM` answers are checked general explanations.
 - 2026-10-21 (Correct Course, scope reduction): FR-19 and FR-34 removed; FR-5, FR-18, FR-30, FR-37, FR-42, FR-43 and FR-59 reduced; Azure deferred; the user test runs in person. See `../../sprint-change-proposal-2026-10-21-scope.md`.
 - 2026-10-21: an ECB key-rate change is a Rule Parameter change and triggers an informative Notification (FR-30, Scenario S19). It never triggers a buy or sell Recommendation.

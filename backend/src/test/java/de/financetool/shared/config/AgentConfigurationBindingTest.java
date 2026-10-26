@@ -57,12 +57,12 @@ class AgentConfigurationBindingTest {
             assertThat(context).hasNotFailed();
             AgentConfiguration agent = context.getBean(AgentConfiguration.class);
             assertThat(agent.id()).isEqualTo("reference");
-            assertThat(agent.compliance()).isEqualTo(ComplianceLevel.A_B_C);
-            assertThat(agent.dataExposure()).isEqualTo(DataExposureLevel.AGGREGATED);
-            // E1 result: retrieval off (derivedFrom names the experiment, AD-25)
+            assertThat(agent.compliance()).isEqualTo(ComplianceLevel.A_B);
+            assertThat(agent.dataExposure()).isEqualTo(DataExposureLevel.NONE);
+            // E1-E4 results: retrieval off, A+B, exposure none (derivedFrom names the experiment, AD-25)
             assertThat(agent.retrieval()).isFalse();
             assertThat(agent.llm().phrasing()).isEqualTo("llama3.1:8b-instruct-q4_K_M");
-            assertThat(agent.derivedFrom().experiment()).isEqualTo("E1");
+            assertThat(agent.derivedFrom().experiment()).isEqualTo("E1-E4");
             assertThat(agent.derivedFrom().date()).isEqualTo(LocalDate.of(2026, 10, 23));
 
             AutonomyThresholds thresholds = context.getBean(AutonomyThresholds.class);

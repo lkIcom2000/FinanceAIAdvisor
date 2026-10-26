@@ -26,6 +26,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.ResultActions;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -34,6 +35,9 @@ import tools.jackson.databind.json.JsonMapper;
  * {@code INFORM} turn releases the no-valid-source template (no Knowledge Base yet) and keeps the draft as first
  * draft.
  */
+// Pinned to the PRD starting values: these tests cover the aggregated filter and the A+B+C record; the E1-E4
+// reference (A+B, exposure none) is checked in AgentConfigurationBindingTest.
+@TestPropertySource(properties = {"agent.compliance=A+B+C", "agent.data-exposure=AGGREGATED"})
 class ChatEndToEndTest extends PostgresIntegrationTest {
 
     static final String QUESTION = "What is an ETF?";

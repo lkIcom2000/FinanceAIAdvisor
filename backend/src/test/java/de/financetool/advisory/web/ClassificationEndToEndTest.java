@@ -24,6 +24,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.ResultActions;
 
 /**
@@ -32,6 +33,9 @@ import org.springframework.test.web.servlet.ResultActions;
  * retrieval switched on (the reference configuration has it off since E1): only then does {@code SOURCE_VALIDITY}
  * apply (Story 3.4).
  */
+// Pinned to the PRD starting values: these tests cover the aggregated filter and the A+B+C record; the E1-E4
+// reference (A+B, exposure none) is checked in AgentConfigurationBindingTest.
+@TestPropertySource(properties = {"agent.compliance=A+B+C", "agent.data-exposure=AGGREGATED"})
 class ClassificationEndToEndTest extends PostgresIntegrationTest {
 
     static final String EXPLANATION = "What is an ETF?";

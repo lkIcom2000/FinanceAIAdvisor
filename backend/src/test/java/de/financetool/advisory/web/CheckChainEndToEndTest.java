@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.TestPropertySource;
 
 /**
  * Story 3.4 end to end, one test per row of the I/O matrix at the level it names (switched per test): Check Chain,
@@ -32,6 +33,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * regeneration row needs a Knowledge Base passage, which no turn has until Epic 4; it is covered by
  * {@code TurnOrchestratorTest} on the stages.
  */
+// Pinned to the PRD starting values: these tests cover the aggregated filter and the A+B+C record; the E1-E4
+// reference (A+B, exposure none) is checked in AgentConfigurationBindingTest.
+@TestPropertySource(properties = {"agent.compliance=A+B+C", "agent.data-exposure=AGGREGATED"})
 class CheckChainEndToEndTest extends PostgresIntegrationTest {
 
     static final String PERSONAL = "Should I put 200 EUR a month into an ETF?";

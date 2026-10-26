@@ -4,10 +4,10 @@
 agent:
   id: reference
   derivedFrom:
-    experiment: E1
-    resultFile: experiments/results/E1/winner.json
+    experiment: E1-E4
+    resultFile: experiments/results/agent_config_derived.yaml
     date: 2026-10-23
-    note: E1 winner e1-llama3 without retrieval, the only arm within both counter-metric tolerances (retrieval lowered INFORM answer quality from 4.1 to 2.8); models, role prompt, compliance level, exposure level and decoding unchanged from the PRD starting value
+    note: E1 e1-llama3 without retrieval (retrieval lowered INFORM answer quality from 4.1 to 2.8); E2 e2-advisor; E3 e3-AB (the Judge stopped 3 approved answers, all false positives); E4 e4-none (no measurable loss without personal data). Models and decoding unchanged from the PRD starting value
   llm:
     phrasing: llama3.1:8b-instruct-q4_K_M
     nlu: llama3.1:8b-instruct-q4_K_M
@@ -16,8 +16,8 @@ agent:
   retrieval: false
   # File in config/prompts/ named role-<rolePrompt>.txt
   rolePrompt: advisor
-  compliance: A+B+C
-  dataExposure: aggregated
+  compliance: A+B
+  dataExposure: none
   decoding:
     temperature: 0.0
     topP: 0.9
