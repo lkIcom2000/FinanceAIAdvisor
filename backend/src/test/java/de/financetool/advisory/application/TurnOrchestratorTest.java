@@ -778,6 +778,30 @@ class TurnOrchestratorTest {
             List.of(new java.math.BigDecimal("522")));
 
     @Test
+    void withRetrievalOffTheRegeneratedTextLosesItsCitationMarkersBeforeTheChecksAndTheRelease() {
+        when(llm.generate(eq(LlmRole.PHRASING), anyList(), eq(TestContexts.DECODING), isNull()))
+                .thenReturn(result("You can make 522 full withdrawals [S1]."));
+        TurnState released = stages7to10(with(ComplianceLevel.A_B, false),
+                numberDraft("You can make 523 full withdrawals.", "withdrawals: 522", CORE_522));
+
+        assertThat(released.checks().regeneration().text()).isEqualTo("You can make 522 full withdrawals.");
+        assertThat(released.checks().finalResults().get(CheckId.NUMBER_MATCH).passed()).isTrue();
+        assertThat(released.finalText()).isEqualTo("You can make 522 full withdrawals.");
+    }
+
+    @Test
+    void aBlankRegenerationKeepsTheFirstDraftsResultsSoTheTurnIsRoutedInsteadOfFailing() {
+        when(llm.generate(eq(LlmRole.PHRASING), anyList(), eq(TestContexts.DECODING), isNull()))
+                .thenReturn(result(" [S1] "));
+        TurnState routed = stages7to10(with(ComplianceLevel.A_B, false),
+                numberDraft("You can make 523 full withdrawals.", "withdrawals: 522", CORE_522));
+
+        assertThat(routed.checks().regenerated()).isTrue();
+        assertThat(routed.checks().route().released()).isFalse();
+        assertThat(routed.outcome()).isEqualTo(ResponseOutcome.ESCALATE);
+    }
+
+    @Test
     void aNumberMismatchIsRegeneratedOnceWithTheCoreResultsRestatedAndAFixedDraftIsReleased() {
         when(llm.generate(eq(LlmRole.PHRASING), anyList(), eq(TestContexts.DECODING), isNull()))
                 .thenReturn(result("You can make 522 full withdrawals."));

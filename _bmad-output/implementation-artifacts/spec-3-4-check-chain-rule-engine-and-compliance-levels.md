@@ -5,7 +5,7 @@ created: '2026-10-23'
 status: 'done'
 baseline_revision: '7ae916e26973f887faadd02006867315bce89965'
 review_loop_iteration: 0
-followup_review_recommended: true
+followup_review_recommended: false
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-3-context.md'
   - '{project-root}/_bmad-output/implementation-artifacts/spec-3-3-deterministic-classification-of-every-message.md'
@@ -134,3 +134,8 @@ deferred: []
 - **Follow-up review recommended: true** (6 medium patched). Unverified risk: the regeneration and citation-range paths only run with KB passages, which do not exist before Epic 4; they are covered by stage tests, not by a live turn.
 - **Verification:** before review 481 backend + 74 frontend tests; after the fixes `./mvnw -B verify -Dfine.it.required=true` BUILD SUCCESS, 490 tests, 0 failures, 0 skipped; frontend `api:check` up to date, `ng test` 75 passed, build complete. Live (local `spring-boot:run`, real model, `A+B+C`, retrieval off): before review Tim's knock-out question → `REFUSE_OUT_OF_SCOPE` released after passing `SCOPE`, `NO_PRODUCT_NAMING`, `NO_GUARANTEE_OR_TIMING`; Lena's "What is an ETF?" → checked draft released, but with an invented "[S1]" (fixed); after the fixes Jonas's "What is an ETF?" → released, 3 checks passed on the card, no markers (`citationMarkersRemoved: 0`).
 - **Residual risks:** see the follow-up risk; the "N of M" footer variant is reachable only through a future level and is covered by the frontend spec.
+
+### Epic-end follow-up review (2026-10-26, one combined reviewer, sonnet)
+
+- `[medium]` `[patch]` with retrieval off the regenerated text kept its citation markers — stripped before the checks and the release (stage test)
+- `[medium]` `[patch]` a blank regeneration failed the turn — it keeps the first draft's results and is routed (stage test)

@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
  * {@code CLASS_INSTRUCTIONS}.
  *
  * <p>The premise claims are the only text from the message or the NLU that reaches the system part. They pass the
- * exposure filter at the turn's level, lose every slot marker and brace, and are inserted in one pass over the
+ * aggregated exposure filter at every level ({@link ExposureFilter#filterDerived}), lose every slot marker and brace, and are inserted in one pass over the
  * template, so inserted text is never scanned for placeholders.
  */
 public final class ClassInstruction {
@@ -35,16 +35,14 @@ public final class ClassInstruction {
      * @param template the class instruction file's text
      * @param category the recommended product category ({@code null} or blank until the category tools exist)
      * @param conflicts the profile conflicts of the recommendation (empty until the category tools exist)
-     * @param level the turn's Data Exposure Level, applied to the premise claims
      */
-    public static String fill(String template, Classification classification, String category, String conflicts,
-            ExposureFilter.Level level) {
+    public static String fill(String template, Classification classification, String category, String conflicts) {
         String missing = classification.missingFields().isEmpty() ? DEFAULT_MISSING
                 : String.join(", ", classification.missingFields());
         String oos = classification.outOfScope().isEmpty() ? "this product"
                 : String.join(", ", classification.outOfScope()).replace("_", " ");
         String premises = classification.unverifiedPremises().stream()
-                .map(p -> ExposureFilter.filterMessage(p.claim(), level, null))
+                .map(p -> ExposureFilter.filterDerived(p.claim()))
                 .collect(Collectors.joining("; "));
         String conflictText = conflicts == null || conflicts.isEmpty() ? ""
                 : "The request conflicts with the profile (" + conflicts

@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import de.financetool.PostgresIntegrationTest;
+import de.financetool.advisory.adapter.NluCacheRepository;
 import de.financetool.personas.application.ShowPersonaUseCase;
 import de.financetool.research.application.ResetPersonaUseCase;
 import de.financetool.shared.PersonaScope;
@@ -46,6 +47,9 @@ class PersonaResetIntegrationTest extends PostgresIntegrationTest {
     @Autowired
     PersonaFixtureCatalog fixtures;
 
+    @Autowired
+    NluCacheRepository nluCache;
+
     /** The test database is shared by every test class: leave the personas as the fixtures define them. */
     @AfterEach
     void restoreFixtureState() {
@@ -69,6 +73,21 @@ class PersonaResetIntegrationTest extends PostgresIntegrationTest {
     long auditRows() {
         return jdbc.queryForObject("SELECT (SELECT count(*) FROM audit_records) + (SELECT count(*) FROM evidence_items)",
                 Long.class);
+    }
+
+    @Test
+    void resetDeletesOnlyThisPersonasNluCacheRowsAndTheCacheNeverAnswersAcrossPersonas() {
+        PersonaScope jonas = new PersonaScope(new PersonaId("p-jonas"));
+        PersonaScope petra = new PersonaScope(new PersonaId("p-petra"));
+        NluCacheRepository.Entry entry = new NluCacheRepository.Entry("{}", true);
+        nluCache.put(jonas, "reset-test-jonas", entry);
+        nluCache.put(petra, "reset-test-petra", entry);
+        assertThat(nluCache.find(jonas, "reset-test-petra")).as("another persona's row").isEmpty();
+
+        resetPersona.reset(jonas.personaId());
+
+        assertThat(nluCache.find(jonas, "reset-test-jonas")).isEmpty();
+        assertThat(nluCache.find(petra, "reset-test-petra")).contains(entry);
     }
 
     @Test

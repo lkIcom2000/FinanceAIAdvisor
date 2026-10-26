@@ -51,8 +51,9 @@ public final class ExposureFilter {
     /** An age after "age", "aged", "I am", "I'm" or German "ich bin". */
     static final Pattern AGE = Pattern.compile("\\b(?:age|aged|I am|I['’]m|ich bin)\\s*:?\\s*" + TWO_DIGITS,
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
-    /** An age before "Jahre" ("34 Jahre alt") or "years old". */
-    static final Pattern AGE_BEFORE = Pattern.compile("\\b" + TWO_DIGITS + "(?=\\s*(?:Jahre\\b|years?\\s+old\\b))",
+    /** An age before "Jahre alt" or "years old"; a bare "15 Jahre" is a horizon or term and stays. */
+    static final Pattern AGE_BEFORE = Pattern.compile("\\b" + TWO_DIGITS
+            + "(?=\\s*(?:Jahre\\s+alt\\b|years?\\s+old\\b))",
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
     /** Shown instead of an amount that cannot be banded (a digit run too long for a double). */
     public static final String UNREADABLE_AMOUNT = "[AMOUNT]";
@@ -82,11 +83,15 @@ public final class ExposureFilter {
                 filterProfile(profile, level), toolResults, passages);
     }
 
-    /** A message (or history text) as the model may see it at {@code level}. */
+    /**
+     * A message (or history text) as the model may see it at {@code level}. At {@code NONE} the depersonalised
+     * question still passes the aggregated patterns, in case the NLU left an identifier or amount in it (deliberately
+     * stricter than {@code exposure.py}, which passes it as it is).
+     */
     public static String filterMessage(String message, Level level, String depersonalisedQuestion) {
         if (level == Level.NONE) {
             return depersonalisedQuestion == null || depersonalisedQuestion.isBlank() ? WITHHELD
-                    : depersonalisedQuestion;
+                    : filterDerived(depersonalisedQuestion);
         }
         String out = EMAIL.matcher(message).replaceAll("[EMAIL]");
         out = IBAN.matcher(out).replaceAll("[IBAN]");
@@ -96,6 +101,14 @@ public final class ExposureFilter {
         out = AGE_BEFORE.matcher(out).replaceAll(ExposureFilter::decadeOfMatch);
         out = MONEY.matcher(out).replaceAll(m -> Matcher.quoteReplacement(band(amount(m.group()))));
         return out;
+    }
+
+    /**
+     * NLU-derived text (a depersonalised question, a premise claim) at any level: the aggregated patterns, so that it
+     * never carries more than {@code AGGREGATED} would show and is never replaced by the withheld marker.
+     */
+    public static String filterDerived(String text) {
+        return filterMessage(text, Level.AGGREGATED, null);
     }
 
     /** The match with its age group replaced by the decade. */

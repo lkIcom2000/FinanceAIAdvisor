@@ -5,7 +5,7 @@ created: '2026-10-22'
 status: 'done'
 baseline_revision: '0751c32eed2bdfcb8bdf539bcc1beb8fb8d22950'
 review_loop_iteration: 0
-followup_review_recommended: true
+followup_review_recommended: false
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-3-context.md'
   - '{project-root}/_bmad-output/implementation-artifacts/spec-3-1-chat-column-with-atomic-turn-release.md'
@@ -138,3 +138,10 @@ deferred:
 - **Follow-up review recommended: true** (7 medium patched). Unverified risk: the widened redaction patterns (names with following capitalised words, any two-digit number before "Jahre") over-mask ordinary text, e.g. "Customer Service Team" → "Customer X", "12 Jahre" of a child → "10s Jahre"; their effect on answer quality against real German messages is unmeasured.
 - **Verification:** before review 313 tests green; after the fixes `./mvnw -B verify -Dfine.it.required=true` BUILD SUCCESS, 342 tests, 0 failures, 0 skipped; frontend `api:check` up to date, `ng test` 68 passed, build complete. Live check (before the fixes, local `spring-boot:run`, real model): Lena's follow-up "Can you summarise your last answer in one sentence?" was answered from the earlier turn (83 s); the record lists both prompt hashes, `truncated: false`, `EXPOSURE_FILTER` no longer a pass-through. The fixes touch only the pure filter, budget and audit fields and were not re-run live.
 - **Residual risks:** see the follow-up risk; history texts can still fake block headers until Story 3.8.
+
+### Epic-end follow-up review (2026-10-26, one combined reviewer, sonnet)
+
+- `[high]` `[patch]` `AGE_BEFORE` banded any two-digit number before "Jahre" (horizons, terms) — now only "Jahre alt" / "years old"; tests for "für 15 Jahre", "Laufzeit 20 Jahre"
+- `[high]` `[reject]` `AGGREGATED` bands the amounts of the current question — the level as `exposure.py` and E4 define it; the reference is `none` since `4f333db`
+- `[medium]` `[defer]` `CLIENT` masks capitalised words after a title ("Customer Service Team") — errs on the private side, irrelevant at `none`
+- `[medium]` `[patch]` at `NONE` the depersonalised question went to the model unfiltered — now `filterDerived` (aggregated patterns), a deliberate deviation from `exposure.py`

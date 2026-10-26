@@ -250,8 +250,7 @@ public class TurnOrchestrator {
         PromptFiles.Prompt rolePrompt = prompts.rolePrompt(agent.rolePrompt());
         PromptFiles.Prompt rules = prompts.complianceRules();
         PromptFiles.Prompt instruction = prompts.classInstruction(turn.messageClass());
-        String classInstruction = ClassInstruction.fill(instruction.text(), turn.classification(), null, "",
-                level(agent.dataExposure()));
+        String classInstruction = ClassInstruction.fill(instruction.text(), turn.classification(), null, "");
         PhrasingPrompt phrasing = PhrasingPrompt.build(rolePrompt.text(), rules.text(), classInstruction, payload,
                 agent.decoding().numCtx(), agent.decoding().numPredict());
         Map<String, String> hashes = Map.of(rolePrompt.fileName(), rolePrompt.hash(), rules.fileName(), rules.hash(),
@@ -309,7 +308,8 @@ public class TurnOrchestrator {
      * Stage 8: in Shadow Mode (level {@code A}) the Rule Engine only records. Enforcing, a repairable failure (a failed
      * Number Check, a missing or invalid citation) gets exactly one regeneration with the targeted fix: the previous
      * messages, the draft as the assistant's answer and the fix as the user's, with the same decoding; the chain then
-     * runs again on the regenerated text.
+     * runs again on the regenerated text. With retrieval off the regenerated text loses its citation markers like the
+     * first draft; a blank regeneration keeps the first draft's results, so the turn is routed instead of failing.
      */
     TurnState ruleEngine(RequestContext context, TurnState turn) {
         TurnState.Checks checks = turn.checks();
@@ -326,10 +326,12 @@ public class TurnOrchestrator {
                 List.of(LlmMessage.system(phrasing.system()), LlmMessage.user(phrasing.user()),
                         LlmMessage.assistant(turn.draft().text()), LlmMessage.user(fix.get())),
                 context.agentConfig().decoding(), null);
-        String text = result.text() == null ? "" : result.text();
+        boolean retrieval = context.agentConfig().retrieval();
+        String raw = result.text() == null ? "" : result.text();
+        String text = retrieval ? raw : CitationMarkers.strip(raw).text();
         TurnState.Regeneration regeneration = new TurnState.Regeneration(fix.get(), text, result.truncated());
-        return turn.withChecks(checks.withRegeneration(regeneration, CheckChain.run(text, facts(turn, context.agentConfig().retrieval()))))
-                .ran(TurnStage.RULE_ENGINE);
+        ChainResult results = text.isBlank() ? checks.shadow() : CheckChain.run(text, facts(turn, retrieval));
+        return turn.withChecks(checks.withRegeneration(regeneration, results)).ran(TurnStage.RULE_ENGINE);
     }
 
     /**

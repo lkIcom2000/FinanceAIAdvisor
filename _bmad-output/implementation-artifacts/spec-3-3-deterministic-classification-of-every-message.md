@@ -5,7 +5,7 @@ created: '2026-10-23'
 status: 'done'
 baseline_revision: '40900a6ea16ac45efacb925d8bc369df1342b486'
 review_loop_iteration: 0
-followup_review_recommended: true
+followup_review_recommended: false
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-3-context.md'
   - '{project-root}/_bmad-output/implementation-artifacts/spec-3-2-data-exposure-filter-and-prompt-budget.md'
@@ -142,3 +142,8 @@ deferred: []
 - **Follow-up review recommended: true** (7 medium patched). Unverified risk: the persona-scoped cache and the startup prompt check changed persistence and boot paths after the only full review; a second look at V8 plus `AdvisoryResetter` (reset completeness) and at `ClassInstruction`'s filtering of NLU text is the open item.
 - **Verification:** before review 395 backend + 71 frontend tests; after the fixes `./mvnw -B verify -Dfine.it.required=true` BUILD SUCCESS, 411 tests, 0 failures, 0 skipped; frontend `api:check` up to date, `ng test` 72 passed, build complete. Live (local `spring-boot:run`, real model, CPU): before review Tim's knock-out question → `REFUSE_OUT_OF_SCOPE` (`derivative_or_certificate`, 3.6 min) and Lena's "What is an ETF?" → no-valid-source template; after the fixes the app migrated V8 and passed the prompt check at startup, and Marco's "How does an emergency fund work?" → template with a different chip ("What is an ETF savings plan?"), 61 s.
 - **Residual risks:** every `INFORM` turn releases the template until Epic 4 brings sources; `COMPUTE` and `RECOMMEND_CATEGORY` are unreachable live until 3.7 and 6.1.
+
+### Epic-end follow-up review (2026-10-26, one combined reviewer, sonnet)
+
+- `[medium]` `[patch]` no test showed that persona reset deletes the NLU cache rows of that persona only — `PersonaResetIntegrationTest` covers reset and cross-persona `find`
+- `[low]` `[patch]` at `NONE` premise claims became the withheld marker — claims pass `filterDerived` at every level; `ClassInstruction.fill` lost its level parameter

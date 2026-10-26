@@ -51,7 +51,9 @@ class ExposureFilterTest {
             ich bin 34                                                    | ich bin 30s
             Ich bin 34 Jahre alt                                          | Ich bin 30s Jahre alt
             mit 34 Jahre alt                                              | mit 30s Jahre alt
-            meine Tochter ist 12 Jahre                                    | meine Tochter ist 10s Jahre
+            meine Tochter ist 12 Jahre alt                                | meine Tochter ist 10s Jahre alt
+            für 15 Jahre sparen                                           | für 15 Jahre sparen
+            Laufzeit 20 Jahre                                             | Laufzeit 20 Jahre
             he is 41 years old                                            | he is 40s years old
             seit 10 Jahren                                                | seit 10 Jahren
             de89-3704-0044-0532-0130-00 is mine                           | [IBAN] is mine
@@ -160,6 +162,15 @@ class ExposureFilterTest {
         assertThat(payload.history()).isEmpty();
         assertThat(payload.profile()).isEmpty();
         assertThat(payload.toolResults()).isEqualTo(CORE);
+    }
+
+    @Test
+    void noneStillFiltersADepersonalisedQuestionTheNluLeftPersonalDataIn() {
+        PromptPayload payload = ExposureFilter.apply(Level.NONE, "q", "Mr. Müller (max@example.org) is 34 years old "
+                + "and has 12,400 EUR on DE89370400440532013000", List.of(), Map.of(), "", List.of());
+
+        assertThat(payload.message()).isEqualTo("Mr. X ([EMAIL]) is 30s years old and has 10,000–15,000 EUR on [IBAN]");
+        assertThat(payload.messageWithheld()).isFalse();
     }
 
     @Test
