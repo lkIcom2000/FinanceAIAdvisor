@@ -42,7 +42,7 @@
 #   configuration with a derivedFrom block (AD-25). Check E3 before 3.9, E1 before 4.2/4.3.
 
 generated: 10-21-2026 13:52
-last_updated: 10-26-2026 11:24
+last_updated: 10-26-2026 11:28
 project: FinanceTool
 project_key: NOKEY
 tracking_system: file-system
@@ -141,6 +141,7 @@ development_status:
 
   epic-13: backlog  # Follow-up fixes (Commc 2026-10-26); placement relative to the UAT open
   13-1-fine-answers-in-german-when-written-to-in-german: backlog
+  13-2-epic-3-seam-fixes-technical-debt: backlog  # before Epic 7 (Epic 3 retro A1-A4)
   epic-13-retrospective: optional
 action_items:
   - id: "epic-1-retro-item-1-a1-archunit-rules-for-ad-21-ar3-transact"
@@ -190,7 +191,7 @@ action_items:
     epic: 1
     action: "A7: First real AuditWriter caller adds an end-to-end test through /api/research/audit/export"
     owner: "Dev (Claude)"
-    status: in-progress
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-10-21.md"
   - id: "epic-2-retro-item-8-a1-reconcile-spine-and-prd-with-epic-2-a"
     epic: 2

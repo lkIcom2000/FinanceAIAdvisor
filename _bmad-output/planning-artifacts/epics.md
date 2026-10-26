@@ -1697,3 +1697,29 @@ So that a German question gets a German answer.
 **Given** the reference configuration
 **When** the language handling changes prompts
 **Then** the change is a documented deviation from the experiment track (prompt hashes change in the Audit Record)
+
+### Story 13.2: Epic 3 seam fixes (technical debt)
+
+As a persona,
+I want calculated answers, their follow-ups and blocked turns to behave consistently,
+So that what-if questions and handovers build on the right context.
+
+**Gap:** Epic 3 retrospective (`epic-3-retro-2026-10-26.md`, R1–R5, action items A1–A4). **Do before Epic 7**, which builds on the history after a calculation and reuses the proposal card.
+
+**Acceptance Criteria:**
+
+**Given** a turn with a Rule Parameter error
+**When** it runs at any compliance level, including `A` (routing off)
+**Then** it is routed to `ESCALATE` and never released as a `COMPUTE` answer without figures
+
+**Given** a question answered through a parameter proposal and Calculate
+**When** a later turn builds its prompt history
+**Then** that turn's agent text is the calculated answer (the reply to the proposal), not the proposal text, and end-to-end tests cover a failed Calculate and Calculate → `ESCALATE`
+
+**Given** an open or cancelled parameter-proposal card
+**When** it is shown
+**Then** its label row does not say "Calculated for you"
+
+**Given** a blank regeneration or exposure level `none`
+**When** a case snapshot or the Number Check ledger is built
+**Then** the snapshot keeps the first draft, and the ledger sources only numbers the model was shown (including numbers in the class instruction)
