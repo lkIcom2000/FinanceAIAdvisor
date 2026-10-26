@@ -138,6 +138,10 @@ development_status:
   12-1-research-scripts-and-the-study-preset-catalogue: backlog
   12-2-end-to-end-study-dry-run-on-the-study-laptop: backlog
   epic-12-retrospective: optional
+
+  epic-13: backlog  # Follow-up fixes (Commc 2026-10-26); placement relative to the UAT open
+  13-1-fine-answers-in-german-when-written-to-in-german: backlog
+  epic-13-retrospective: optional
 action_items:
   - id: "epic-1-retro-item-1-a1-archunit-rules-for-ad-21-ar3-transact"
     epic: 1

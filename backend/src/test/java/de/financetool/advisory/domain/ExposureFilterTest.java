@@ -165,11 +165,13 @@ class ExposureFilterTest {
     }
 
     @Test
-    void noneStillFiltersADepersonalisedQuestionTheNluLeftPersonalDataIn() {
-        PromptPayload payload = ExposureFilter.apply(Level.NONE, "q", "Mr. Müller (max@example.org) is 34 years old "
-                + "and has 12,400 EUR on DE89370400440532013000", List.of(), Map.of(), "", List.of());
+    void nonePassesTheDepersonalisedQuestionAsItIsLikeTheExperiment() {
+        PromptPayload payload = ExposureFilter.apply(Level.NONE, "q",
+                "How long does a monthly withdrawal of 1200 EUR last on 150000 EUR at 4%?", List.of(), Map.of(), "",
+                List.of());
 
-        assertThat(payload.message()).isEqualTo("Mr. X ([EMAIL]) is 30s years old and has 10,000–15,000 EUR on [IBAN]");
+        assertThat(payload.message())
+                .isEqualTo("How long does a monthly withdrawal of 1200 EUR last on 150000 EUR at 4%?");
         assertThat(payload.messageWithheld()).isFalse();
     }
 

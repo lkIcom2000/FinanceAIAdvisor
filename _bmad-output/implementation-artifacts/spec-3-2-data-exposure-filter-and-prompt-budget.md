@@ -144,4 +144,4 @@ deferred:
 - `[high]` `[patch]` `AGE_BEFORE` banded any two-digit number before "Jahre" (horizons, terms) — now only "Jahre alt" / "years old"; tests for "für 15 Jahre", "Laufzeit 20 Jahre"
 - `[high]` `[reject]` `AGGREGATED` bands the amounts of the current question — the level as `exposure.py` and E4 define it; the reference is `none` since `4f333db`
 - `[medium]` `[defer]` `CLIENT` masks capitalised words after a title ("Customer Service Team") — errs on the private side, irrelevant at `none`
-- `[medium]` `[patch]` at `NONE` the depersonalised question went to the model unfiltered — now `filterDerived` (aggregated patterns), a deliberate deviation from `exposure.py`
+- `[medium]` `[patch]` at `NONE` the depersonalised question went to the model unfiltered — now `filterDerived` (aggregated patterns), a deliberate deviation from `exposure.py`. **Reverted 2026-10-26 (Commc):** the epic-end compose check showed answers echoing the user's own figures as bands (the Number Check sourced the bands); at `NONE` the depersonalised question now passes as it is, as `exposure.py`

@@ -85,13 +85,13 @@ public final class ExposureFilter {
 
     /**
      * A message (or history text) as the model may see it at {@code level}. At {@code NONE} the depersonalised
-     * question still passes the aggregated patterns, in case the NLU left an identifier or amount in it (deliberately
-     * stricter than {@code exposure.py}, which passes it as it is).
+     * question passes as it is (as {@code exposure.py}): banding it made answers echo the user's own figures as
+     * ranges, and the Number Check sourced those ranges.
      */
     public static String filterMessage(String message, Level level, String depersonalisedQuestion) {
         if (level == Level.NONE) {
             return depersonalisedQuestion == null || depersonalisedQuestion.isBlank() ? WITHHELD
-                    : filterDerived(depersonalisedQuestion);
+                    : depersonalisedQuestion;
         }
         String out = EMAIL.matcher(message).replaceAll("[EMAIL]");
         out = IBAN.matcher(out).replaceAll("[IBAN]");

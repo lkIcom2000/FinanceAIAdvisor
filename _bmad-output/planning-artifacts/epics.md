@@ -332,6 +332,10 @@ The researcher runs the Q&A, Scenario and Document acceptance suites against the
 The researcher prepares and runs in-person study sessions on the study laptop with research scripts, a complete preset catalogue (including UJ-7 with a planted error) and a dry run. Azure deployment is deferred.
 **FRs covered:** FR-3, FR-31, FR-50 (export)
 
+### Epic 13: Follow-up Fixes
+Improvements found after an epic was closed and added at the user's request (Commc, 2026-10-26). Not part of the original FR mapping; each story names the gap it closes.
+**FRs covered:** none new (refines FR-9, FR-29)
+
 **Dependency flow:** 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12. Each epic builds only on earlier epics. Epics 4–7 can be reordered among themselves after Epic 3; Epic 10 needs Epics 3 and 8 (explanation turn, To-do Trigger, `legal` gate row); Epic 11 runs S15–S18 and therefore follows Epic 10. Epics 5 and 11 are not needed before the user test and can run in parallel with or after it.
 
 **Scope reduction (2026-10-21):** applied per `sprint-change-proposal-2026-10-21-scope.md`. 53 stories remain (was 63). A reserve list of further cuts and the decision point (velocity after Epic 3) are recorded in that proposal, §6.
@@ -1666,3 +1670,30 @@ So that sessions run smoothly and the planted-error task works as designed.
 **When** it is finished
 **Then** a short protocol in `docs/study/dry-run.md` lists issues found and fixes, the session checklist (prepare preset → participant login → task → logout → reset), and confirms that the audit export of the dry run can be written with `export.sh`
 
+---
+
+## Epic 13: Follow-up Fixes
+
+Improvements found after an epic was closed and added at the user's request (Commc, 2026-10-26). Not part of the original FR mapping; each story names the gap it closes.
+
+### Story 13.1: Fine answers in German when written to in German
+
+As a persona,
+I want Fine to answer in the language I wrote in,
+So that a German question gets a German answer.
+
+**Gap:** the Epic 3 compose check (2026-10-26) showed English answers to German questions; the role, class and compliance prompts are English only.
+
+**Acceptance Criteria:**
+
+**Given** a chat message written in German (or English)
+**When** Fine answers
+**Then** the released text, the class texts (refusals, trap callout, profile questions, withheld or escalation notices) and the regeneration path stay in the message's language, and the language used is recorded in the Audit Record
+
+**Given** a German answer
+**When** the Rule Engine checks it
+**Then** the Number Check reads German number formats ("1.234,56 EUR", "4 %"), and the scope, guarantee/timing and product-naming checks have German word lists, with recorded-fixture tests for both languages
+
+**Given** the reference configuration
+**When** the language handling changes prompts
+**Then** the change is a documented deviation from the experiment track (prompt hashes change in the Audit Record)
