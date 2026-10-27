@@ -87,6 +87,12 @@ class ActionService implements Actions {
     }
 
     @Override
+    @Transactional(propagation = Propagation.MANDATORY, readOnly = true)
+    public int activeRules(PersonaScope scope) {
+        return mandates.active(scope);
+    }
+
+    @Override
     @Transactional(propagation = Propagation.MANDATORY)
     public ActionProposal propose(RequestContext context, PersonaScope scope, String fixtureVersion,
             ProposedAction proposed) {

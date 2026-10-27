@@ -24,13 +24,21 @@ public interface Monitoring {
         }
     }
 
+    /** A Notification the run wrote, with the status chip the persona sees ({@code NotificationStatus} name). */
+    record RunNotification(UUID notificationId, String status) {
+    }
+
     /** What a run added: only new Triggers and their outputs. */
-    record Run(List<RunTrigger> triggers, List<RunAction> actions, List<UUID> notificationIds) {
+    record Run(List<RunTrigger> triggers, List<RunAction> actions, List<RunNotification> notifications) {
 
         public Run {
             triggers = List.copyOf(triggers);
             actions = List.copyOf(actions);
-            notificationIds = List.copyOf(notificationIds);
+            notifications = List.copyOf(notifications);
+        }
+
+        public List<UUID> notificationIds() {
+            return notifications.stream().map(RunNotification::notificationId).toList();
         }
     }
 

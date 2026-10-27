@@ -14,4 +14,9 @@ class NoMandates implements MandateLookup {
     public Optional<MandateBounds> covering(PersonaScope scope, GateAction action) {
         return Optional.empty();
     }
+
+    @Override
+    public int active(PersonaScope scope) {
+        return 0;
+    }
 }

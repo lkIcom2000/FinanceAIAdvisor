@@ -9,4 +9,7 @@ import java.util.Optional;
 interface MandateLookup {
 
     Optional<MandateBounds> covering(PersonaScope scope, GateAction action);
+
+    /** The number of the persona's Mandates that are not revoked. */
+    int active(PersonaScope scope);
 }

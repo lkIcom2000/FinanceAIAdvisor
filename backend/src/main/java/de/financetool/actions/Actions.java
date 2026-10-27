@@ -27,6 +27,9 @@ public interface Actions {
      */
     Map<UUID, ActionSummary> summaries(PersonaScope scope, Collection<UUID> actionIds);
 
+    /** The number of the scope's active rules (Mandates), in the caller's transaction; none exist before Epic 9. */
+    int activeRules(PersonaScope scope);
+
     /**
      * The L2 dialog for the scope's Action at {@code context.asOf()}: balances from the Core, the stored reason. Read
      * only, in the caller's transaction.

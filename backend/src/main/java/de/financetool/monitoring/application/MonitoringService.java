@@ -3,6 +3,7 @@ package de.financetool.monitoring.application;
 import de.financetool.actions.ActionProposal;
 import de.financetool.actions.Actions;
 import de.financetool.actions.ProposedAction;
+import de.financetool.actions.domain.ActionState;
 import de.financetool.audit.AuditEntry;
 import de.financetool.audit.AuditKind;
 import de.financetool.audit.AuditWriter;
@@ -21,6 +22,7 @@ import de.financetool.monitoring.adapter.TriggerRepository;
 import de.financetool.monitoring.domain.DetectedTrigger;
 import de.financetool.monitoring.domain.MonitoringSnapshot;
 import de.financetool.monitoring.domain.NotificationOutcome;
+import de.financetool.monitoring.domain.NotificationStatus;
 import de.financetool.monitoring.domain.TriggerDetection;
 import de.financetool.personas.PersonaDirectory;
 import de.financetool.shared.PersonaScope;
@@ -78,7 +80,7 @@ class MonitoringService implements Monitoring {
 
         List<RunTrigger> runTriggers = new ArrayList<>();
         List<RunAction> runActions = new ArrayList<>();
-        List<UUID> notificationIds = new ArrayList<>();
+        List<RunNotification> runNotifications = new ArrayList<>();
         for (DetectedTrigger trigger : detected) {
             UUID triggerId = UUID.randomUUID();
             if (!triggers.insertIfAbsent(scope, new TriggerRepository.Row(triggerId, trigger.type().name(),
@@ -88,12 +90,14 @@ class MonitoringService implements Monitoring {
             runTriggers.add(new RunTrigger(triggerId, trigger.type().name(), trigger.subjectId(), trigger.period()));
 
             UUID actionId = null;
+            ActionState actionState = null;
             if (trigger.action() != null) {
                 DetectedTrigger.PlannedAction planned = trigger.action();
                 ActionProposal proposal = actions.propose(context, scope, fixtureVersion,
                         new ProposedAction(planned.type(), planned.type().regulatoryClass(), planned.amount(),
                                 planned.sourceAccountId(), planned.targetAccountId(), triggerId));
                 actionId = proposal.actionId();
+                actionState = proposal.state();
                 runActions.add(new RunAction(actionId, triggerId, planned.type().name(), proposal.state().name(),
                         proposal.level() == null ? null : proposal.level().name(), proposal.cappingCriteria()));
             }
@@ -109,10 +113,10 @@ class MonitoringService implements Monitoring {
                         note.title(), note.body(), note.citedProvIds(), asOf, note.question()));
                 audit.write(context, new AuditEntry(AuditKind.NOTIFICATION, null, null, fixtureVersion,
                         body(id, trigger, triggerId, linked, caseId, note)));
-                notificationIds.add(id);
+                runNotifications.add(new RunNotification(id, NotificationStatus.of(note.outcome(), actionState).name()));
             }
         }
-        return new Run(runTriggers, runActions, notificationIds);
+        return new Run(runTriggers, runActions, runNotifications);
     }
 
     /** Every figure from the Core with origin {@code MONITORING}; no price, holding or index figure is read. */
