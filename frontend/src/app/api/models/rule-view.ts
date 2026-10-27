@@ -4,7 +4,7 @@
 import { Limits } from '../models/limits';
 
 /**
- * An active rule
+ * A rule, active or stopped
  */
 export interface RuleView {
   actionCount: number;
@@ -18,6 +18,11 @@ export interface RuleView {
   limits: Limits;
 
   /**
+   * The date the rule was stopped; absent while it is active
+   */
+  stoppedOn?: string;
+
+  /**
    * The plain-language summary
    */
   summary: string;
@@ -27,4 +32,9 @@ export interface RuleView {
    * The account money goes to; absent if it no longer exists
    */
   toName?: string;
+
+  /**
+   * Until when the rule's last transfer can be undone; absent if it can't
+   */
+  undoUntil?: string;
 }

@@ -3,10 +3,12 @@ package de.financetool.monitoring.web;
 import de.financetool.actions.InvalidRuleException;
 import de.financetool.actions.Rule;
 import de.financetool.actions.RuleAlreadyActiveException;
+import de.financetool.actions.RuleAlreadyStoppedException;
 import de.financetool.actions.RuleCheck;
 import de.financetool.actions.RuleSetup;
 import de.financetool.actions.domain.RuleBounds;
 import de.financetool.actions.domain.RuleTemplate;
+import de.financetool.actions.domain.UndoWindow;
 import de.financetool.monitoring.application.RulesUseCase;
 import de.financetool.shared.PersonaScope;
 import de.financetool.shared.web.FigureView;
@@ -20,10 +22,13 @@ import java.math.RoundingMode;
 import java.net.URI;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.web.ErrorResponseException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -54,7 +59,7 @@ class RuleController {
         }
     }
 
-    @Schema(description = "An active rule")
+    @Schema(description = "A rule, active or stopped")
     record RuleView(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String id,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) RuleTemplate template,
@@ -64,11 +69,15 @@ class RuleController {
             @Schema(description = "The account money goes to; absent if it no longer exists") String toName,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Limits limits,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDate activeSince,
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int actionCount) {
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int actionCount,
+            @Schema(description = "The date the rule was stopped; absent while it is active") LocalDate stoppedOn,
+            @Schema(description = "Until when the rule's last transfer can be undone; absent if it can't",
+                    example = "Fri 16 Oct, 5 pm") String undoUntil) {
 
         static RuleView of(Rule rule) {
             return new RuleView(rule.id().toString(), rule.template(), rule.summary(), rule.fromName(),
-                    rule.toName(), Limits.of(rule.bounds()), rule.activeSince(), rule.actionCount());
+                    rule.toName(), Limits.of(rule.bounds()), rule.activeSince(), rule.actionCount(),
+                    rule.stoppedOn(), rule.undoUntil() == null ? null : UndoWindow.text(rule.undoUntil()));
         }
     }
 
@@ -110,7 +119,7 @@ class RuleController {
         this.rules = rules;
     }
 
-    @Operation(summary = "Your active rules, oldest first")
+    @Operation(summary = "Your active rules, oldest first, then your stopped rules, latest first")
     @GetMapping("/api/rules")
     List<RuleView> rules(@Parameter(hidden = true) PersonaScope scope) {
         return rules.rules(scope).stream().map(RuleView::of).toList();
@@ -139,6 +148,20 @@ class RuleController {
     @ResponseStatus(HttpStatus.CREATED)
     RuleView start(@Parameter(hidden = true) PersonaScope scope, @RequestBody(required = false) RuleRequest request) {
         return RuleView.of(rules.start(scope, template(request), bounds(request)));
+    }
+
+    @Operation(summary = "Stop a rule; transfers already made stay as they are")
+    @ApiResponse(responseCode = "200", description = "The rule is stopped")
+    @ApiResponse(responseCode = "404", description = "No such rule for this persona")
+    @ApiResponse(responseCode = "409", description = "The rule is already stopped")
+    @PostMapping("/api/rules/{id}/revoke")
+    RuleView revoke(@Parameter(hidden = true) PersonaScope scope, @PathVariable String id) {
+        return RuleView.of(rules.revoke(scope, ruleId(id)).orElseThrow(RuleController::notFound));
+    }
+
+    @ExceptionHandler(RuleAlreadyStoppedException.class)
+    ProblemDetail alreadyStopped() {
+        return problem(HttpStatus.CONFLICT, "This rule has already been stopped.");
     }
 
     @ExceptionHandler(InvalidRuleException.class)
@@ -171,6 +194,19 @@ class RuleController {
 
     private static String cents(BigDecimal value) {
         return value.setScale(2, RoundingMode.HALF_UP).toPlainString();
+    }
+
+    private static UUID ruleId(String id) {
+        try {
+            return UUID.fromString(id);
+        } catch (IllegalArgumentException e) {
+            throw notFound();
+        }
+    }
+
+    private static ErrorResponseException notFound() {
+        return new ErrorResponseException(HttpStatus.NOT_FOUND,
+                problem(HttpStatus.NOT_FOUND, "We couldn't find this rule."), null);
     }
 
     private static ProblemDetail problem(HttpStatus status, String detail) {

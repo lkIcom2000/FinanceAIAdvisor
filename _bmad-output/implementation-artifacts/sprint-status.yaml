@@ -113,7 +113,7 @@ development_status:
   9-1-set-up-a-rule-with-explicit-limits: review
   9-2-fine-acts-within-my-rule-and-tells-me-immediately: review
   9-3-undo-with-one-tap: review
-  9-4-stop-a-rule-at-any-time: backlog
+  9-4-stop-a-rule-at-any-time: review
   epic-9-retrospective: optional
 
   epic-10: backlog  # [critical-path] except 10.6

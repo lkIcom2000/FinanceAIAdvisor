@@ -189,6 +189,32 @@ describe('HomeTabComponent', () => {
     expect(text(card.querySelector('.revoke'))).toBe('Revoke');
     expect(element.querySelector('.section .empty + .empty')).toBeNull();
     expect(card.textContent?.toLowerCase()).not.toContain('mandate');
+    expect(element.querySelector('.stopped')).toBeNull();
+
+    const revoke = vi.spyOn(TestBed.inject(RuleSetupService), 'revoke').mockReturnValue(undefined);
+    (card.querySelector('.revoke') as HTMLButtonElement).click();
+    expect(revoke).toHaveBeenCalledWith(expect.objectContaining({ id: 'r1' }));
+  });
+
+  it('lists stopped rules collapsed with their stop date and without Revoke', async () => {
+    const rule: RuleView = {
+      id: 'r1',
+      template: 'SAFETY_CUSHION',
+      summary: 'Keep my current account above 0 EUR',
+      limits: { maxPerAction: '300.00', maxPerMonth: '600.00', floor: '2000.00' },
+      activeSince: '2026-10-03',
+      actionCount: 1,
+      stoppedOn: '2026-10-15',
+    };
+    const element = await render(home(), null, [rule]);
+    expect(element.querySelector('.rule')).toBeNull();
+    expect(text(element.querySelector('section:has(.stopped) .empty'))).toBe('You have no active rules.');
+    const stopped = element.querySelector('details.stopped') as HTMLDetailsElement;
+    expect(stopped.open).toBe(false);
+    expect(text(stopped.querySelector('summary'))).toBe('Stopped rules (1)');
+    expect(text(stopped.querySelector('.stopped-summary'))).toBe('Keep my current account above 0 EUR');
+    expect(text(stopped.querySelector('li .supporting'))).toBe('Stopped on 15 Oct 2026');
+    expect(stopped.querySelector('.revoke')).toBeNull();
   });
 
   it("lists Jonas's contracts with the duplicate and missing-cover lines", async () => {

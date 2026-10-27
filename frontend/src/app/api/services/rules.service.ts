@@ -13,6 +13,8 @@ import { StrictHttpResponse } from '../strict-http-response';
 import { check } from '../fn/rules/check';
 import { Check$Params } from '../fn/rules/check';
 import { CheckView } from '../models/check-view';
+import { revoke } from '../fn/rules/revoke';
+import { Revoke$Params } from '../fn/rules/revoke';
 import { rules } from '../fn/rules/rules';
 import { Rules$Params } from '../fn/rules/rules';
 import { RuleView } from '../models/rule-view';
@@ -36,7 +38,7 @@ export class RulesService extends BaseService {
   static readonly RulesPath = '/api/rules';
 
   /**
-   * Your active rules, oldest first.
+   * Your active rules, oldest first, then your stopped rules, latest first.
    *
    *
    *
@@ -51,7 +53,7 @@ export class RulesService extends BaseService {
   }
 
   /**
-   * Your active rules, oldest first.
+   * Your active rules, oldest first, then your stopped rules, latest first.
    *
    *
    *
@@ -169,6 +171,41 @@ export class RulesService extends BaseService {
     const resp = this.setup$Response(params, context);
     return resp.pipe(
       map((r: StrictHttpResponse<Array<TemplateView>>): Array<TemplateView> => r.body)
+    );
+  }
+
+  /** Path part for operation `revoke()` */
+  static readonly RevokePath = '/api/rules/{id}/revoke';
+
+  /**
+   * Stop a rule; transfers already made stay as they are.
+   *
+   *
+   *
+   * This method provides access to the full `HttpResponse`, allowing access to response headers.
+   * To access only the response body, use `revoke()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  revoke$Response(params: Revoke$Params, context?: HttpContext): Observable<StrictHttpResponse<RuleView>> {
+    const obs = revoke(this.http, this.rootUrl, params, context);
+    return obs;
+  }
+
+  /**
+   * Stop a rule; transfers already made stay as they are.
+   *
+   *
+   *
+   * This method provides access only to the response body.
+   * To access the full response (for headers, for example), `revoke$Response()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  revoke(params: Revoke$Params, context?: HttpContext): Observable<RuleView> {
+    const resp = this.revoke$Response(params, context);
+    return resp.pipe(
+      map((r: StrictHttpResponse<RuleView>): RuleView => r.body)
     );
   }
 

@@ -1,0 +1,17 @@
+h2 {
+  font: var(--fine-title);
+  color: var(--mat-sys-on-surface);
+}
+
+.rule-summary {
+  margin: 0 0 12px;
+  font: var(--fine-body);
+  font-weight: 600;
+  color: var(--mat-sys-on-surface);
+}
+
+.consequence {
+  margin: 0;
+  font: var(--fine-body);
+  color: var(--mat-sys-on-surface-variant);
+}

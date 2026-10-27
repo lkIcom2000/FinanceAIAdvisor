@@ -240,8 +240,39 @@
   color: var(--mat-sys-error);
   cursor: pointer;
 
-  &:disabled {
-    cursor: default;
-    opacity: 0.6;
+}
+
+.stopped {
+  margin-top: 12px;
+
+  summary {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    font: var(--fine-label);
+    font-weight: 600;
+    color: var(--mat-sys-on-surface-variant);
+    cursor: pointer;
   }
+}
+
+.stopped-rules {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: grid;
+    gap: 2px;
+    padding: 12px 16px;
+    border: 1px solid var(--mat-sys-outline-variant);
+    border-radius: var(--fine-radius-card);
+  }
+}
+
+.stopped-summary {
+  font: var(--fine-body);
+  color: var(--mat-sys-on-surface-variant);
 }

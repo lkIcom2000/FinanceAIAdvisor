@@ -729,7 +729,7 @@
             "description" : "OK"
           }
         },
-        "summary" : "Your active rules, oldest first",
+        "summary" : "Your active rules, oldest first, then your stopped rules, latest first",
         "tags" : [ "rules" ]
       },
       "post" : {
@@ -836,6 +836,53 @@
           }
         },
         "summary" : "The rule templates with the limits Fine suggests; empty without both accounts",
+        "tags" : [ "rules" ]
+      }
+    },
+    "/api/rules/{id}/revoke" : {
+      "post" : {
+        "operationId" : "revoke",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RuleView"
+                }
+              }
+            },
+            "description" : "The rule is stopped"
+          },
+          "404" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RuleView"
+                }
+              }
+            },
+            "description" : "No such rule for this persona"
+          },
+          "409" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RuleView"
+                }
+              }
+            },
+            "description" : "The rule is already stopped"
+          }
+        },
+        "summary" : "Stop a rule; transfers already made stay as they are",
         "tags" : [ "rules" ]
       }
     }
@@ -2059,7 +2106,7 @@
       },
       "RuleView" : {
         "type" : "object",
-        "description" : "An active rule",
+        "description" : "A rule, active or stopped",
         "properties" : {
           "actionCount" : {
             "type" : "integer",
@@ -2079,6 +2126,11 @@
           "limits" : {
             "$ref" : "#/components/schemas/Limits"
           },
+          "stoppedOn" : {
+            "type" : "string",
+            "format" : "date",
+            "description" : "The date the rule was stopped; absent while it is active"
+          },
           "summary" : {
             "type" : "string",
             "description" : "The plain-language summary"
@@ -2090,6 +2142,11 @@
           "toName" : {
             "type" : "string",
             "description" : "The account money goes to; absent if it no longer exists"
+          },
+          "undoUntil" : {
+            "type" : "string",
+            "description" : "Until when the rule's last transfer can be undone; absent if it can't",
+            "example" : "Fri 16 Oct, 5 pm"
           }
         },
         "required" : [ "actionCount", "activeSince", "id", "limits", "summary", "template" ]

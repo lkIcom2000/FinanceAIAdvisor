@@ -26,9 +26,16 @@
 - Frontend: Undo transfer button (no dialog, disabled + aria-busy in flight, snackbar, refresh), "Undo was possible until …" text. `RuleTexts.UNDO_AND_STOP` says "until 5 pm on the next business day".
 - verify 889/0/0, frontend 135. Commit: see `git log` "feat: Story 9.3".
 
-## Next: Story 9.4 (stop a rule at any time)
+## State after Story 9.4 (2026-10-27)
 
-- Revoke dialog text names the last undo deadline ("you can still undo the last one until …"): latest `EXECUTED` rule Action's `UndoWindow` deadline if still open. `MandateRepository.activeOf` already ignores revoked rules; Revoke button on the rule card is visible but disabled since 9.1.
+- Spec `spec-9-4-stop-a-rule-at-any-time.md` (sprint-status `review`). `Actions.revokeRule` (row `FOR UPDATE`, `revoked_at` = asOf clamped to `created_at`, audit `event: rule_revoked`, `RuleAlreadyStoppedException` → 409, foreign/unknown → 404). Gate unchanged: `activeOf` ignores revoked rules → L2 `NO_COVERING_MANDATE`.
+- `Actions.rules` returns active (oldest first) then stopped (latest stop first); `Rule.stoppedOn`, `Rule.undoUntil` (latest EXECUTED rule Action's deadline if open, `MandateRepository.lastExecuted`). API `RuleView.stoppedOn/undoUntil` (text), `POST /api/rules/{id}/revoke` → `RuleView`.
+- Frontend: `RevokeRuleDialogComponent` ("Stop this rule?", Keep it / Stop this rule), `RuleSetupService.revoke`, `started` renamed `changed`; Home "Stopped rules (n)" `<details>`.
+- verify 893/0/0, frontend 143. Commit: see `git log` "feat: Story 9.4".
+
+## Next
+
+- Epic 9 stories are all built (9.1–9.4). Epic 9 end: batched follow-up review, epic-end compose check, joint Epic 8 + 9 retro.
 
 ## Checklist per story (lean loop, memory build-loop-economy)
 

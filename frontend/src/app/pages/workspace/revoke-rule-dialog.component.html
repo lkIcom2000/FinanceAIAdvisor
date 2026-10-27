@@ -1,0 +1,27 @@
+<h2 mat-dialog-title>Stop this rule?</h2>
+<mat-dialog-content>
+  <p class="rule-summary">{{ rule.summary }}</p>
+  <p class="consequence">{{ consequence }}</p>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button
+    mat-button
+    type="button"
+    class="keep"
+    [disabled]="busy()"
+    mat-dialog-close
+    cdkFocusInitial
+  >
+    Keep it
+  </button>
+  <button
+    mat-flat-button
+    type="button"
+    class="stop"
+    [disabled]="busy()"
+    [attr.aria-busy]="busy()"
+    (click)="stop()"
+  >
+    Stop this rule
+  </button>
+</mat-dialog-actions>

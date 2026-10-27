@@ -34,11 +34,24 @@ public interface Actions {
     int activeRules(PersonaScope scope);
 
     /**
-     * The scope's rules that are not revoked, oldest first, read only in the caller's transaction.
+     * The scope's rules: those not revoked, oldest first, then the revoked ones, latest revocation first; read only in
+     * the caller's transaction.
      *
      * @throws IllegalArgumentException if {@code scope} is not the context's persona
      */
     List<Rule> rules(RequestContext context, PersonaScope scope);
+
+    /**
+     * Stops a rule (FR-38, AD-10) on {@code context.asOf()}: sets its revocation date, never deletes it, and writes an
+     * {@code ACTION} Audit Record ({@code event: rule_revoked}), in the caller's transaction. Later Actions it would
+     * have covered go through the gate without it.
+     *
+     * @param fixtureVersion the persona's fixture version, for the Audit Record
+     * @return the stopped rule; empty if the rule is not the persona's
+     * @throws RuleAlreadyStoppedException if the rule is already revoked
+     * @throws IllegalArgumentException if {@code scope} is not the context's persona
+     */
+    Optional<Rule> revokeRule(RequestContext context, PersonaScope scope, String fixtureVersion, UUID ruleId);
 
     /**
      * The rule templates with the limits the Core suggests at {@code context.asOf()} (its figures are stored as

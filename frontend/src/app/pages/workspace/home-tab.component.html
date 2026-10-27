@@ -59,9 +59,9 @@
     @let rs = rules();
     @if (rs === 'failed') {
       <p class="error" role="alert">We couldn't load your rules. Please try again later.</p>
-    } @else if (rs && rs.length) {
+    } @else if (rs && activeRules().length) {
       <ul class="rules">
-        @for (r of rs; track r.id) {
+        @for (r of activeRules(); track r.id) {
           <li class="rule">
             <h3 class="rule-title">{{ r.summary }}</h3>
             <dl class="bounds">
@@ -86,17 +86,33 @@
             <p class="supporting">{{ actionsLine(r.actionCount) }}</p>
             <div class="rule-status">
               <span>Active since {{ formatDate(r.activeSince) }}</span>
-              <!-- Story 9.4 makes Revoke work; it is always visible on the card (UX-DR22). -->
-              <button type="button" class="revoke" disabled>Revoke</button>
+              <button type="button" class="revoke" aria-haspopup="dialog" (click)="revokeRule(r)">
+                Revoke
+              </button>
             </div>
           </li>
         }
       </ul>
+    } @else if (rs && rs.length) {
+      <p class="empty">You have no active rules.</p>
     } @else if (rs) {
       <p class="empty">
         You haven't set up any rules. With a rule, Fine can take care of small things for you, like
         keeping your current account above zero.
       </p>
+    }
+    @if (stoppedRules().length) {
+      <details class="stopped">
+        <summary>Stopped rules ({{ stoppedRules().length }})</summary>
+        <ul class="stopped-rules">
+          @for (r of stoppedRules(); track r.id) {
+            <li>
+              <span class="stopped-summary">{{ r.summary }}</span>
+              <span class="supporting">Stopped on {{ formatDate(r.stoppedOn!) }}</span>
+            </li>
+          }
+        </ul>
+      </details>
     }
   </section>
 

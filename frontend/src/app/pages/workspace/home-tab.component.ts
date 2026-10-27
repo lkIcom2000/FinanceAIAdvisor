@@ -58,18 +58,33 @@ export class HomeTabComponent {
   private readonly ruleSetup = inject(RuleSetupService);
   private readonly rulesApi = inject(RulesService);
 
-  /** The active rules, reloaded after a rule was started; `undefined` while loading. */
+  /** All rules, reloaded after a rule was started or stopped; `undefined` while loading. */
   protected readonly rules = toSignal<RuleView[] | 'failed' | undefined>(
-    toObservable(this.ruleSetup.started).pipe(
+    toObservable(this.ruleSetup.changed).pipe(
       switchMap(() => this.rulesApi.rules().pipe(catchError(() => of<'failed'>('failed')))),
     ),
     { initialValue: undefined },
   );
 
+  protected readonly activeRules = computed(() => {
+    const rs = this.rules();
+    return Array.isArray(rs) ? rs.filter((r) => !r.stoppedOn) : [];
+  });
+
+  /** The stopped rules for the collapsed list, in the backend's order (latest stop first). */
+  protected readonly stoppedRules = computed(() => {
+    const rs = this.rules();
+    return Array.isArray(rs) ? rs.filter((r) => r.stoppedOn) : [];
+  });
+
   protected readonly formatDate = formatDate;
 
   protected setupRule(): void {
     this.ruleSetup.open();
+  }
+
+  protected revokeRule(rule: RuleView): void {
+    this.ruleSetup.revoke(rule);
   }
 
   protected actionsLine(count: number): string {

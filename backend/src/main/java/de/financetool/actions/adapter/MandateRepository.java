@@ -62,6 +62,45 @@ public class MandateRepository {
                 .list();
     }
 
+    /** All of the persona's rules: active ones oldest first, then revoked ones, latest revocation first. */
+    public List<Row> all(PersonaScope scope) {
+        return jdbc.sql("SELECT " + COLUMNS + """
+                 FROM mandates WHERE persona_id = ?
+                ORDER BY revoked_at IS NOT NULL, revoked_at DESC, created_at, template, id""")
+                .param(scope.id())
+                .query((rs, n) -> row(rs))
+                .list();
+    }
+
+    /** The persona's rule, locked until the transaction ends; empty if it is another persona's or unknown. */
+    public Optional<Row> findForUpdate(PersonaScope scope, UUID id) {
+        return jdbc.sql("SELECT " + COLUMNS + " FROM mandates WHERE persona_id = ? AND id = ? FOR UPDATE")
+                .params(scope.id(), id)
+                .query((rs, n) -> row(rs))
+                .optional();
+    }
+
+    /** Sets the revocation date of the persona's rule if it is still active; returns whether a row changed. */
+    public boolean revoke(PersonaScope scope, UUID id, LocalDate revokedAt) {
+        return jdbc.sql("UPDATE mandates SET revoked_at = ? WHERE persona_id = ? AND id = ? AND revoked_at IS NULL")
+                .params(revokedAt, scope.id(), id)
+                .update() == 1;
+    }
+
+    /** The simulated date of each rule's latest executed Action up to {@code asOf}; a rule without any is left out. */
+    public Map<UUID, LocalDate> lastExecuted(PersonaScope scope, LocalDate asOf) {
+        Map<UUID, LocalDate> dates = new HashMap<>();
+        jdbc.sql("""
+                SELECT mandate_id, max(as_of) AS last FROM actions
+                WHERE persona_id = ? AND mandate_id IS NOT NULL AND state = 'EXECUTED' AND as_of <= ?
+                GROUP BY mandate_id""")
+                .params(scope.id(), asOf)
+                .query(rs -> {
+                    dates.put(rs.getObject("mandate_id", UUID.class), rs.getObject("last", LocalDate.class));
+                });
+        return dates;
+    }
+
     /**
      * The persona's rule of the template that is not revoked, if any (at most one, by the partial unique index),
      * locked until the transaction ends so gate runs under the same rule see each other's month sum.

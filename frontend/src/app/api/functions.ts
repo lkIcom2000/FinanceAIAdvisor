@@ -49,3 +49,5 @@ export type { Check$Params as Check$Params } from './fn/rules/check';
 export { check as check } from './fn/rules/check';
 export type { Setup$Params as Setup$Params } from './fn/rules/setup';
 export { setup as setup } from './fn/rules/setup';
+export type { Revoke$Params as Revoke$Params } from './fn/rules/revoke';
+export { revoke as revoke } from './fn/rules/revoke';

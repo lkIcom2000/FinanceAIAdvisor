@@ -163,4 +163,32 @@ class RuleControllerTest extends PostgresIntegrationTest {
         assertThat(jdbc.queryForObject("SELECT count(*) FROM mandates WHERE persona_id = 'p-lena'", Long.class))
                 .isZero();
     }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void stoppingARuleMovesItToTheStoppedRulesAndAllowsANewOne() throws Exception {
+        Map<String, Object> started = json(call("POST", "/api/rules", CUSHION, lena, status().isCreated()),
+                Map.class);
+        String revoke = "/api/rules/" + started.get("id") + "/revoke";
+        MockHttpSession marco = login(mvc, "p-marco");
+        call("POST", revoke, "", marco, status().isNotFound());
+        call("POST", "/api/rules/not-a-rule/revoke", "", lena, status().isNotFound());
+
+        Map<String, Object> stopped = json(call("POST", revoke, "", lena, status().isOk()), Map.class);
+
+        String today = contexts.forPersona(new PersonaScope(LENA), null).asOf().toString();
+        assertThat(stopped.get("stoppedOn")).isEqualTo(today);
+        assertThat(stopped.get("undoUntil")).isNull();
+        assertThat(call("POST", revoke, "", lena, status().isConflict()))
+                .contains("This rule has already been stopped.");
+        assertThat(jdbc.queryForObject("SELECT payload->'body'->>'event' FROM audit_records WHERE action_id = ?::uuid"
+                + " AND kind = 'ACTION' AND payload->'body'->>'event' = 'rule_revoked'", String.class,
+                started.get("id"))).isEqualTo("rule_revoked");
+        Integer active = transaction.execute(tx -> actions.activeRules(new PersonaScope(LENA)));
+        assertThat(active).isZero();
+
+        call("POST", "/api/rules", CUSHION, lena, status().isCreated());
+        List<Map<String, Object>> rules = json(call("GET", "/api/rules", null, lena, status().isOk()), List.class);
+        assertThat(rules).extracting(r -> r.get("stoppedOn")).containsExactly(null, today);
+    }
 }

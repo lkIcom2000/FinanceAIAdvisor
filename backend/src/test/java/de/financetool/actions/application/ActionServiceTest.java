@@ -14,6 +14,8 @@ import de.financetool.actions.Actions;
 import de.financetool.actions.NotAwaitingConfirmationException;
 import de.financetool.actions.NotUndoableException;
 import de.financetool.actions.ProposedAction;
+import de.financetool.actions.Rule;
+import de.financetool.actions.RuleAlreadyStoppedException;
 import de.financetool.actions.adapter.ActionRepository;
 import de.financetool.actions.adapter.MandateRepository;
 import de.financetool.actions.domain.ActionState;
@@ -583,5 +585,60 @@ class ActionServiceTest extends PostgresIntegrationTest {
                 .isInstanceOf(NotUndoableException.class)
                 .hasMessage("This transfer can't be undone.");
         assertThat(undo(OCT_15, UUID.randomUUID())).isEmpty();
+    }
+
+    // Story 9.4: stop a rule at any time.
+
+    Optional<Rule> revoke(LocalDate date, UUID ruleId) {
+        return transaction.execute(tx -> actions.revokeRule(on(date), scope, FIXTURE, ruleId));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void afterLenaStopsHerRuleTheNextShortfallWaitsForHerOk() {
+        UUID ruleId = rule(RuleTemplate.SAFETY_CUSHION, "300.00", "600.00", "2000.00");
+        assertThat(shortfall("90.00").state()).isEqualTo(ActionState.EXECUTED);
+
+        Rule stopped = revoke(OCT_15, ruleId).orElseThrow();
+
+        assertThat(stopped.stoppedOn()).isEqualTo(OCT_15);
+        assertThat(stopped.undoUntil()).isEqualTo(OCT_15.plusDays(1));
+        assertThat(stopped.actionCount()).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT revoked_at FROM mandates WHERE id = ?", LocalDate.class, ruleId))
+                .isEqualTo(OCT_15);
+        assertThat(auditRows(ruleId)).extracting(r -> (String) ((Map<String, Object>) JsonMapper.builder().build()
+                .readValue((String) r.get("payload"), Map.class).get("body")).get("event"))
+                .containsExactlyInAnyOrder("rule_created", "rule_revoked");
+
+        ActionProposal next = shortfall("90.00");
+
+        assertThat(next.level()).isEqualTo(AutonomyLevel.L2);
+        assertThat(next.cappingCriteria()).containsExactly(AutonomyGate.NO_COVERING_MANDATE);
+        assertThat(bankLegs()).isEqualTo(2);
+        assertThatThrownBy(() -> revoke(OCT_15, ruleId)).isInstanceOf(RuleAlreadyStoppedException.class);
+        assertThat(revoke(OCT_15, UUID.randomUUID())).isEmpty();
+    }
+
+    @Test
+    void stoppedRulesFollowTheActiveOnesAndTheUndoDeadlineEnds() {
+        UUID cushion = rule(RuleTemplate.SAFETY_CUSHION, "300.00", "600.00", "2000.00");
+        shortfall("90.00");
+        revoke(OCT_15, cushion);
+        UUID again = rule(RuleTemplate.SAFETY_CUSHION, "300.00", "600.00", "2000.00");
+
+        List<Rule> onDeadline = transaction.execute(tx -> actions.rules(on(OCT_15.plusDays(1)), scope));
+        List<Rule> afterDeadline = transaction.execute(tx -> actions.rules(on(OCT_15.plusDays(2)), scope));
+
+        assertThat(onDeadline).extracting(Rule::id).containsExactly(again, cushion);
+        assertThat(onDeadline.get(1).undoUntil()).isEqualTo(OCT_15.plusDays(1));
+        assertThat(onDeadline.get(0).stoppedOn()).isNull();
+        assertThat(afterDeadline.get(1).undoUntil()).isNull();
+    }
+
+    @Test
+    void aRuleStoppedOnADateBeforeItsStartIsStoppedOnItsStartDate() {
+        UUID ruleId = rule(RuleTemplate.SAFETY_CUSHION, "300.00", "600.00", "2000.00");
+
+        assertThat(revoke(OCT_15.minusDays(3), ruleId).orElseThrow().stoppedOn()).isEqualTo(OCT_15);
     }
 }

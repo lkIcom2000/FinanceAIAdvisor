@@ -12,6 +12,7 @@ import de.financetool.actions.ProposedAction;
 import de.financetool.actions.InvalidRuleException;
 import de.financetool.actions.Rule;
 import de.financetool.actions.RuleAlreadyActiveException;
+import de.financetool.actions.RuleAlreadyStoppedException;
 import de.financetool.actions.RuleCheck;
 import de.financetool.actions.RuleSetup;
 import de.financetool.actions.adapter.ActionRepository;
@@ -50,6 +51,7 @@ import de.financetool.shared.PersonaScope;
 import de.financetool.shared.RequestContext;
 import de.financetool.shared.domain.SourcedNumber;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -124,18 +126,55 @@ class ActionService implements Actions {
     @Transactional(propagation = Propagation.MANDATORY, readOnly = true)
     public List<Rule> rules(RequestContext context, PersonaScope scope) {
         requireSamePersona(context, scope);
-        List<MandateRepository.Row> rows = mandateRows.active(scope);
+        List<MandateRepository.Row> rows = mandateRows.all(scope);
         if (rows.isEmpty()) {
             return List.of();
         }
         BankSnapshot snapshot = bank.snapshot(scope.personaId(), context.asOf());
         Map<UUID, Integer> counts = mandateRows.actionCounts(scope);
-        return rows.stream()
-                .map(r -> new Rule(r.id(), r.template(), RuleTexts.summary(r.template(), r.bounds()),
-                        account(snapshot, r.sourceAccountId()).map(BankSnapshot.Account::name).orElse(null),
-                        account(snapshot, r.targetAccountId()).map(BankSnapshot.Account::name).orElse(null),
-                        r.bounds(), r.createdAt(), counts.getOrDefault(r.id(), 0)))
-                .toList();
+        Map<UUID, LocalDate> lastExecuted = mandateRows.lastExecuted(scope, context.asOf());
+        return rows.stream().map(r -> rule(r, snapshot, counts, lastExecuted, context.asOf())).toList();
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Optional<Rule> revokeRule(RequestContext context, PersonaScope scope, String fixtureVersion,
+            UUID ruleId) {
+        requireSamePersona(context, scope);
+        Optional<MandateRepository.Row> found = mandateRows.findForUpdate(scope, ruleId);
+        if (found.isEmpty()) {
+            return Optional.empty();
+        }
+        // A simulated date before the rule's start (persona date moved back) still stops it, on its start date.
+        LocalDate revokedAt = context.asOf().isBefore(found.get().createdAt()) ? found.get().createdAt()
+                : context.asOf();
+        if (found.get().revokedAt() != null || !mandateRows.revoke(scope, ruleId, revokedAt)) {
+            throw new RuleAlreadyStoppedException();
+        }
+        MandateRepository.Row row = found.get();
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("event", "rule_revoked");
+        body.put("mandateId", row.id());
+        body.put("template", row.template().name());
+        body.put("revokedAt", revokedAt);
+        audit.write(context, new AuditEntry(AuditKind.ACTION, null, row.id(), fixtureVersion, body));
+
+        MandateRepository.Row revoked = new MandateRepository.Row(row.id(), row.template(), row.bounds(),
+                row.sourceAccountId(), row.targetAccountId(), row.createdAt(), revokedAt);
+        return Optional.of(rule(revoked, bank.snapshot(scope.personaId(), context.asOf()),
+                mandateRows.actionCounts(scope), mandateRows.lastExecuted(scope, context.asOf()), context.asOf()));
+    }
+
+    private static Rule rule(MandateRepository.Row r, BankSnapshot snapshot, Map<UUID, Integer> counts,
+            Map<UUID, LocalDate> lastExecuted, LocalDate asOf) {
+        LocalDate undoUntil = Optional.ofNullable(lastExecuted.get(r.id()))
+                .filter(executedOn -> UndoWindow.isOpen(executedOn, asOf))
+                .map(UndoWindow::deadline)
+                .orElse(null);
+        return new Rule(r.id(), r.template(), RuleTexts.summary(r.template(), r.bounds()),
+                account(snapshot, r.sourceAccountId()).map(BankSnapshot.Account::name).orElse(null),
+                account(snapshot, r.targetAccountId()).map(BankSnapshot.Account::name).orElse(null),
+                r.bounds(), r.createdAt(), counts.getOrDefault(r.id(), 0), r.revokedAt(), undoUntil);
     }
 
     @Override
@@ -193,7 +232,7 @@ class ActionService implements Actions {
         }
         audit.write(context, new AuditEntry(AuditKind.ACTION, null, row.id(), fixtureVersion, ruleBody(row)));
         return new Rule(row.id(), template, RuleTexts.summary(template, bounds), from.name(), to.name(), bounds,
-                row.createdAt(), 0);
+                row.createdAt(), 0, null, null);
     }
 
     private RuleSetup setup(PersonaScope scope, RuleTemplate template, BankSnapshot.Account from,
