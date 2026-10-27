@@ -16,10 +16,13 @@ import { ConfirmResult } from '../models/confirm-result';
 import { review } from '../fn/actions/review';
 import { Review$Params } from '../fn/actions/review';
 import { TransferReview } from '../models/transfer-review';
+import { undo } from '../fn/actions/undo';
+import { Undo$Params } from '../fn/actions/undo';
+import { UndoResult } from '../models/undo-result';
 
 
 /**
- * Confirm a transfer Fine prepared
+ * Confirm or undo a transfer
  */
 @Injectable({ providedIn: 'root' })
 export class ActionsService extends BaseService {
@@ -94,6 +97,41 @@ export class ActionsService extends BaseService {
     const resp = this.review$Response(params, context);
     return resp.pipe(
       map((r: StrictHttpResponse<TransferReview>): TransferReview => r.body)
+    );
+  }
+
+  /** Path part for operation `undo()` */
+  static readonly UndoPath = '/api/actions/{id}/undo';
+
+  /**
+   * Undo a transfer Fine made within your rule, until its deadline.
+   *
+   *
+   *
+   * This method provides access to the full `HttpResponse`, allowing access to response headers.
+   * To access only the response body, use `undo()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  undo$Response(params: Undo$Params, context?: HttpContext): Observable<StrictHttpResponse<UndoResult>> {
+    const obs = undo(this.http, this.rootUrl, params, context);
+    return obs;
+  }
+
+  /**
+   * Undo a transfer Fine made within your rule, until its deadline.
+   *
+   *
+   *
+   * This method provides access only to the response body.
+   * To access the full response (for headers, for example), `undo$Response()` instead.
+   *
+   * This method doesn't expect any request body.
+   */
+  undo(params: Undo$Params, context?: HttpContext): Observable<UndoResult> {
+    const resp = this.undo$Response(params, context);
+    return resp.pipe(
+      map((r: StrictHttpResponse<UndoResult>): UndoResult => r.body)
     );
   }
 

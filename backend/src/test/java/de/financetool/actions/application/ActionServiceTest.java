@@ -9,8 +9,10 @@ import static org.mockito.Mockito.when;
 import de.financetool.PostgresIntegrationTest;
 import de.financetool.actions.ActionConfirmation;
 import de.financetool.actions.ActionProposal;
+import de.financetool.actions.ActionUndo;
 import de.financetool.actions.Actions;
 import de.financetool.actions.NotAwaitingConfirmationException;
+import de.financetool.actions.NotUndoableException;
 import de.financetool.actions.ProposedAction;
 import de.financetool.actions.adapter.ActionRepository;
 import de.financetool.actions.adapter.MandateRepository;
@@ -485,5 +487,101 @@ class ActionServiceTest extends PostgresIntegrationTest {
                 LENA.value())).isZero();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM mandates WHERE persona_id = ?", Long.class,
                 LENA.value())).isZero();
+    }
+
+    // Story 9.3: undo with one tap. 15 Oct 2026 is a Thursday, so the deadline is Fri 16 Oct.
+
+    RequestContext on(LocalDate date) {
+        return new RequestContext(context.agentConfig(), context.configFingerprint(), context.thresholds(),
+                context.kbSnapshot(), context.seeds(), date, context.personaId(), context.runId());
+    }
+
+    Optional<ActionUndo> undo(LocalDate date, UUID actionId) {
+        return transaction.execute(tx -> actions.undo(on(date), scope, FIXTURE, actionId));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void lenaUndoesTheRuleTransferOnTheDeadlineDate() {
+        rule(RuleTemplate.SAFETY_CUSHION, "300.00", "300.00", "2000.00");
+        UUID original = shortfall("90.00").actionId();
+        assertThat(transaction.execute(tx -> actions.summaries(scope, List.of(original))).get(original).undoUntil())
+                .isEqualTo(OCT_15.plusDays(1));
+
+        ActionUndo undone = undo(OCT_15.plusDays(1), original).orElseThrow();
+
+        assertThat(undone.amount()).isEqualByComparingTo("90.00");
+        assertThat(undone.backInOvernight()).isTrue();
+        assertThat(repository.find(scope, original).orElseThrow().state()).isEqualTo(ActionState.UNDONE);
+        Map<String, Object> compensating = jdbc.queryForMap("SELECT id, state, source_account_id, target_account_id,"
+                + " mandate_id, as_of FROM actions WHERE undoes_id = ?", original);
+        assertThat(compensating).containsEntry("state", "EXECUTED").containsEntry("source_account_id", current)
+                .containsEntry("target_account_id", overnight).containsEntry("mandate_id", null);
+        assertThat(bankLegs()).isEqualTo(4);
+        Map<?, ?> body = (Map<?, ?>) JsonMapper.builder().build().readValue(
+                (String) auditRows((UUID) compensating.get("id")).getFirst().get("payload"), Map.class).get("body");
+        assertThat(body.get("event")).isEqualTo("undo");
+        assertThat(body.get("undoesId")).isEqualTo(original.toString());
+        assertThat((Map<String, Object>) body.get("transfer")).containsKeys("debitTransactionId",
+                "creditTransactionId");
+
+        // The undone transfer no longer counts toward the month, and reset still deletes everything.
+        assertThat(shortfall("300.00").state()).isEqualTo(ActionState.EXECUTED);
+        resetPersona.reset(LENA);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM actions WHERE persona_id = ?", Long.class,
+                LENA.value())).isZero();
+    }
+
+    @Test
+    void anUndoneTopUpGoesBackToTheCurrentAccount() {
+        rule(RuleTemplate.EMERGENCY_FUND_TOP_UP, "300.00", "600.00", "0.00");
+        UUID original = propose(actions, new ProposedAction(ActionType.EF_TOP_UP, RegulatoryClass.PAYMENT,
+                new BigDecimal("100.00"), current, overnight, UUID.randomUUID())).actionId();
+
+        ActionUndo undone = undo(OCT_15, original).orElseThrow();
+
+        assertThat(undone.backInOvernight()).isFalse();
+        assertThat(jdbc.queryForObject("SELECT target_account_id FROM actions WHERE undoes_id = ?", UUID.class,
+                original)).isEqualTo(current);
+    }
+
+    @Test
+    void anUndoAfterTheDeadlineIsRejectedAndBooksNothing() {
+        rule(RuleTemplate.SAFETY_CUSHION, "300.00", "600.00", "2000.00");
+        UUID original = shortfall("90.00").actionId();
+
+        assertThatThrownBy(() -> undo(OCT_15.plusDays(2), original))
+                .isInstanceOf(NotUndoableException.class)
+                .hasMessage("Undo was possible until Fri 16 Oct, 5 pm.");
+        assertThat(repository.find(scope, original).orElseThrow().state()).isEqualTo(ActionState.EXECUTED);
+        assertThat(bankLegs()).isEqualTo(2);
+    }
+
+    @Test
+    void aSecondUndoIsRejected() {
+        rule(RuleTemplate.SAFETY_CUSHION, "300.00", "600.00", "2000.00");
+        UUID original = shortfall("90.00").actionId();
+        undo(OCT_15, original);
+
+        assertThatThrownBy(() -> undo(OCT_15, original))
+                .isInstanceOf(NotUndoableException.class)
+                .hasMessage("This transfer has already been undone.");
+        UUID compensating = jdbc.queryForObject("SELECT id FROM actions WHERE undoes_id = ?", UUID.class, original);
+        assertThatThrownBy(() -> undo(OCT_15, compensating))
+                .isInstanceOf(NotUndoableException.class)
+                .hasMessage("This transfer can't be undone.");
+        assertThat(bankLegs()).isEqualTo(4);
+    }
+
+    @Test
+    void onlyARuleTransferCanBeUndone() {
+        UUID awaiting = shortfall("90.00").actionId();
+        transaction.execute(tx -> actions.confirm(context, scope, FIXTURE, awaiting));
+        assertThat(repository.find(scope, awaiting).orElseThrow().state()).isEqualTo(ActionState.EXECUTED);
+
+        assertThatThrownBy(() -> undo(OCT_15, awaiting))
+                .isInstanceOf(NotUndoableException.class)
+                .hasMessage("This transfer can't be undone.");
+        assertThat(undo(OCT_15, UUID.randomUUID())).isEmpty();
     }
 }

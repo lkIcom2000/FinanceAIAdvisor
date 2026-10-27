@@ -19,7 +19,7 @@ public final class RuleTexts {
     /** The largest limit a rule accepts. */
     static final BigDecimal LARGEST = new BigDecimal("1000000");
 
-    public static final String UNDO_AND_STOP = "You can undo each transfer with one tap until the end of the next"
+    public static final String UNDO_AND_STOP = "You can undo each transfer with one tap until 5 pm on the next"
             + " business day. You can stop this rule at any time under \"Your rules\" on the Home tab.";
 
     private RuleTexts() {

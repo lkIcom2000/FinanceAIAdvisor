@@ -140,6 +140,20 @@ public final class NotificationTemplates {
     /** The outcome line appended to an Action Notification once the user confirmed it and Fine made the transfer. */
     public static final String ACTION_DONE = "You confirmed it, and Fine has made the transfer.";
 
+    /** The outcome line appended to a "Done for you" Notification once the user undid the transfer. */
+    public static final String ACTION_UNDONE = "You undid this transfer, and Fine has moved the money back.";
+
+    /** The undo deadline line of a "Done for you" Notification while the transfer can be undone. */
+    public static String undoUntil(String deadline) {
+        return "You can undo this until " + deadline + ".";
+    }
+
+    /** The snackbar text after an undo. */
+    public static String undone(BigDecimal amount, boolean backInOvernight) {
+        return "Transfer undone. " + eur(amount) + " is back in your "
+                + (backInOvernight ? "overnight deposit" : "current account") + ".";
+    }
+
     public static String announcementCaseSummary(Announcement announcement) {
         return "Announced " + announcement.topic() + " change \"" + announcement.title() + "\" from "
                 + date(announcement.effectiveFrom()) + " has no confirmed source or rules yet; check what it means"

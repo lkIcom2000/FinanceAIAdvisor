@@ -90,4 +90,16 @@ public interface Actions {
      */
     Optional<ActionConfirmation> confirm(RequestContext context, PersonaScope scope, String fixtureVersion,
             UUID actionId);
+
+    /**
+     * Undoes a transfer Fine made within a rule (FR-38, AD-10) at {@code context.asOf()}, without the gate: books the
+     * reverse transfer through the bank, stores a compensating Action linked by {@code undoesId} and sets the original
+     * to {@code UNDONE}, with an {@code ACTION} Audit Record, in the caller's transaction.
+     *
+     * @param fixtureVersion the persona's fixture version, for the Audit Record
+     * @return empty if the Action is not the persona's
+     * @throws NotUndoableException if it is not a rule transfer, already undone, or its window has ended
+     * @throws IllegalArgumentException if {@code scope} is not the context's persona
+     */
+    Optional<ActionUndo> undo(RequestContext context, PersonaScope scope, String fixtureVersion, UUID actionId);
 }

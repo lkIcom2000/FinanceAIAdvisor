@@ -10,6 +10,7 @@ export function notification(id: string, overrides: Partial<Notification> = {}):
     date: '2026-10-15',
     figures: [],
     read: false,
+    undoable: false,
     ...overrides,
   };
 }

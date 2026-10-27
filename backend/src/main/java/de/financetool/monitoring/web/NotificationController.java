@@ -50,7 +50,11 @@ class NotificationController {
             String question,
             @Schema(description = "The Action Fine prepared, for \"Review and confirm\"; absent if none")
             UUID actionId,
-            @Schema(description = "Why the Action needs your OK, in plain words; absent if none") String reason) {
+            @Schema(description = "Why the Action needs your OK, in plain words; absent if none") String reason,
+            @Schema(description = "Until when a transfer Fine made within a rule can be undone; absent if none",
+                    example = "Thu 16 Oct, 5 pm") String undoUntil,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, description = "Whether \"Undo transfer\" is offered")
+            boolean undoable) {
     }
 
     private final ShowNotificationsUseCase showNotifications;
@@ -65,7 +69,7 @@ class NotificationController {
         return showNotifications.list(scope).stream()
                 .map(i -> new Notification(i.id(), i.status(), i.title(), i.body(), i.date(),
                         i.figures().stream().map(FigureView::of).toList(), i.read(), i.question(), i.actionId(),
-                        i.reason()))
+                        i.reason(), i.undoUntil(), i.undoable()))
                 .toList();
     }
 

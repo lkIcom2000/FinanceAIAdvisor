@@ -3,6 +3,7 @@ package de.financetool.research.web;
 import static de.financetool.personas.web.AuthIntegrationTest.login;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
@@ -143,7 +144,52 @@ class StudyResearchControllerTest extends PostgresIntegrationTest {
                         "I moved 90.00 EUR from your overnight deposit to your current account, as your rule"
                                 + " \"Keep a safety cushion in my current account\" allows. Your forecast shows"))))
                 .andExpect(jsonPath("$[?(@.status == 'DONE_FOR_YOU')].body")
-                        .value(hasItem(not(containsString("You confirmed it")))));
+                        .value(hasItem(not(containsString("You confirmed it")))))
+                // Story 9.3: 15 Oct 2026 is a Thursday, so undo is possible until Friday.
+                .andExpect(jsonPath("$[?(@.status == 'DONE_FOR_YOU')].body")
+                        .value(hasItem(endsWith(" You can undo this until Fri 16 Oct, 5 pm."))))
+                .andExpect(jsonPath("$[?(@.status == 'DONE_FOR_YOU')].undoUntil").value(hasItem("Fri 16 Oct, 5 pm")))
+                .andExpect(jsonPath("$[?(@.status == 'DONE_FOR_YOU')].undoable").value(hasItem(true)));
+    }
+
+    @Test
+    void lenaUndoesHerRuleTransferWithOneTapAndOnlyOnce() throws Exception {
+        prepare("uj1-shortfall-lena", login(mvc, "researcher")).andExpect(status().isOk());
+        MockHttpSession lena = login(mvc, "p-lena");
+        String actionId = jdbc.queryForObject("select id::text from actions where persona_id = 'p-lena'",
+                String.class);
+
+        mvc.perform(post("/api/actions/" + actionId + "/undo").session(lena).with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Transfer undone. 90.00 EUR is back in your overnight deposit."));
+
+        mvc.perform(get("/api/notifications").session(lena)).andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.status == 'DONE_FOR_YOU')]").value(hasSize(0)))
+                .andExpect(jsonPath("$[?(@.status == 'UNDONE')].body").value(hasItem(endsWith(
+                        " You undid this transfer, and Fine has moved the money back."))))
+                .andExpect(jsonPath("$[?(@.status == 'UNDONE')].undoable").value(hasItem(false)));
+        mvc.perform(post("/api/actions/" + actionId + "/undo").session(lena).with(csrf()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("This transfer has already been undone."));
+        assertThat(jdbc.queryForObject("select count(*) from transactions where persona_id = 'p-lena'"
+                + " and origin = 'BANK_PORT'", Long.class)).isEqualTo(4);
+    }
+
+    @Test
+    void afterTheDeadlineTheNotificationSaysUntilWhenUndoWasPossible() throws Exception {
+        prepare("uj1-shortfall-lena", login(mvc, "researcher")).andExpect(status().isOk());
+        jdbc.update("update persona_state set simulated_date = date '2026-10-19' where persona_id = 'p-lena'");
+        MockHttpSession lena = login(mvc, "p-lena");
+        String actionId = jdbc.queryForObject("select id::text from actions where persona_id = 'p-lena'",
+                String.class);
+
+        mvc.perform(get("/api/notifications").session(lena)).andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.status == 'DONE_FOR_YOU')].undoable").value(hasItem(false)))
+                .andExpect(jsonPath("$[?(@.status == 'DONE_FOR_YOU')].body")
+                        .value(hasItem(not(containsString("You can undo")))));
+        mvc.perform(post("/api/actions/" + actionId + "/undo").session(lena).with(csrf()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("Undo was possible until Fri 16 Oct, 5 pm."));
     }
 
     @ParameterizedTest

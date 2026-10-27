@@ -3,7 +3,9 @@ package de.financetool.monitoring.web;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import de.financetool.actions.ActionConfirmation;
 import de.financetool.actions.ActionReview;
+import de.financetool.actions.ActionUndo;
 import de.financetool.actions.NotAwaitingConfirmationException;
+import de.financetool.actions.NotUndoableException;
 import de.financetool.monitoring.application.ConfirmActionUseCase;
 import de.financetool.monitoring.domain.NotificationTemplates;
 import de.financetool.shared.PersonaScope;
@@ -30,7 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
  * confirmation itself. The persona comes only from the session; another persona's Action answers exactly like an
  * unknown one.
  */
-@Tag(name = "actions", description = "Confirm a transfer Fine prepared")
+@Tag(name = "actions", description = "Confirm or undo a transfer")
 @RestController
 class ActionController {
 
@@ -100,6 +102,29 @@ class ActionController {
     ConfirmResult confirm(@Parameter(hidden = true) PersonaScope scope, @PathVariable String id) {
         ActionConfirmation o = confirmAction.confirm(scope, actionId(id)).orElseThrow(ActionController::notFound);
         return new ConfirmResult(o.done(), NotificationTemplates.eur(o.amount()), o.reason(), o.why());
+    }
+
+    @Schema(description = "The outcome of an undo")
+    record UndoResult(
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED,
+                    example = "Transfer undone. 90.00 EUR is back in your overnight deposit.") String message) {
+    }
+
+    @Operation(summary = "Undo a transfer Fine made within your rule, until its deadline")
+    @ApiResponse(responseCode = "200", description = "Undone")
+    @ApiResponse(responseCode = "404", description = "No such Action for this persona")
+    @ApiResponse(responseCode = "409", description = "Not a rule transfer, already undone, or too late")
+    @PostMapping("/api/actions/{id}/undo")
+    UndoResult undo(@Parameter(hidden = true) PersonaScope scope, @PathVariable String id) {
+        ActionUndo u = confirmAction.undo(scope, actionId(id)).orElseThrow(ActionController::notFound);
+        return new UndoResult(NotificationTemplates.undone(u.amount(), u.backInOvernight()));
+    }
+
+    @ExceptionHandler(NotUndoableException.class)
+    ProblemDetail notUndoable(NotUndoableException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
+        problem.setInstance(INSTANCE);
+        return problem;
     }
 
     @ExceptionHandler(NotAwaitingConfirmationException.class)

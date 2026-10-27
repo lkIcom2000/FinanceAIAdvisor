@@ -1,8 +1,10 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Notification } from '../../api/models/notification';
+import { ActionsService } from '../../api/services/actions.service';
 import { ChatPromptService } from '../../shared/chat-prompt.service';
 import { formatDate } from '../../shared/dates';
 import { FigurePipe } from '../../shared/figure.pipe';
@@ -38,6 +40,8 @@ export const STATUS_CHIPS: Record<Notification['status'], { label: string; icon:
   WITH_AN_ADVISOR: { label: 'With an advisor', icon: ICON_PATHS['support_agent'] },
 };
 
+const UNDO_FAILED = "Fine couldn't undo the transfer. Please try again.";
+
 /**
  * The Home tab's Notifications (FR-7, FR-32), newest first from the shared poll; the empty state while there are
  * none. Unread items are bold until expanded or 5 s at least half in view. An Action item not yet done shows its
@@ -57,10 +61,13 @@ export class NotificationListComponent {
   private readonly prompt = inject(ChatPromptService);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly actions = inject(ActionsService);
 
   protected readonly chips = STATUS_CHIPS;
   protected readonly formatDate = formatDate;
   protected readonly expanded = signal<ReadonlySet<string>>(new Set());
+  /** Notifications whose undo is on its way, so a second tap sends nothing. */
+  protected readonly undoing = signal<ReadonlySet<string>>(new Set());
 
   protected toggle(n: Notification): void {
     const open = new Set(this.expanded());
@@ -91,6 +98,35 @@ export class NotificationListComponent {
           this.snackBar.open(`Done. ${result.amountText} moved.`, undefined, { duration: 5000 });
         }
       });
+  }
+
+  /**
+   * One tap, no dialog (FR-38): the backend reverses the transfer; the snackbar says where the money is, and the list
+   * is fetched at once so the item shows "Undone". A late or repeated undo shows the backend's reason.
+   */
+  protected undo(n: Notification): void {
+    const actionId = n.actionId;
+    if (!actionId || this.undoing().has(n.id)) {
+      return;
+    }
+    this.feed.markRead(n.id);
+    this.undoing.set(new Set([...this.undoing(), n.id]));
+    const done = (message: string) => {
+      const left = new Set(this.undoing());
+      left.delete(n.id);
+      this.undoing.set(left);
+      this.feed.refresh();
+      this.snackBar.open(message, undefined, { duration: 5000 });
+    };
+    this.actions.undo({ id: actionId }).subscribe({
+      next: (result) => done(result.message),
+      error: (e: unknown) =>
+        done(
+          e instanceof HttpErrorResponse && e.status === 409 && typeof e.error?.detail === 'string'
+            ? e.error.detail
+            : UNDO_FAILED,
+        ),
+    });
   }
 
   protected ask(n: Notification): void {

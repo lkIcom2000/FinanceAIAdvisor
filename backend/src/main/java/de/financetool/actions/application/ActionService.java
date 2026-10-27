@@ -4,8 +4,10 @@ import de.financetool.actions.ActionConfirmation;
 import de.financetool.actions.ActionProposal;
 import de.financetool.actions.ActionReview;
 import de.financetool.actions.ActionSummary;
+import de.financetool.actions.ActionUndo;
 import de.financetool.actions.Actions;
 import de.financetool.actions.NotAwaitingConfirmationException;
+import de.financetool.actions.NotUndoableException;
 import de.financetool.actions.ProposedAction;
 import de.financetool.actions.InvalidRuleException;
 import de.financetool.actions.Rule;
@@ -28,6 +30,7 @@ import de.financetool.actions.domain.RegulatoryClass;
 import de.financetool.actions.domain.RuleBounds;
 import de.financetool.actions.domain.RuleTemplate;
 import de.financetool.actions.domain.RuleTexts;
+import de.financetool.actions.domain.UndoWindow;
 import de.financetool.audit.AuditEntry;
 import de.financetool.audit.AuditKind;
 import de.financetool.audit.AuditWriter;
@@ -47,6 +50,7 @@ import de.financetool.shared.PersonaScope;
 import de.financetool.shared.RequestContext;
 import de.financetool.shared.domain.SourcedNumber;
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -76,6 +80,9 @@ class ActionService implements Actions {
 
     /** The booking reference of a transfer Fine made on its own within a rule. */
     static final String RULE_REFERENCE = "Fine rule transfer";
+
+    /** The booking reference of the reverse transfer of an undo. */
+    static final String UNDO_REFERENCE = "Undo of a Fine rule transfer";
 
     private final BankReadPort bank;
     private final BankPort bookings;
@@ -366,6 +373,55 @@ class ActionService implements Actions {
         body.put("context", gate == null ? null : gateContextBody(gate));
         audit.write(context, new AuditEntry(AuditKind.ACTION, null, row.id(), fixtureVersion, body));
         return Optional.of(confirmation);
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Optional<ActionUndo> undo(RequestContext context, PersonaScope scope, String fixtureVersion,
+            UUID actionId) {
+        requireSamePersona(context, scope);
+        Optional<ActionRepository.Row> found = actions.findForUpdate(scope, actionId);
+        if (found.isEmpty()) {
+            return Optional.empty();
+        }
+        ActionRepository.Row row = found.get();
+        if (row.state() == ActionState.UNDONE) {
+            throw new NotUndoableException("This transfer has already been undone.");
+        }
+        if (row.state() != ActionState.EXECUTED || !actions.underRule(scope, row.id())
+                || row.asOf().isAfter(context.asOf())) {
+            throw new NotUndoableException("This transfer can't be undone.");
+        }
+        if (!UndoWindow.isOpen(row.asOf(), context.asOf())) {
+            throw new NotUndoableException(
+                    "Undo was possible until " + UndoWindow.text(UndoWindow.deadline(row.asOf())) + ".");
+        }
+
+        boolean backInOvernight = Arrays.stream(RuleTemplate.values())
+                .filter(t -> t.actionType() == row.type())
+                .findFirst().orElseThrow().fromOvernight();
+        // AD-10: the undo bypasses the gate, even if the target no longer covers the amount.
+        BankPort.Transfer transfer = bookings.transfer(scope.personaId(), row.targetAccountId(),
+                row.sourceAccountId(), row.amount(), context.asOf(), UNDO_REFERENCE);
+        UUID id = UUID.randomUUID();
+        actions.insert(scope, new ActionRepository.Row(id, row.type(), row.regulatoryClass(), row.amount(),
+                row.targetAccountId(), row.sourceAccountId(), row.triggerId(), ActionState.EXECUTED, row.level(),
+                List.of(), context.asOf(), null), null, row.id());
+        actions.markUndone(scope, row.id());
+
+        Map<String, Object> accounts = new LinkedHashMap<>();
+        accounts.put("source", row.targetAccountId());
+        accounts.put("target", row.sourceAccountId());
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("event", "undo");
+        body.put("undoesId", row.id());
+        body.put("type", row.type().name());
+        body.put("amount", row.amount());
+        body.put("accounts", accounts);
+        body.put("state", ActionState.EXECUTED.name());
+        body.put("transfer", legs(transfer));
+        audit.write(context, new AuditEntry(AuditKind.ACTION, null, id, fixtureVersion, body));
+        return Optional.of(new ActionUndo(row.amount(), backInOvernight));
     }
 
     /** The gate's inputs and decision; {@code decision} is {@code null} without a valid emergency-fund parameter. */

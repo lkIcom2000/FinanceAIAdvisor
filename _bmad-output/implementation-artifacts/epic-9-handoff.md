@@ -17,9 +17,18 @@
 - Preset `uj1-shortfall-lena` (rule 300/600/2,000) → "3 notifications (1 For your information, 1 Recommendation, 1 Done for you), 1 rule active". `RuleTexts` is in `actions :: types`.
 - verify 874/0/0. Commit: see `git log` "feat: Story 9.2".
 
-## Next: Story 9.3 (undo with one tap)
+## State after Story 9.3 (2026-10-27)
 
-- Undo deadline text belongs in the Done-for-you note (9.2 left it out); the undo reverses the two `BANK_PORT` legs of a rule-executed Action (`mandate_id` set, audit body `transfer`).
+- Spec `spec-9-3-undo-with-one-tap.md` (sprint-status `review`). V23: state `UNDONE`, `actions.undoes_id` (UNIQUE, self-FK, only on `EXECUTED`).
+- Domain `actions.domain.UndoWindow` (`types`): deadline = next Mon–Fri after `as_of`, undo allowed through the whole deadline date, text "Fri 16 Oct, 5 pm".
+- `Actions.undo` → `ActionUndo(amount, backInOvernight)`; `NotUndoableException` (409 texts: already undone / "Undo was possible until …" / can't be undone). Only `EXECUTED` + `mandate_id` + not a compensating row; reverse booking "Undo of a Fine rule transfer" without gate or cover check (Commc decision); compensating row (accounts swapped, original level, no rule, `undoes_id`); original `UNDONE`; audit `event: undo` on the compensating id. Revoked rule does not block undo.
+- `ActionSummary.undoUntil`; Notification API `undoUntil` (text) + `undoable`; body suffix "You can undo this until …" / "You undid this transfer, and Fine has moved the money back."; status `UNDONE`. `POST /api/actions/{id}/undo` → `{message}` (in `ConfirmActionUseCase`/`ActionController`).
+- Frontend: Undo transfer button (no dialog, disabled + aria-busy in flight, snackbar, refresh), "Undo was possible until …" text. `RuleTexts.UNDO_AND_STOP` says "until 5 pm on the next business day".
+- verify 889/0/0, frontend 135. Commit: see `git log` "feat: Story 9.3".
+
+## Next: Story 9.4 (stop a rule at any time)
+
+- Revoke dialog text names the last undo deadline ("you can still undo the last one until …"): latest `EXECUTED` rule Action's `UndoWindow` deadline if still open. `MandateRepository.activeOf` already ignores revoked rules; Revoke button on the rule card is visible but disabled since 9.1.
 
 ## Checklist per story (lean loop, memory build-loop-economy)
 

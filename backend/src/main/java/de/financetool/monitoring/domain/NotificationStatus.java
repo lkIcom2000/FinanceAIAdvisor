@@ -27,6 +27,7 @@ public enum NotificationStatus {
                     case AWAITING_CONFIRMATION -> NEEDS_YOUR_OK;
                     case EXECUTED -> DONE_FOR_YOU;
                     case ESCALATED -> WITH_AN_ADVISOR;
+                    case UNDONE -> UNDONE;
                 };
             }
         };

@@ -47,6 +47,22 @@
             Review and confirm
           </button>
         }
+        @if (n.status === 'DONE_FOR_YOU' && n.actionId && n.undoUntil) {
+          @if (n.undoable) {
+            <button
+              mat-stroked-button
+              type="button"
+              class="undo"
+              [disabled]="undoing().has(n.id)"
+              [attr.aria-busy]="undoing().has(n.id)"
+              (click)="undo(n)"
+            >
+              Undo transfer <span class="deadline">until {{ n.undoUntil }}</span>
+            </button>
+          } @else {
+            <p class="undo-ended">Undo was possible until {{ n.undoUntil }}</p>
+          }
+        }
         @if (open) {
           <div class="details" [id]="'notification-' + n.id">
             <p class="body">{{ n.body }}</p>

@@ -5,6 +5,7 @@ import de.financetool.actions.domain.ActionState;
 import de.financetool.actions.domain.ActionType;
 import de.financetool.actions.domain.AutonomyLevel;
 import de.financetool.actions.domain.RegulatoryClass;
+import de.financetool.actions.domain.UndoWindow;
 import de.financetool.shared.PersonaScope;
 import de.financetool.shared.domain.PersonaId;
 import java.math.BigDecimal;
@@ -57,15 +58,42 @@ public class ActionRepository {
 
     /** Inserts an Action under a rule; {@code mandateId} {@code null} means none. */
     public void insert(PersonaScope scope, Row row, UUID mandateId) {
+        insert(scope, row, mandateId, null);
+    }
+
+    /** Inserts an Action; {@code undoesId} links a compensating Action to the one it undoes, {@code null} if none. */
+    public void insert(PersonaScope scope, Row row, UUID mandateId, UUID undoesId) {
         jdbc.sql("""
                 INSERT INTO actions (id, persona_id, type, regulatory_class, amount, source_account_id,
-                    target_account_id, trigger_id, state, level, capping_criteria, as_of, reason, mandate_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?)""")
+                    target_account_id, trigger_id, state, level, capping_criteria, as_of, reason, mandate_id,
+                    undoes_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?)""")
                 .params(row.id(), scope.id(), row.type().name(), row.regulatoryClass().id(), row.amount(),
                         row.sourceAccountId(), row.targetAccountId(), row.triggerId(), row.state().name(),
                         row.level() == null ? null : row.level().name(), JSON.writeValueAsString(row.cappingCriteria()),
-                        row.asOf(), row.reason(), mandateId)
+                        row.asOf(), row.reason(), mandateId, undoesId)
                 .update();
+    }
+
+    /** Whether the persona's Action was executed by Fine within a rule (and is not itself an undo). */
+    public boolean underRule(PersonaScope scope, UUID id) {
+        return jdbc.sql("""
+                SELECT EXISTS (SELECT 1 FROM actions
+                    WHERE id = ? AND persona_id = ? AND mandate_id IS NOT NULL AND undoes_id IS NULL)""")
+                .params(id, scope.id())
+                .query(Boolean.class)
+                .single();
+    }
+
+    /** Sets an executed Action to {@code UNDONE}. */
+    public void markUndone(PersonaScope scope, UUID id) {
+        int updated = jdbc.sql("""
+                UPDATE actions SET state = 'UNDONE' WHERE id = ? AND persona_id = ? AND state = 'EXECUTED'""")
+                .params(id, scope.id())
+                .update();
+        if (updated != 1) {
+            throw new IllegalStateException("no executed Action " + id + " for the persona");
+        }
     }
 
     /** The persona's Actions, oldest first. */
@@ -135,14 +163,16 @@ public class ActionRepository {
         }
         Map<UUID, ActionSummary> summaries = new HashMap<>();
         jdbc.sql("""
-                SELECT id, state, reason, mandate_id IS NOT NULL AS under_rule FROM actions
+                SELECT id, state, reason, as_of, mandate_id IS NOT NULL AS under_rule FROM actions
                 WHERE id IN (:ids) AND persona_id = :personaId""")
                 .param("ids", ids)
                 .param("personaId", scope.id())
                 .query(rs -> {
+                    boolean underRule = rs.getBoolean("under_rule");
                     summaries.put(rs.getObject("id", UUID.class),
                             new ActionSummary(ActionState.valueOf(rs.getString("state")), rs.getString("reason"),
-                                    rs.getBoolean("under_rule")));
+                                    underRule, underRule
+                                            ? UndoWindow.deadline(rs.getObject("as_of", LocalDate.class)) : null));
                 });
         return summaries;
     }

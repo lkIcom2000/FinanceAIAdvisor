@@ -18,11 +18,11 @@
     "description" : "The Financial Overview",
     "name" : "overview"
   }, {
+    "description" : "Confirm or undo a transfer",
+    "name" : "actions"
+  }, {
     "description" : "The chat with Fine",
     "name" : "chat"
-  }, {
-    "description" : "Confirm a transfer Fine prepared",
-    "name" : "actions"
   }, {
     "description" : "Rules that let Fine move money within limits you set",
     "name" : "rules"
@@ -125,6 +125,53 @@
           }
         },
         "summary" : "The transfer waiting for your OK, with both accounts before and after",
+        "tags" : [ "actions" ]
+      }
+    },
+    "/api/actions/{id}/undo" : {
+      "post" : {
+        "operationId" : "undo",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UndoResult"
+                }
+              }
+            },
+            "description" : "Undone"
+          },
+          "404" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UndoResult"
+                }
+              }
+            },
+            "description" : "No such Action for this persona"
+          },
+          "409" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UndoResult"
+                }
+              }
+            },
+            "description" : "Not a rule transfer, already undone, or too late"
+          }
+        },
+        "summary" : "Undo a transfer Fine made within your rule, until its deadline",
         "tags" : [ "actions" ]
       }
     },
@@ -1710,9 +1757,18 @@
           },
           "title" : {
             "type" : "string"
+          },
+          "undoUntil" : {
+            "type" : "string",
+            "description" : "Until when a transfer Fine made within a rule can be undone; absent if none",
+            "example" : "Thu 16 Oct, 5 pm"
+          },
+          "undoable" : {
+            "type" : "boolean",
+            "description" : "Whether \"Undo transfer\" is offered"
           }
         },
-        "required" : [ "body", "date", "figures", "id", "read", "status", "title" ]
+        "required" : [ "body", "date", "figures", "id", "read", "status", "title", "undoable" ]
       },
       "PersonaResponse" : {
         "type" : "object",
@@ -2149,6 +2205,17 @@
           }
         },
         "required" : [ "amountText", "from", "reason", "sentence", "to", "why" ]
+      },
+      "UndoResult" : {
+        "type" : "object",
+        "description" : "The outcome of an undo",
+        "properties" : {
+          "message" : {
+            "type" : "string",
+            "example" : "Transfer undone. 90.00 EUR is back in your overnight deposit."
+          }
+        },
+        "required" : [ "message" ]
       },
       "WealthOverview" : {
         "type" : "object",

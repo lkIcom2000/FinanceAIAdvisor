@@ -55,5 +55,6 @@ export type { SavingsPlan } from './models/savings-plan';
 export type { SessionInfo } from './models/session-info';
 export type { TemplateView } from './models/template-view';
 export type { TransferReview } from './models/transfer-review';
+export type { UndoResult } from './models/undo-result';
 export type { WealthOverview } from './models/wealth-overview';
 export type { WholeEuros } from './models/whole-euros';

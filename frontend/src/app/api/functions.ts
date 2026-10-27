@@ -5,6 +5,8 @@ export type { Confirm$Params as Confirm$Params } from './fn/actions/confirm';
 export { confirm as confirm } from './fn/actions/confirm';
 export type { Review$Params as Review$Params } from './fn/actions/review';
 export { review as review } from './fn/actions/review';
+export type { Undo$Params as Undo$Params } from './fn/actions/undo';
+export { undo as undo } from './fn/actions/undo';
 export type { Csrf$Params as Csrf$Params } from './fn/auth/csrf';
 export { csrf as csrf } from './fn/auth/csrf';
 export type { Login$Params as Login$Params } from './fn/auth/login';

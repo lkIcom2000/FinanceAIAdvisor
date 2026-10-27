@@ -360,4 +360,80 @@ describe('NotificationListComponent', () => {
       expect(overlay().querySelector('.mat-mdc-snack-bar-label')).toBeNull();
     });
   });
+
+  describe('Undo transfer', () => {
+    const DONE = notification('n4', {
+      status: 'DONE_FOR_YOU',
+      title: 'I moved 90.00 EUR to your current account',
+      actionId: 'a4',
+      undoUntil: 'Fri 16 Oct, 5 pm',
+      undoable: true,
+    });
+
+    function overlay(): HTMLElement {
+      return document.querySelector('.cdk-overlay-container') as HTMLElement;
+    }
+
+    function undoButton(): HTMLButtonElement | null {
+      return cards()[0].querySelector<HTMLButtonElement>('.undo');
+    }
+
+    /** Lets the snackbar open and answers the immediate list fetch. */
+    function settle(items: Notification[]): void {
+      fixture.detectChanges();
+      vi.advanceTimersByTime(500);
+      http.expectOne('/api/notifications').flush(items);
+      fixture.detectChanges();
+    }
+
+    it('shows the button with its deadline only while the transfer can be undone', () => {
+      render([DONE]);
+      expect(text(undoButton())).toBe('Undo transfer until Fri 16 Oct, 5 pm');
+      expect(cards()[0].querySelector('.undo-ended')).toBeNull();
+    });
+
+    it('says until when undo was possible once the window has ended', () => {
+      render([{ ...DONE, undoable: false }]);
+      expect(undoButton()).toBeNull();
+      expect(text(cards()[0].querySelector('.undo-ended'))).toBe(
+        'Undo was possible until Fri 16 Oct, 5 pm',
+      );
+    });
+
+    it('undoes with one tap, without a dialog, and the item flips to Undone', () => {
+      render([DONE]);
+      undoButton()!.click();
+      reads();
+      fixture.detectChanges();
+      expect(undoButton()!.disabled).toBe(true);
+      expect(document.querySelector('mat-dialog-container')).toBeNull();
+      http
+        .expectOne((r) => r.method === 'POST' && r.url.endsWith('/api/actions/a4/undo'))
+        .flush({ message: 'Transfer undone. 90.00 EUR is back in your overnight deposit.' });
+      settle([{ ...DONE, status: 'UNDONE', undoable: false }]);
+      expect(text(overlay().querySelector('.mat-mdc-snack-bar-label'))).toBe(
+        'Transfer undone. 90.00 EUR is back in your overnight deposit.',
+      );
+      expect(text(cards()[0].querySelector('.status'))).toBe('Undone');
+      expect(undoButton()).toBeNull();
+      expect(cards()[0].querySelector('.undo-ended')).toBeNull();
+    });
+
+    it('shows the reason of a rejected undo and fetches the list again', () => {
+      render([DONE]);
+      undoButton()!.click();
+      reads();
+      http
+        .expectOne('/api/actions/a4/undo')
+        .flush(
+          { detail: 'Undo was possible until Fri 16 Oct, 5 pm.' },
+          { status: 409, statusText: 'Conflict' },
+        );
+      settle([{ ...DONE, undoable: false }]);
+      expect(text(overlay().querySelector('.mat-mdc-snack-bar-label'))).toBe(
+        'Undo was possible until Fri 16 Oct, 5 pm.',
+      );
+      expect(undoButton()).toBeNull();
+    });
+  });
 });

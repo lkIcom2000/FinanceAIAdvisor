@@ -3,6 +3,7 @@ package de.financetool.monitoring.application;
 import de.financetool.actions.ActionSummary;
 import de.financetool.actions.Actions;
 import de.financetool.actions.domain.ActionState;
+import de.financetool.actions.domain.UndoWindow;
 import de.financetool.audit.EvidenceReader;
 import de.financetool.monitoring.adapter.NotificationRepository;
 import de.financetool.monitoring.domain.NotificationStatus;
@@ -34,9 +35,13 @@ public class ShowNotificationsUseCase {
      * @param question the prepared chat question, or {@code null}
      * @param actionId the linked Action, or {@code null}
      * @param reason why the linked Action needs the user's OK or was refused, or {@code null}
+     * @param undoUntil the undo deadline as text ("Thu 16 Oct, 5 pm") of a transfer Fine made within a rule, or
+     *        {@code null}
+     * @param undoable whether that transfer can be undone at the simulated date
      */
     public record Item(UUID id, NotificationStatus status, String title, String body, LocalDate date,
-            List<SourcedNumber> figures, boolean read, String question, UUID actionId, String reason) {
+            List<SourcedNumber> figures, boolean read, String question, UUID actionId, String reason,
+            String undoUntil, boolean undoable) {
 
         public Item {
             figures = List.copyOf(figures);
@@ -78,12 +83,22 @@ public class ShowNotificationsUseCase {
             ActionSummary action = row.actionId() == null ? null : summaries.get(row.actionId());
             // The stored body is the proposal (or, under a rule, already the done text); the outcome follows the
             // Action's current state.
-            String body = action != null && action.state() == ActionState.EXECUTED && !action.underRule()
-                    ? row.body() + " " + NotificationTemplates.ACTION_DONE : row.body();
+            LocalDate deadline = action == null ? null : action.undoUntil();
+            String undoUntil = deadline == null ? null : UndoWindow.text(deadline);
+            boolean undoable = deadline != null && action.state() == ActionState.EXECUTED
+                    && !asOf.isAfter(deadline);
+            String body = row.body();
+            if (action != null && action.state() == ActionState.EXECUTED && !action.underRule()) {
+                body += " " + NotificationTemplates.ACTION_DONE;
+            } else if (undoable) {
+                body += " " + NotificationTemplates.undoUntil(undoUntil);
+            } else if (action != null && action.state() == ActionState.UNDONE) {
+                body += " " + NotificationTemplates.ACTION_UNDONE;
+            }
             return new Item(row.id(), NotificationStatus.of(row.outcome(), action == null ? null : action.state()),
                     row.title(), body, row.asOf(),
                     row.citedProvIds().stream().filter(figures::containsKey).map(figures::get).toList(), l.read(),
-                    row.question(), row.actionId(), action == null ? null : action.reason());
+                    row.question(), row.actionId(), action == null ? null : action.reason(), undoUntil, undoable);
         }).toList();
     }
 

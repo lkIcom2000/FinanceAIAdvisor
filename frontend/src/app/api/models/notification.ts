@@ -37,4 +37,14 @@ export interface Notification {
   reason?: string;
   status: 'FOR_YOUR_INFORMATION' | 'RECOMMENDATION' | 'NEEDS_YOUR_OK' | 'DONE_FOR_YOU' | 'UNDONE' | 'WITH_AN_ADVISOR';
   title: string;
+
+  /**
+   * Until when a transfer Fine made within a rule can be undone; absent if none
+   */
+  undoUntil?: string;
+
+  /**
+   * Whether "Undo transfer" is offered
+   */
+  undoable: boolean;
 }
