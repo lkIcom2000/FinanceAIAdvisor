@@ -107,7 +107,7 @@ development_status:
   8-3-notifications-on-the-home-tab: review
   8-4-confirm-an-action-exactly-and-see-why-it-needs-my-ok: review  # 2026-10-27, spec spec-8-4-confirm-an-action-exactly.md
   8-5-prepare-a-persona-for-a-study-session: review  # 2026-10-27, spec spec-8-5-prepare-a-persona-for-a-study-session.md
-  epic-8-retrospective: optional
+  epic-8-retrospective: optional  # joint with Epic 9 (Commc 2026-10-27)
 
   epic-9: backlog  # [critical-path]
   9-1-set-up-a-rule-with-explicit-limits: backlog
