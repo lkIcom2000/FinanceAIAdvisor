@@ -114,9 +114,15 @@ class MonitoringService implements Monitoring {
                         NotificationTemplates.escalatedActionCaseSummary(trigger.action().type().name(),
                                 trigger.action().amount()), actionCriteria));
             }
-            for (DetectedTrigger.PlannedNotification note : trigger.notifications()) {
+            for (DetectedTrigger.PlannedNotification planned : trigger.notifications()) {
                 UUID id = UUID.randomUUID();
-                UUID linked = note.outcome() == NotificationOutcome.ACTION ? actionId : null;
+                UUID linked = planned.outcome() == NotificationOutcome.ACTION ? actionId : null;
+                // Fine executed the Action within a rule: the note says what was done, not what Fine suggests.
+                DetectedTrigger.PlannedNotification note =
+                        linked != null && actionState == ActionState.EXECUTED && planned.done() != null
+                                ? new DetectedTrigger.PlannedNotification(planned.outcome(), planned.done().title(),
+                                        planned.done().body(), planned.citedProvIds(), planned.question())
+                                : planned;
                 notifications.insert(scope, new NotificationRepository.Row(id, triggerId, linked, note.outcome(),
                         note.title(), note.body(), note.citedProvIds(), asOf, note.question()));
                 audit.write(context, new AuditEntry(AuditKind.NOTIFICATION, null, null, fixtureVersion,

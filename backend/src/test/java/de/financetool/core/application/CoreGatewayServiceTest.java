@@ -77,21 +77,27 @@ class CoreGatewayServiceTest {
                 Optional::empty);
 
         de.financetool.core.domain.GateMeasures measures = gateway.gateMeasures(TestContexts.context(), snapshot,
-                overnight, new BigDecimal("300.00"));
+                overnight, current, new BigDecimal("300.00"));
 
         assertThat(measures.liquidAssets()).isEqualByComparingTo("2100.00");
         assertThat(measures.overnightAfter()).isEqualByComparingTo("1700.00");
+        assertThat(measures.sourceAfter()).isEqualByComparingTo("1700.00");
         assertThat(measures.emergencyFundTarget()).isEqualByComparingTo("0.00");
         assertThat(measures.dataConfidenceHigh()).isFalse();
-        assertThat(gateway.gateMeasures(TestContexts.context(), snapshot, current, new BigDecimal("300.00"))
-                .overnightAfter()).isEqualByComparingTo("2000.00");
+        de.financetool.core.domain.GateMeasures topUp = gateway.gateMeasures(TestContexts.context(), snapshot,
+                current, overnight, new BigDecimal("300.00"));
+        assertThat(topUp.overnightAfter()).isEqualByComparingTo("2300.00");
+        assertThat(topUp.sourceAfter()).isEqualByComparingTo("-200.00");
+        assertThat(gateway.gateMeasures(TestContexts.context(), snapshot, UUID.randomUUID(), current,
+                new BigDecimal("300.00")).sourceAfter()).isNull();
         assertThat(stored).isEmpty();
 
         CoreGatewayService missing = new CoreGatewayService((persona, asOf) -> snapshot, stored::addAll,
                 port((key, asOf) -> {
                     throw new NoValidRuleParameterException("No version of Rule Parameter " + key);
                 }), Optional::empty);
-        assertThat(missing.gateMeasures(TestContexts.context(), snapshot, overnight, null).emergencyFundTarget())
+        assertThat(missing.gateMeasures(TestContexts.context(), snapshot, overnight, current, null)
+                .emergencyFundTarget())
                 .isNull();
     }
 

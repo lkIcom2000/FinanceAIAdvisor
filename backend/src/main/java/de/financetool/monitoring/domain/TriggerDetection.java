@@ -100,7 +100,7 @@ public final class TriggerDetection {
             action = new PlannedAction(ActionType.SHORTFALL_TRANSFER, amount, snapshot.overnightAccountId(),
                     snapshot.currentAccountId());
             notes.add(note(NotificationOutcome.ACTION, NotificationTemplates.shortfallTransfer(shortfall, amount),
-                    cited));
+                    cited).withDone(NotificationTemplates.shortfallTransferDone(shortfall, amount)));
         } else {
             notes.add(note(NotificationOutcome.INFORMED, NotificationTemplates.shortfallWithoutOvernight(shortfall),
                     cited));
@@ -140,7 +140,8 @@ public final class TriggerDetection {
         return new DetectedTrigger(TriggerType.EF_BELOW_TARGET, subject, period, action, null,
                 List.of(note(NotificationOutcome.ACTION,
                         NotificationTemplates.emergencyFundTopUp(fund, target, topUp.value()),
-                        List.of(fund, target, topUp))));
+                        List.of(fund, target, topUp))
+                        .withDone(NotificationTemplates.emergencyFundTopUpDone(fund, target, topUp.value()))));
     }
 
     private static List<DetectedTrigger> ruleChanges(MonitoringSnapshot snapshot, LocalDate asOf, Rules rules) {

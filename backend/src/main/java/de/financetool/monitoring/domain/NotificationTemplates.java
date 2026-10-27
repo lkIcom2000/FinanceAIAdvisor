@@ -1,5 +1,6 @@
 package de.financetool.monitoring.domain;
 
+import de.financetool.actions.domain.RuleTemplate;
 import de.financetool.monitoring.domain.MonitoringSnapshot.Announcement;
 import de.financetool.monitoring.domain.MonitoringSnapshot.Duplicate;
 import de.financetool.monitoring.domain.MonitoringSnapshot.PremiumDue;
@@ -46,6 +47,13 @@ public final class NotificationTemplates {
                 + eur(amount) + " from your overnight deposit to your current account to cover it.");
     }
 
+    /** The "Done for you" text when Fine made the shortfall transfer within the safety-cushion rule. */
+    public static Text shortfallTransferDone(Shortfall shortfall, BigDecimal amount) {
+        return new Text("I moved " + eur(amount) + " to your current account", "I moved " + eur(amount)
+                + " from your overnight deposit to your current account, as your rule \""
+                + RuleTemplate.SAFETY_CUSHION.title() + "\" allows. " + shortfallFacts(shortfall));
+    }
+
     public static Text shortfallWithoutOvernight(Shortfall shortfall) {
         return new Text(shortfallTitle(shortfall), shortfallFacts(shortfall)
                 + " You could move money to your current account or spend less before then.");
@@ -70,6 +78,13 @@ public final class NotificationTemplates {
         return new Text("Top up your emergency fund", fundFacts(fund, target) + " Fine suggests a transfer of "
                 + eur(amount) + " from your current account to your overnight deposit: what an average month leaves"
                 + " over, up to the target.");
+    }
+
+    /** The "Done for you" text when Fine made the top-up within the emergency-fund rule. */
+    public static Text emergencyFundTopUpDone(SourcedNumber fund, SourcedNumber target, BigDecimal amount) {
+        return new Text("I moved " + eur(amount) + " to your overnight deposit", "I moved " + eur(amount)
+                + " from your current account to your overnight deposit, as your rule \""
+                + RuleTemplate.EMERGENCY_FUND_TOP_UP.title() + "\" allows. " + fundFacts(fund, target));
     }
 
     public static Text emergencyFundNothingLeftOver(SourcedNumber fund, SourcedNumber target) {

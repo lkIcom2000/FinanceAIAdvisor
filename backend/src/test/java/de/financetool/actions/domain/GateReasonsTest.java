@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
@@ -17,8 +18,25 @@ class GateReasonsTest {
             AutonomyGate.LEGAL_CLASS, AutonomyGate.NOT_IN_L3_SET, GateReasons.RULE_PARAMETER_MISSING,
             GateReasons.SOURCE_NOT_COVERING, GateReasons.ACCOUNT_MISSING);
 
-    static final Optional<MandateBounds> RULE = Optional.of(new MandateBounds(new BigDecimal("300"),
-            new BigDecimal("2000")));
+    static final Optional<MandateBounds> RULE = Optional.of(new MandateBounds(UUID.randomUUID(),
+            RuleTemplate.SAFETY_CUSHION, new BigDecimal("300"), new BigDecimal("600"), new BigDecimal("2000"),
+            BigDecimal.ZERO));
+
+    @Test
+    void theMonthAndTheCurrentAccountFloorAreNamedToo() {
+        Optional<MandateBounds> used = Optional.of(new MandateBounds(UUID.randomUUID(), RuleTemplate.SAFETY_CUSHION,
+                new BigDecimal("300"), new BigDecimal("600"), new BigDecimal("2000"), new BigDecimal("550")));
+        Optional<MandateBounds> topUp = Optional.of(new MandateBounds(UUID.randomUUID(),
+                RuleTemplate.EMERGENCY_FUND_TOP_UP, new BigDecimal("300"), new BigDecimal("600"),
+                new BigDecimal("500"), BigDecimal.ZERO));
+
+        assertThat(GateReasons.reason(List.of(AutonomyGate.AMOUNT_ABOVE_MANDATE_BOUNDS), new BigDecimal("90"), used))
+                .isEqualTo("This needs your OK because 90.00 EUR is more than your rule allows this month (600.00"
+                        + " EUR per month, 550.00 EUR already moved).");
+        assertThat(GateReasons.reason(List.of(AutonomyGate.AMOUNT_ABOVE_MANDATE_BOUNDS), new BigDecimal("90"), topUp))
+                .isEqualTo("This needs your OK because it would take your current account below the 500.00 EUR"
+                        + " you set as its minimum.");
+    }
 
     @Test
     void theAmountAboveTheRuleIsNamedWithTheUsersOwnNumbers() {

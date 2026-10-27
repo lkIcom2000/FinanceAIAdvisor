@@ -39,15 +39,27 @@ public record DetectedTrigger(TriggerType type, String subjectId, String period,
      * A templated Notification; an {@code ACTION} one is linked to the Trigger's Action.
      *
      * @param question the prepared chat question for "Ask Fine about this", or {@code null}
+     * @param done the "Done for you" text stored instead when the gate lets Fine execute the Action within a rule,
+     *        or {@code null}
      */
     public record PlannedNotification(NotificationOutcome outcome, String title, String body,
-            List<String> citedProvIds, String question) {
+            List<String> citedProvIds, String question, NotificationTemplates.Text done) {
 
         public PlannedNotification {
             Objects.requireNonNull(outcome, "outcome");
             Objects.requireNonNull(title, "title");
             Objects.requireNonNull(body, "body");
             citedProvIds = List.copyOf(citedProvIds);
+        }
+
+        public PlannedNotification(NotificationOutcome outcome, String title, String body,
+                List<String> citedProvIds, String question) {
+            this(outcome, title, body, citedProvIds, question, null);
+        }
+
+        /** This Notification with the "Done for you" text {@code done}. */
+        public PlannedNotification withDone(NotificationTemplates.Text done) {
+            return new PlannedNotification(outcome, title, body, citedProvIds, question, done);
         }
     }
 

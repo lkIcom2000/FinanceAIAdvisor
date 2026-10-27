@@ -76,8 +76,9 @@ public class ShowNotificationsUseCase {
         return listed.stream().map(l -> {
             NotificationRepository.Row row = l.row();
             ActionSummary action = row.actionId() == null ? null : summaries.get(row.actionId());
-            // The stored body is the proposal; the outcome follows the Action's current state.
-            String body = action != null && action.state() == ActionState.EXECUTED
+            // The stored body is the proposal (or, under a rule, already the done text); the outcome follows the
+            // Action's current state.
+            String body = action != null && action.state() == ActionState.EXECUTED && !action.underRule()
                     ? row.body() + " " + NotificationTemplates.ACTION_DONE : row.body();
             return new Item(row.id(), NotificationStatus.of(row.outcome(), action == null ? null : action.state()),
                     row.title(), body, row.asOf(),

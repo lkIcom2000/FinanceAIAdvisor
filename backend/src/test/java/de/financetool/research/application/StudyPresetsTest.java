@@ -3,6 +3,7 @@ package de.financetool.research.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import de.financetool.actions.domain.RuleTemplate;
 import de.financetool.monitoring.Monitoring;
 import de.financetool.shared.fixtures.PersonaFixtureCatalog;
 import java.io.IOException;
@@ -36,15 +37,41 @@ class StudyPresetsTest {
         });
         assertThat(presets.find("uj2-advice-marco")).hasValueSatisfying(
                 p -> assertThat(p.title()).isEqualTo("UJ-2 advice (Marco)"));
+        assertThat(presets.find("uj1-shortfall-lena")).hasValueSatisfying(p -> {
+            assertThat(p.title()).isEqualTo("UJ-1 shortfall, 15 Oct (Lena)");
+            assertThat(p.mandates()).singleElement()
+                    .satisfies(m -> assertThat(m.template()).isEqualTo(RuleTemplate.SAFETY_CUSHION));
+        });
         assertThat(presets.find("nope")).isEmpty();
     }
 
     @Test
-    void aSetupStepFailsStartupUntilEpic9AddsItsType() throws IOException {
-        write("x", "\"p-jonas\"", "\"2026-10-15\"", "[{\"type\": \"mandate\"}]");
-
+    void onlyAMandateStepWithAKnownTemplateAndValidBoundsPassesStartup() throws IOException {
+        write("x", "\"p-jonas\"", "\"2026-10-15\"", "[{\"type\": \"document\"}]");
         assertThatThrownBy(() -> new StudyPresets(directory, FIXTURES)).isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("x.json").hasMessageContaining("unknown setup step mandate");
+                .hasMessageContaining("x.json").hasMessageContaining("unknown setup step document");
+
+        for (String step : List.of("{\"type\": \"mandate\"}",
+                "{\"type\": \"mandate\", \"template\": \"NOPE\", \"maxPerAction\": \"1\", \"maxPerMonth\": \"1\","
+                        + " \"floor\": \"0\"}",
+                "{\"type\": \"mandate\", \"template\": \"SAFETY_CUSHION\", \"maxPerAction\": \"0\","
+                        + " \"maxPerMonth\": \"1\", \"floor\": \"0\"}")) {
+            write("x", "\"p-jonas\"", "\"2026-10-15\"", "[" + step + "]");
+            assertThatThrownBy(() -> new StudyPresets(directory, FIXTURES)).as(step)
+                    .isInstanceOf(IllegalStateException.class).hasMessageContaining("x.json");
+        }
+
+        String cushion = "{\"type\": \"mandate\", \"template\": \"SAFETY_CUSHION\", \"maxPerAction\": \"300.00\","
+                + " \"maxPerMonth\": \"600.00\", \"floor\": \"2000.00\"}";
+        write("x", "\"p-jonas\"", "\"2026-10-15\"", "[" + cushion + ", " + cushion + "]");
+        assertThatThrownBy(() -> new StudyPresets(directory, FIXTURES)).hasMessageContaining("two mandate steps");
+
+        write("x", "\"p-jonas\"", "\"2026-10-15\"", "[" + cushion + "]");
+        assertThat(new StudyPresets(directory, FIXTURES).find("x").orElseThrow().mandates()).singleElement()
+                .satisfies(m -> {
+                    assertThat(m.template()).isEqualTo(RuleTemplate.SAFETY_CUSHION);
+                    assertThat(m.bounds().floor()).isEqualByComparingTo("2000.00");
+                });
     }
 
     @Test

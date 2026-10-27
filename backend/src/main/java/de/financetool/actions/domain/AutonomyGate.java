@@ -59,8 +59,8 @@ public final class AutonomyGate {
             caps.add(new Cap(NO_COVERING_MANDATE));
         } else {
             MandateBounds bounds = context.mandate().get();
-            if (amount.compareTo(bounds.maxPerAction()) > 0
-                    || context.emergencyFundAfter().compareTo(bounds.floor()) < 0) {
+            if (amount.compareTo(bounds.maxPerAction()) > 0 || bounds.aboveMonth(amount)
+                    || context.sourceAfter() == null || context.sourceAfter().compareTo(bounds.floor()) < 0) {
                 caps.add(new Cap(AMOUNT_ABOVE_MANDATE_BOUNDS));
             }
         }

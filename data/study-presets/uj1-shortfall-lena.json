@@ -1,0 +1,15 @@
+{
+  "id": "uj1-shortfall-lena",
+  "title": "UJ-1 shortfall, 15 Oct (Lena)",
+  "personaId": "p-lena",
+  "simulatedDate": "2026-10-15",
+  "setup": [
+    {
+      "type": "mandate",
+      "template": "SAFETY_CUSHION",
+      "maxPerAction": "300.00",
+      "maxPerMonth": "600.00",
+      "floor": "2000.00"
+    }
+  ]
+}

@@ -9,14 +9,14 @@ import java.util.Optional;
  *
  * @param liquidAssets current account plus overnight deposit
  * @param mandate the Mandate covering the Action, if any
- * @param emergencyFundAfter the emergency fund after the Action
+ * @param sourceAfter the source account after the Action; {@code null} if it is neither the current account nor the
+ *        overnight deposit (a covering Mandate's floor then counts as failed)
  */
 public record GateContext(BigDecimal liquidAssets, boolean dataConfidenceHigh, boolean suitabilityComplete,
-        Optional<MandateBounds> mandate, BigDecimal emergencyFundAfter) {
+        Optional<MandateBounds> mandate, BigDecimal sourceAfter) {
 
     public GateContext {
         Objects.requireNonNull(liquidAssets, "liquidAssets");
         Objects.requireNonNull(mandate, "mandate");
-        Objects.requireNonNull(emergencyFundAfter, "emergencyFundAfter");
     }
 }

@@ -19,6 +19,8 @@ import de.financetool.actions.domain.ActionType;
 import de.financetool.actions.domain.AutonomyGate;
 import de.financetool.actions.domain.AutonomyLevel;
 import de.financetool.actions.domain.GateReasons;
+import de.financetool.actions.domain.RuleBounds;
+import de.financetool.actions.domain.RuleTemplate;
 import de.financetool.core.domain.TransferBalances;
 import de.financetool.actions.domain.RegulatoryClass;
 import de.financetool.audit.AuditWriter;
@@ -223,8 +225,9 @@ class ActionServiceTest extends PostgresIntegrationTest {
     @Test
     void withoutAValidRuleParameterTheActionIsEscalatedAndStillAudited() {
         CoreGateway missingRule = mock(CoreGateway.class);
-        when(missingRule.gateMeasures(any(), any(), any(), any())).thenReturn(new GateMeasures(
-                new BigDecimal("5000.00"), true, BigDecimal.ONE, 1, new BigDecimal("2700.00"), null));
+        when(missingRule.gateMeasures(any(), any(), any(), any(), any())).thenReturn(new GateMeasures(
+                new BigDecimal("5000.00"), true, BigDecimal.ONE, 1, new BigDecimal("2700.00"),
+                new BigDecimal("2700.00"), null));
         ActionService service = new ActionService(bank, bookings, missingRule, profiles, completeness, mandates, repository,
                 mandateRows, audit);
 
@@ -244,8 +247,9 @@ class ActionServiceTest extends PostgresIntegrationTest {
 
     ActionService serviceWith(boolean dataConfidenceHigh, BigDecimal emergencyFundTarget) {
         CoreGateway core = mock(CoreGateway.class);
-        when(core.gateMeasures(any(), any(), any(), any())).thenReturn(new GateMeasures(new BigDecimal("5000.00"),
-                dataConfidenceHigh, BigDecimal.ONE, 1, new BigDecimal("2700.00"), emergencyFundTarget));
+        when(core.gateMeasures(any(), any(), any(), any(), any())).thenReturn(new GateMeasures(new BigDecimal("5000.00"),
+                dataConfidenceHigh, BigDecimal.ONE, 1, new BigDecimal("2700.00"), new BigDecimal("2700.00"),
+                emergencyFundTarget));
         when(core.transferBalances(any(), any(), any(), any(), any())).thenReturn(new TransferBalances(
                 new BigDecimal("1850.00"), new BigDecimal("1750.00"), new BigDecimal("2700.00"),
                 new BigDecimal("2800.00")));
@@ -364,5 +368,122 @@ class ActionServiceTest extends PostgresIntegrationTest {
         Optional<ActionConfirmation> unknown = transaction.execute(tx -> actions.confirm(context, scope, FIXTURE,
                 UUID.randomUUID()));
         assertThat(unknown).isEmpty();
+    }
+
+    // Story 9.2: a rule lets Fine act on its own within its bounds.
+
+    UUID rule(RuleTemplate template, String maxPerAction, String maxPerMonth, String floor) {
+        return transaction.execute(tx -> actions.createRule(context, scope, FIXTURE, template,
+                new RuleBounds(new BigDecimal(maxPerAction), new BigDecimal(maxPerMonth), new BigDecimal(floor))))
+                .id();
+    }
+
+    ActionProposal shortfall(String amount) {
+        return propose(actions, new ProposedAction(ActionType.SHORTFALL_TRANSFER, RegulatoryClass.PAYMENT,
+                new BigDecimal(amount), overnight, current, UUID.randomUUID()));
+    }
+
+    long bankLegs() {
+        return jdbc.queryForObject("SELECT count(*) FROM transactions WHERE persona_id = ? AND origin = 'BANK_PORT'",
+                Long.class, LENA.value());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void withinLenasRuleFineMakesTheShortfallTransferItself() {
+        UUID ruleId = rule(RuleTemplate.SAFETY_CUSHION, "300.00", "600.00", "2000.00");
+
+        ActionProposal proposal = shortfall("90.00");
+
+        assertThat(proposal.state()).isEqualTo(ActionState.EXECUTED);
+        assertThat(proposal.level()).isEqualTo(AutonomyLevel.L3);
+        assertThat(proposal.cappingCriteria()).isEmpty();
+        assertThat(jdbc.queryForObject("SELECT mandate_id FROM actions WHERE id = ?", UUID.class,
+                proposal.actionId())).isEqualTo(ruleId);
+        assertThat(bankLegs()).isEqualTo(2);
+        assertThat(transaction.execute(tx -> actions.summaries(scope, List.of(proposal.actionId())))
+                .get(proposal.actionId()).underRule()).isTrue();
+        Map<?, ?> body = (Map<?, ?>) JsonMapper.builder().build()
+                .readValue((String) auditRows(proposal.actionId()).getFirst().get("payload"), Map.class).get("body");
+        assertThat(body.get("mandateId")).isEqualTo(ruleId.toString());
+        assertThat((Map<String, Object>) body.get("transfer")).containsKeys("debitTransactionId",
+                "creditTransactionId");
+        assertThat((Map<String, Object>) body.get("context")).containsKeys("sourceAfter", "emergencyFundAfter");
+    }
+
+    @Test
+    void aTransferAboveTheRulesPerTransferLimitWaitsForTheOk() {
+        rule(RuleTemplate.SAFETY_CUSHION, "300.00", "600.00", "2000.00");
+
+        ActionProposal proposal = shortfall("350.00");
+
+        assertThat(proposal.level()).isEqualTo(AutonomyLevel.L2);
+        assertThat(proposal.cappingCriteria()).containsExactly(AutonomyGate.AMOUNT_ABOVE_MANDATE_BOUNDS);
+        assertThat(repository.find(scope, proposal.actionId()).orElseThrow().reason()).isEqualTo(
+                "This needs your OK because 350.00 EUR is more than your rule allows (300.00 EUR per transfer).");
+        assertThat(bankLegs()).isZero();
+    }
+
+    @Test
+    void aMonthUsedUpWaitsForTheOk() {
+        UUID ruleId = rule(RuleTemplate.SAFETY_CUSHION, "300.00", "600.00", "2000.00");
+        repository.insert(scope, new ActionRepository.Row(UUID.randomUUID(), ActionType.SHORTFALL_TRANSFER,
+                RegulatoryClass.PAYMENT, new BigDecimal("550.00"), overnight, current, null, ActionState.EXECUTED,
+                AutonomyLevel.L3, List.of(), OCT_15.withDayOfMonth(2), null), ruleId);
+
+        ActionProposal proposal = shortfall("90.00");
+
+        assertThat(proposal.level()).isEqualTo(AutonomyLevel.L2);
+        assertThat(repository.find(scope, proposal.actionId()).orElseThrow().reason()).isEqualTo(
+                "This needs your OK because 90.00 EUR is more than your rule allows this month (600.00 EUR per month,"
+                        + " 550.00 EUR already moved).");
+    }
+
+    @Test
+    void aTransferBelowTheFloorWaitsForTheOk() {
+        // Lena's overnight deposit holds 5,700.00 EUR on 15 Oct: 90.00 EUR out leaves 5,610.00 EUR.
+        rule(RuleTemplate.SAFETY_CUSHION, "300.00", "600.00", "5650.00");
+
+        ActionProposal proposal = shortfall("90.00");
+
+        assertThat(proposal.level()).isEqualTo(AutonomyLevel.L2);
+        assertThat(repository.find(scope, proposal.actionId()).orElseThrow().reason())
+                .startsWith("This needs your OK because it would take your overnight deposit below the ");
+    }
+
+    @Test
+    void withinATopUpRuleFineTopsUpTheEmergencyFundItself() {
+        UUID ruleId = rule(RuleTemplate.EMERGENCY_FUND_TOP_UP, "300.00", "600.00", "0.00");
+
+        ActionProposal proposal = propose(actions, new ProposedAction(ActionType.EF_TOP_UP, RegulatoryClass.PAYMENT,
+                new BigDecimal("100.00"), current, overnight, UUID.randomUUID()));
+
+        assertThat(proposal.state()).isEqualTo(ActionState.EXECUTED);
+        assertThat(jdbc.queryForObject("SELECT mandate_id FROM actions WHERE id = ?", UUID.class,
+                proposal.actionId())).isEqualTo(ruleId);
+        assertThat(bankLegs()).isEqualTo(2);
+    }
+
+    @Test
+    void aRuleOfTheOtherTemplateDoesNotCoverTheAction() {
+        rule(RuleTemplate.EMERGENCY_FUND_TOP_UP, "300.00", "600.00", "0.00");
+
+        ActionProposal proposal = shortfall("90.00");
+
+        assertThat(proposal.level()).isEqualTo(AutonomyLevel.L2);
+        assertThat(proposal.cappingCriteria()).containsExactly(AutonomyGate.NO_COVERING_MANDATE);
+    }
+
+    @Test
+    void aPersonaResetDeletesAnExecutedActionUnderARuleAndTheRule() {
+        rule(RuleTemplate.SAFETY_CUSHION, "300.00", "600.00", "2000.00");
+        assertThat(shortfall("90.00").state()).isEqualTo(ActionState.EXECUTED);
+
+        resetPersona.reset(LENA);
+
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM actions WHERE persona_id = ?", Long.class,
+                LENA.value())).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM mandates WHERE persona_id = ?", Long.class,
+                LENA.value())).isZero();
     }
 }

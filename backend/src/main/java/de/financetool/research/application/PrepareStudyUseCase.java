@@ -3,6 +3,7 @@ package de.financetool.research.application;
 import de.financetool.actions.Actions;
 import de.financetool.monitoring.Monitoring;
 import de.financetool.personas.PersonaClock;
+import de.financetool.personas.PersonaDirectory;
 import de.financetool.shared.PersonaScope;
 import de.financetool.shared.RequestContextFactory;
 import de.financetool.shared.web.PersonaScopeResolver;
@@ -40,15 +41,17 @@ public class PrepareStudyUseCase {
     private final RequestContextFactory contexts;
     private final Monitoring monitoring;
     private final Actions actions;
+    private final PersonaDirectory directory;
 
     PrepareStudyUseCase(StudyPresets presets, PersonaFixtureLoader loader, PersonaClock personas,
-            RequestContextFactory contexts, Monitoring monitoring, Actions actions) {
+            RequestContextFactory contexts, Monitoring monitoring, Actions actions, PersonaDirectory directory) {
         this.presets = presets;
         this.loader = loader;
         this.personas = personas;
         this.contexts = contexts;
         this.monitoring = monitoring;
         this.actions = actions;
+        this.directory = directory;
     }
 
     /** @return empty if there is no preset with this id */
@@ -61,8 +64,12 @@ public class PrepareStudyUseCase {
         StudyPresets.Preset preset = found.get();
         loader.load(preset.persona());
         personas.setSimulatedDate(preset.persona(), preset.simulatedDate());
-        // Setup steps run here; StudyPresets admits none until Epic 9 (Mandates) and Epic 10 (Document facts).
         PersonaScope scope = PersonaScopeResolver.forResearcher(preset.persona());
+        // Setup steps run at the simulated date, before monitoring, so a rule can cover the run's Actions.
+        for (StudyPresets.MandateStep step : preset.mandates()) {
+            actions.createRule(contexts.forPersona(scope, null), scope, directory.fixtureVersion(scope),
+                    step.template(), step.bounds());
+        }
         Monitoring.Run run = monitoring.run(contexts.forPersona(scope, null), scope);
         int rules = actions.activeRules(scope);
         return Optional.of(new Prepared(preset.id(), preset.title(), preset.personaId(), preset.simulatedDate(),

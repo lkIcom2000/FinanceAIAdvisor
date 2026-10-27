@@ -4,12 +4,15 @@ import de.financetool.actions.domain.RuleBounds;
 import de.financetool.actions.domain.RuleTemplate;
 import de.financetool.shared.PersonaScope;
 import de.financetool.shared.domain.PersonaId;
+import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -57,6 +60,28 @@ public class MandateRepository {
                 .param(scope.id())
                 .query((rs, n) -> row(rs))
                 .list();
+    }
+
+    /**
+     * The persona's rule of the template that is not revoked, if any (at most one, by the partial unique index),
+     * locked until the transaction ends so gate runs under the same rule see each other's month sum.
+     */
+    public Optional<Row> activeOf(PersonaScope scope, RuleTemplate template) {
+        return jdbc.sql("SELECT " + COLUMNS
+                + " FROM mandates WHERE persona_id = ? AND template = ? AND revoked_at IS NULL FOR UPDATE")
+                .params(scope.id(), template.name())
+                .query((rs, n) -> row(rs))
+                .optional();
+    }
+
+    /** The amounts of the rule's executed Actions with a simulated date in the month; 0 without any. */
+    public BigDecimal executedSum(PersonaScope scope, UUID mandateId, YearMonth month) {
+        return jdbc.sql("""
+                SELECT coalesce(sum(amount), 0) FROM actions
+                WHERE persona_id = ? AND mandate_id = ? AND state = 'EXECUTED' AND as_of BETWEEN ? AND ?""")
+                .params(scope.id(), mandateId, month.atDay(1), month.atEndOfMonth())
+                .query(BigDecimal.class)
+                .single();
     }
 
     /** Whether the persona has a rule of the template that is not revoked. */

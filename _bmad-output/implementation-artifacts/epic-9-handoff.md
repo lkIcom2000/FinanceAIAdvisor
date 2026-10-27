@@ -9,12 +9,17 @@
 - Frontend: `RuleSetupDialogComponent` (own 3-step indicator, server check before step 3), root `RuleSetupService` (opens it from Home and the chat chip "Set up a rule", snackbar, `started` counter), rule cards in the Home tab (Revoke visible, disabled until 9.4).
 - verify 861/0/0, frontend 131. Commit: see `git log` "feat: Story 9.1".
 
-## Next: Story 9.2
+## State after Story 9.2 (2026-10-27)
 
-- `StoredMandates.covering`: active rule of `template.actionType()`; gate floor check must use the source account after the Action (today `GateContext.emergencyFundAfter` = overnight after; for `EF_TOP_UP` the source is the current account) and `max_per_month` (sum of the month's executed Actions under the rule); set `actions.mandate_id`.
-- `ActionState.proposedAt(L3)` throws (deferred Epic 8): L3 → execute via `BankPort` + "Done for you" Notification in the same transaction.
-- Preset "UJ-1 shortfall, 15 Oct (Lena)": `mandate` setup step in `StudyPresets` + dispatch in `PrepareStudyUseCase` → "2 notifications (1 Done for you, 1 Recommendation), 1 rule active".
-- Add a reset test with an action carrying `mandate_id` (FK order).
+- Spec `spec-9-2-fine-acts-within-my-rule-and-tells-me-immediately.md` (sprint-status `review`). `StoredMandates.covering(scope, action, source, target, asOf)`: active rule of the template (`MandateRepository.activeOf`, row locked `FOR UPDATE`) on the same accounts; `MandateBounds` (id, template, limits, floor, `movedThisMonth` = `executedSum` of the month's EXECUTED Actions under the rule).
+- Gate: per transfer, then per month, then `sourceAfter < floor` (`GateMeasures.sourceAfter`; `gateMeasures` now takes the target too, `overnightAfter` adds the amount when overnight is the target). `proposedAt(L3)` = `EXECUTED`; `propose` books via `BankPort` ("Fine rule transfer"), inserts with `mandate_id`, audit has `transfer` + `mandateId`.
+- Monitoring: `PlannedNotification.done` text stored when the Action is EXECUTED at proposal ("I moved 90.00 EUR to your current account"); `ActionSummary.underRule` stops the "You confirmed it" suffix.
+- Preset `uj1-shortfall-lena` (rule 300/600/2,000) → "3 notifications (1 For your information, 1 Recommendation, 1 Done for you), 1 rule active". `RuleTexts` is in `actions :: types`.
+- verify 874/0/0. Commit: see `git log` "feat: Story 9.2".
+
+## Next: Story 9.3 (undo with one tap)
+
+- Undo deadline text belongs in the Done-for-you note (9.2 left it out); the undo reverses the two `BANK_PORT` legs of a rule-executed Action (`mandate_id` set, audit body `transfer`).
 
 ## Checklist per story (lean loop, memory build-loop-economy)
 

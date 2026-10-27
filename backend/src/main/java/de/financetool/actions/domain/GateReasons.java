@@ -96,7 +96,8 @@ public final class GateReasons {
             case AutonomyGate.NO_COVERING_MANDATE -> "Fine moves money on its own only within a rule you have set up."
                     + " Without such a rule, every transfer waits for your OK.";
             case AutonomyGate.AMOUNT_ABOVE_MANDATE_BOUNDS -> "Your rule sets how much Fine may move per transfer and"
-                    + " how much must stay in your overnight deposit. This transfer goes beyond that.";
+                    + " per month, and how much must stay in the account the money comes from. This transfer goes"
+                    + " beyond that.";
             case AutonomyGate.NOT_REVERSIBLE -> "Fine acts on its own only where a step can be undone free of charge"
                     + " within a day.";
             case AutonomyGate.INVESTMENT_ABOVE_LIQUID_SHARE -> "Fine asks before any investment that is large compared"
@@ -147,8 +148,13 @@ public final class GateReasons {
             return "This needs your OK because " + eur(amount) + " is more than your rule allows ("
                     + eur(bounds.maxPerAction()) + " per transfer).";
         }
-        return "This needs your OK because it would take your overnight deposit below the " + eur(bounds.floor())
-                + " you set as its minimum.";
+        if (bounds.aboveMonth(amount)) {
+            return "This needs your OK because " + eur(amount) + " is more than your rule allows this month ("
+                    + eur(bounds.maxPerMonth()) + " per month, " + eur(bounds.movedThisMonth()) + " already moved).";
+        }
+        return "This needs your OK because it would take your "
+                + (bounds.template().fromOvernight() ? "overnight deposit" : "current account") + " below the "
+                + eur(bounds.floor()) + " you set as its minimum.";
     }
 
     private static String lowerFirst(String name) {

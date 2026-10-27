@@ -74,6 +74,9 @@ class ActionService implements Actions {
     /** The booking reference of a confirmed transfer. */
     static final String CONFIRMED_REFERENCE = "Transfer you confirmed in Fine";
 
+    /** The booking reference of a transfer Fine made on its own within a rule. */
+    static final String RULE_REFERENCE = "Fine rule transfer";
+
     private final BankReadPort bank;
     private final BankPort bookings;
     private final CoreGateway core;
@@ -230,7 +233,7 @@ class ActionService implements Actions {
         requireSamePersona(context, scope);
         BankSnapshot snapshot = bank.snapshot(scope.personaId(), context.asOf());
         Gate gate = gate(context, scope, snapshot, proposed.type(), proposed.regulatoryClass(), proposed.amount(),
-                proposed.sourceAccountId());
+                proposed.sourceAccountId(), proposed.targetAccountId());
 
         ActionState state;
         AutonomyLevel level;
@@ -243,12 +246,25 @@ class ActionService implements Actions {
         }
         List<String> criteria = gate.criteria();
 
+        // L3 (FR-37): the gate found a covering rule with every bound kept, so Fine books the transfer itself.
+        BankPort.Transfer transfer = null;
+        UUID mandateId = null;
+        if (state == ActionState.EXECUTED) {
+            mandateId = gate.mandate().orElseThrow().mandateId();
+            transfer = bookings.transfer(scope.personaId(), proposed.sourceAccountId(), proposed.targetAccountId(),
+                    proposed.amount(), context.asOf(), RULE_REFERENCE);
+        }
+
         UUID id = UUID.randomUUID();
         actions.insert(scope, new ActionRepository.Row(id, proposed.type(), proposed.regulatoryClass(),
                 proposed.amount(), proposed.sourceAccountId(), proposed.targetAccountId(), proposed.triggerId(),
-                state, level, criteria, context.asOf(), gate.reason(proposed.amount())));
-        audit.write(context, new AuditEntry(AuditKind.ACTION, null, id, fixtureVersion,
-                body(proposed, state, level, criteria, gate)));
+                state, level, criteria, context.asOf(), gate.reason(proposed.amount())), mandateId);
+        Map<String, Object> body = body(proposed, state, level, criteria, gate);
+        if (transfer != null) {
+            body.put("transfer", legs(transfer));
+            body.put("mandateId", mandateId);
+        }
+        audit.write(context, new AuditEntry(AuditKind.ACTION, null, id, fixtureVersion, body));
         return new ActionProposal(id, state, level, criteria);
     }
 
@@ -295,7 +311,7 @@ class ActionService implements Actions {
             refusal = List.of(GateReasons.ACCOUNT_MISSING);
         } else {
             gate = gate(context, scope, snapshot, row.type(), row.regulatoryClass(), row.amount(),
-                    row.sourceAccountId());
+                    row.sourceAccountId(), row.targetAccountId());
             if (gate.decision() == null || gate.decision().level().compareTo(AutonomyLevel.L2) < 0) {
                 refusal = gate.criteria();
             } else if (actions.hasNewerAwaiting(scope, row, context.asOf())) {
@@ -339,14 +355,11 @@ class ActionService implements Actions {
             GateDecision decision = gate.decision();
             actions.updateAfterCheck(scope, row.id(), ActionState.EXECUTED, decision.level(),
                     decision.cappingCriteria(), gate.reason(row.amount()));
-            Map<String, Object> booked = new LinkedHashMap<>();
-            booked.put("debitTransactionId", transfer.debitTransactionId());
-            booked.put("creditTransactionId", transfer.creditTransactionId());
             body.put("outcome", "executed");
             body.put("state", ActionState.EXECUTED.name());
             body.put("level", decision.level().name());
             body.put("cappingCriteria", decision.cappingCriteria());
-            body.put("transfer", booked);
+            body.put("transfer", legs(transfer));
             confirmation = new ActionConfirmation(true, row.amount(), null, null);
         }
         body.put("amount", row.amount());
@@ -372,13 +385,14 @@ class ActionService implements Actions {
     }
 
     private Gate gate(RequestContext context, PersonaScope scope, BankSnapshot snapshot, ActionType type,
-            RegulatoryClass regulatoryClass, BigDecimal amount, UUID sourceAccountId) {
-        GateMeasures measures = core.gateMeasures(context, snapshot, sourceAccountId, amount);
+            RegulatoryClass regulatoryClass, BigDecimal amount, UUID sourceAccountId, UUID targetAccountId) {
+        GateMeasures measures = core.gateMeasures(context, snapshot, sourceAccountId, targetAccountId, amount);
         GateAction action = new GateAction(type, regulatoryClass, amount, type.reversible());
         boolean suitabilityComplete = completeness.strictMissing(profiles.stored(scope), INVESTMENT_TOPIC).isEmpty();
-        Optional<MandateBounds> mandate = mandates.covering(scope, action);
+        Optional<MandateBounds> mandate = mandates.covering(scope, action, sourceAccountId, targetAccountId,
+                context.asOf());
         GateContext gateContext = new GateContext(measures.liquidAssets(), measures.dataConfidenceHigh(),
-                suitabilityComplete, mandate, measures.overnightAfter());
+                suitabilityComplete, mandate, measures.sourceAfter());
         GateDecision decision = measures.emergencyFundTarget() == null ? null
                 : AutonomyGate.decide(action, gateContext,
                         new GateThresholds(context.thresholds().investmentShareOfLiquidAssets()));
@@ -433,7 +447,10 @@ class ActionService implements Actions {
         Map<String, Object> mandate = gateContext.mandate()
                 .map(m -> {
                     Map<String, Object> bounds = new LinkedHashMap<>();
+                    bounds.put("id", m.mandateId());
                     bounds.put("maxPerAction", m.maxPerAction());
+                    bounds.put("maxPerMonth", m.maxPerMonth());
+                    bounds.put("movedThisMonth", m.movedThisMonth());
                     bounds.put("floor", m.floor());
                     return bounds;
                 })
@@ -445,8 +462,16 @@ class ActionService implements Actions {
         context.put("dataConfidenceLongestGapDays", measures.dataConfidenceLongestGapDays());
         context.put("suitabilityComplete", gateContext.suitabilityComplete());
         context.put("mandate", mandate);
-        context.put("emergencyFundAfter", gateContext.emergencyFundAfter());
+        context.put("emergencyFundAfter", measures.overnightAfter());
+        context.put("sourceAfter", gateContext.sourceAfter());
         context.put("emergencyFundTarget", measures.emergencyFundTarget());
         return context;
+    }
+
+    private static Map<String, Object> legs(BankPort.Transfer transfer) {
+        Map<String, Object> booked = new LinkedHashMap<>();
+        booked.put("debitTransactionId", transfer.debitTransactionId());
+        booked.put("creditTransactionId", transfer.creditTransactionId());
+        return booked;
     }
 }

@@ -162,15 +162,16 @@ public interface CoreGateway {
 
     /**
      * The measures the Autonomy Gate decides on (FR-35), from the given snapshot only: liquid assets, Data Confidence
-     * (thresholds from {@code context.thresholds()}), the overnight deposit after moving {@code amount} out of
-     * {@code sourceAccountId} (unchanged if that is not the overnight deposit) and the emergency fund target. Nothing
+     * (thresholds from {@code context.thresholds()}), the source account and the overnight deposit after moving
+     * {@code amount} from {@code sourceAccountId} to {@code targetAccountId}, and the emergency fund target. Nothing
      * is stored; no transaction is needed.
      *
      * @param snapshot the persona's bank snapshot at {@code context.asOf()}, read once by the caller
      * @param amount {@code null} counts as 0
      * @throws IllegalStateException if the persona has no current account
      */
-    GateMeasures gateMeasures(RequestContext context, BankSnapshot snapshot, UUID sourceAccountId, BigDecimal amount);
+    GateMeasures gateMeasures(RequestContext context, BankSnapshot snapshot, UUID sourceAccountId,
+            UUID targetAccountId, BigDecimal amount);
 
     /**
      * The balances of both accounts at the end of {@code context.asOf()} before and after moving {@code amount} from

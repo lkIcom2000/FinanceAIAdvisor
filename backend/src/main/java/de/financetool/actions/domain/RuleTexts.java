@@ -7,11 +7,13 @@ import java.text.DecimalFormatSymbols;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import org.springframework.modulith.NamedInterface;
 
 /**
  * The customer texts of a rule (UX-DR22, UX-DR23, UX-DR36): the plain-language summary, what Fine will and will not do,
  * how to undo and stop, and the limit checks. Customer text says "rule", never "Mandate". Pure.
  */
+@NamedInterface("types")
 public final class RuleTexts {
 
     /** The largest limit a rule accepts. */

@@ -52,14 +52,19 @@ public class ActionRepository {
                 capping_criteria::text AS capping_criteria, as_of, reason""";
 
     public void insert(PersonaScope scope, Row row) {
+        insert(scope, row, null);
+    }
+
+    /** Inserts an Action under a rule; {@code mandateId} {@code null} means none. */
+    public void insert(PersonaScope scope, Row row, UUID mandateId) {
         jdbc.sql("""
                 INSERT INTO actions (id, persona_id, type, regulatory_class, amount, source_account_id,
-                    target_account_id, trigger_id, state, level, capping_criteria, as_of, reason)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?)""")
+                    target_account_id, trigger_id, state, level, capping_criteria, as_of, reason, mandate_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?)""")
                 .params(row.id(), scope.id(), row.type().name(), row.regulatoryClass().id(), row.amount(),
                         row.sourceAccountId(), row.targetAccountId(), row.triggerId(), row.state().name(),
                         row.level() == null ? null : row.level().name(), JSON.writeValueAsString(row.cappingCriteria()),
-                        row.asOf(), row.reason())
+                        row.asOf(), row.reason(), mandateId)
                 .update();
     }
 
@@ -129,12 +134,15 @@ public class ActionRepository {
             return Map.of();
         }
         Map<UUID, ActionSummary> summaries = new HashMap<>();
-        jdbc.sql("SELECT id, state, reason FROM actions WHERE id IN (:ids) AND persona_id = :personaId")
+        jdbc.sql("""
+                SELECT id, state, reason, mandate_id IS NOT NULL AS under_rule FROM actions
+                WHERE id IN (:ids) AND persona_id = :personaId""")
                 .param("ids", ids)
                 .param("personaId", scope.id())
                 .query(rs -> {
                     summaries.put(rs.getObject("id", UUID.class),
-                            new ActionSummary(ActionState.valueOf(rs.getString("state")), rs.getString("reason")));
+                            new ActionSummary(ActionState.valueOf(rs.getString("state")), rs.getString("reason"),
+                                    rs.getBoolean("under_rule")));
                 });
         return summaries;
     }

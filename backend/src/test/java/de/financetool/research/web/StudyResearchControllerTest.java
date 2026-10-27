@@ -2,9 +2,13 @@ package de.financetool.research.web;
 
 import static de.financetool.personas.web.AuthIntegrationTest.login;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -38,6 +42,7 @@ class StudyResearchControllerTest extends PostgresIntegrationTest {
 
     static final PersonaId JONAS = new PersonaId("p-jonas");
     static final PersonaId MARCO = new PersonaId("p-marco");
+    static final PersonaId LENA = new PersonaId("p-lena");
 
     @Autowired
     ResetPersonaUseCase resetPersona;
@@ -57,7 +62,7 @@ class StudyResearchControllerTest extends PostgresIntegrationTest {
     /** The test database is shared by every test class: leave the personas as the fixtures define them. */
     @AfterEach
     void restoreFixtureState() {
-        Stream.of(JONAS, MARCO).forEach(resetPersona::reset);
+        Stream.of(JONAS, MARCO, LENA).forEach(resetPersona::reset);
     }
 
     ResultActions prepare(String presetId, MockHttpSession session) throws Exception {
@@ -115,8 +120,34 @@ class StudyResearchControllerTest extends PostgresIntegrationTest {
         prepare("uj4-duplicate-coverage-jonas", login(mvc, "p-jonas")).andExpect(status().isForbidden());
     }
 
+    @Test
+    void lenaPresetSetsUpHerRuleAndFineMovesTheMoneyItself() throws Exception {
+        prepare("uj1-shortfall-lena", login(mvc, "researcher")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.activeRules").value(1))
+                .andExpect(jsonPath("$.summary").value("3 notifications (1 For your information, 1 Recommendation,"
+                        + " 1 Done for you), 1 rule active"));
+
+        Map<String, Object> action = jdbc.queryForMap("select a.id, a.state, a.level, a.mandate_id, m.template"
+                + " from actions a join mandates m on m.id = a.mandate_id where a.persona_id = 'p-lena'");
+        assertThat(action).containsEntry("state", "EXECUTED").containsEntry("level", "L3")
+                .containsEntry("template", "SAFETY_CUSHION");
+        assertThat(jdbc.queryForObject("select count(*) from transactions where persona_id = 'p-lena'"
+                + " and origin = 'BANK_PORT'", Long.class)).isEqualTo(2);
+        assertThat(jdbc.queryForObject("select count(*) from actions where persona_id = 'p-lena'", Long.class))
+                .isOne();
+
+        mvc.perform(get("/api/notifications").session(login(mvc, "p-lena"))).andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.status == 'DONE_FOR_YOU')].title")
+                        .value(hasItem("I moved 90.00 EUR to your current account")))
+                .andExpect(jsonPath("$[?(@.status == 'DONE_FOR_YOU')].body").value(hasItem(startsWith(
+                        "I moved 90.00 EUR from your overnight deposit to your current account, as your rule"
+                                + " \"Keep a safety cushion in my current account\" allows. Your forecast shows"))))
+                .andExpect(jsonPath("$[?(@.status == 'DONE_FOR_YOU')].body")
+                        .value(hasItem(not(containsString("You confirmed it")))));
+    }
+
     @ParameterizedTest
-    @ValueSource(strings = { "uj4-duplicate-coverage-jonas", "uj2-advice-marco" })
+    @ValueSource(strings = { "uj4-duplicate-coverage-jonas", "uj2-advice-marco", "uj1-shortfall-lena" })
     void everyPresetPrepares(String presetId) throws Exception {
         prepare(presetId, login(mvc, "researcher")).andExpect(status().isOk());
     }

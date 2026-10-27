@@ -354,7 +354,7 @@ class CoreGatewayService implements CoreGateway {
 
     @Override
     public GateMeasures gateMeasures(RequestContext context, BankSnapshot snapshot, UUID sourceAccountId,
-            BigDecimal amount) {
+            UUID targetAccountId, BigDecimal amount) {
         Objects.requireNonNull(snapshot, "snapshot");
         LocalDate asOf = context.asOf();
         BankSnapshot.Account current = currentAccount(snapshot, context);
@@ -375,8 +375,13 @@ class CoreGatewayService implements CoreGateway {
                 context.thresholds().dataConfidenceMinCoverage(), context.thresholds().dataConfidenceMaxGapDays());
 
         BigDecimal overnightNow = overnightFigure == null ? new BigDecimal("0.00") : overnightFigure.value();
+        BigDecimal moved = amount == null ? BigDecimal.ZERO : amount;
         boolean fromOvernight = overnight.isPresent() && overnight.get().id().equals(sourceAccountId);
-        BigDecimal overnightAfter = fromOvernight && amount != null ? overnightNow.subtract(amount) : overnightNow;
+        boolean toOvernight = overnight.isPresent() && overnight.get().id().equals(targetAccountId);
+        BigDecimal overnightAfter = overnightNow.subtract(fromOvernight ? moved : BigDecimal.ZERO)
+                .add(toOvernight ? moved : BigDecimal.ZERO);
+        BigDecimal sourceAfter = fromOvernight ? overnightNow.subtract(moved)
+                : current.id().equals(sourceAccountId) ? currentFigure.value().subtract(moved) : null;
 
         BigDecimal target;
         try {
@@ -391,7 +396,7 @@ class CoreGatewayService implements CoreGateway {
             target = null;
         }
         return new GateMeasures(liquidAssets, confidence.high(), confidence.coverage(), confidence.longestGapDays(),
-                overnightAfter, target);
+                overnightAfter, sourceAfter, target);
     }
 
     @Override

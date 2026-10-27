@@ -9,11 +9,11 @@ import static de.financetool.actions.domain.AutonomyGate.NOT_REVERSIBLE;
 import static de.financetool.actions.domain.AutonomyGate.NO_COVERING_MANDATE;
 import static de.financetool.actions.domain.AutonomyGate.SUITABILITY_INCOMPLETE;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -28,7 +28,17 @@ class AutonomyGateTest {
 
     static final GateThresholds THRESHOLDS = new GateThresholds(new BigDecimal("0.05"));
     static final BigDecimal LIQUID = new BigDecimal("10000.00");
-    static final MandateBounds BOUNDS = new MandateBounds(new BigDecimal("500.00"), new BigDecimal("3000.00"));
+    static final MandateBounds BOUNDS = bounds("500.00", "3000.00");
+
+    static MandateBounds bounds(String maxPerAction, String floor) {
+        return new MandateBounds(UUID.randomUUID(), RuleTemplate.SAFETY_CUSHION, new BigDecimal(maxPerAction),
+                new BigDecimal("100000.00"), new BigDecimal(floor), BigDecimal.ZERO);
+    }
+
+    static MandateBounds month(String maxPerMonth, String moved) {
+        return new MandateBounds(UUID.randomUUID(), RuleTemplate.SAFETY_CUSHION, new BigDecimal("300.00"),
+                new BigDecimal(maxPerMonth), new BigDecimal("2000.00"), new BigDecimal(moved));
+    }
 
     static GateAction action(RegulatoryClass regulatoryClass, String amount, boolean reversible) {
         return new GateAction(ActionType.SHORTFALL_TRANSFER, regulatoryClass,
@@ -38,7 +48,7 @@ class AutonomyGateTest {
     static GateContext context(boolean confidenceHigh, boolean suitabilityComplete, MandateBounds mandate,
             String fundAfter) {
         return new GateContext(LIQUID, confidenceHigh, suitabilityComplete, Optional.ofNullable(mandate),
-                new BigDecimal(fundAfter));
+                fundAfter == null ? null : new BigDecimal(fundAfter));
     }
 
     /** Everything met but the row under test. */
@@ -61,11 +71,18 @@ class AutonomyGateTest {
                         List.of(AMOUNT_ABOVE_MANDATE_BOUNDS)),
                 Arguments.of("emergency fund at the floor after", action(RegulatoryClass.PAYMENT, "200.00", true),
                         context(true, true, BOUNDS, "3000.00"), AutonomyLevel.L3, List.of()),
+                Arguments.of("month used up", action(RegulatoryClass.PAYMENT, "90.00", true),
+                        context(true, true, month("600.00", "550.00"), "5000.00"), AutonomyLevel.L2,
+                        List.of(AMOUNT_ABOVE_MANDATE_BOUNDS)),
+                Arguments.of("month exactly reached", action(RegulatoryClass.PAYMENT, "50.00", true),
+                        context(true, true, month("600.00", "550.00"), "5000.00"), AutonomyLevel.L3, List.of()),
+                Arguments.of("source neither current nor overnight", action(RegulatoryClass.PAYMENT, "200.00", true),
+                        context(true, true, BOUNDS, null), AutonomyLevel.L2, List.of(AMOUNT_ABOVE_MANDATE_BOUNDS)),
                 Arguments.of("not reversible", action(RegulatoryClass.PAYMENT, "200.00", false), covered(),
                         AutonomyLevel.L2, List.of(NOT_REVERSIBLE)),
                 Arguments.of("investment above share of liquid assets",
                         action(RegulatoryClass.INVESTMENT, "500.01", true),
-                        context(true, true, new MandateBounds(new BigDecimal("1000.00"), BigDecimal.ZERO), "5000.00"),
+                        context(true, true, bounds("1000.00", "0"), "5000.00"),
                         AutonomyLevel.L2, List.of(INVESTMENT_ABOVE_LIQUID_SHARE)),
                 Arguments.of("investment at the share of liquid assets",
                         action(RegulatoryClass.INVESTMENT, "500.00", true), covered(), AutonomyLevel.L3, List.of()),
@@ -126,16 +143,16 @@ class AutonomyGateTest {
         assertThat(AutonomyGate.decide(action, covered(), THRESHOLDS).cappingCriteria())
                 .contains(INVESTMENT_ABOVE_LIQUID_SHARE);
         assertThat(AutonomyGate.decide(action, context(true, true,
-                new MandateBounds(new BigDecimal("1000.00"), BigDecimal.ZERO), "5000.00"),
+                bounds("1000.00", "0"), "5000.00"),
                 new GateThresholds(new BigDecimal("0.10"))).level()).isEqualTo(AutonomyLevel.L3);
     }
 
     @Test
-    void eachLevelMapsToItsProposedStateAndL3IsNotAvailableYet() {
+    void eachLevelMapsToItsProposedStateAndL3Executes() {
         assertThat(ActionState.proposedAt(AutonomyLevel.L0)).isEqualTo(ActionState.INFORMED);
         assertThat(ActionState.proposedAt(AutonomyLevel.L1)).isEqualTo(ActionState.RECOMMENDED);
         assertThat(ActionState.proposedAt(AutonomyLevel.L2)).isEqualTo(ActionState.AWAITING_CONFIRMATION);
-        assertThatThrownBy(() -> ActionState.proposedAt(AutonomyLevel.L3)).isInstanceOf(IllegalStateException.class);
+        assertThat(ActionState.proposedAt(AutonomyLevel.L3)).isEqualTo(ActionState.EXECUTED);
     }
 
     @Test
