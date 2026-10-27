@@ -193,6 +193,15 @@ public interface CoreGateway {
     CoreResult emergencyFundTopUp(RequestContext context, EvidenceOrigin origin);
 
     /**
+     * The limits suggested for the two rule templates at the end of {@code asOf} (function {@code ruleLimits}), from
+     * the forecast's lowest balance, the emergency fund target and {@link #emergencyFundTopUp}.
+     *
+     * @throws de.financetool.knowledge.NoValidRuleParameterException if an emergency-fund or forecast Rule Parameter
+     *     has no version valid at {@code asOf}
+     */
+    CoreResult ruleLimits(RequestContext context, EvidenceOrigin origin);
+
+    /**
      * The Rule Parameter versions whose validity starts after {@code since} and on or before {@code asOf}, each with
      * the value it replaces (function {@code ruleParameterChange}), and every announced rule change with whether its
      * keys have versions valid on its effective date.

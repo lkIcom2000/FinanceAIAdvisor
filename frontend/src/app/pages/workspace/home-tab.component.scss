@@ -165,3 +165,83 @@
   font: var(--fine-body-sm);
   font-variant-numeric: tabular-nums;
 }
+
+.section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.rules {
+  display: grid;
+  gap: 12px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rule {
+  padding: 16px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--fine-radius-card);
+  background: var(--mat-sys-surface);
+}
+
+.rule-title {
+  margin: 0 0 8px;
+  font: var(--fine-body);
+  font-weight: 600;
+  color: var(--mat-sys-on-surface);
+}
+
+.bounds {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 8px;
+
+  div {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 4px 12px;
+  }
+
+  dt {
+    font: var(--fine-body-sm);
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  dd {
+    margin: 0;
+    font: var(--fine-body);
+    color: var(--mat-sys-on-surface);
+  }
+}
+
+.rule-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font: var(--fine-body-sm);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.revoke {
+  min-height: 44px;
+  padding: 0 8px;
+  border: none;
+  background: none;
+  font: var(--fine-label);
+  font-weight: 600;
+  color: var(--mat-sys-error);
+  cursor: pointer;
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
+}

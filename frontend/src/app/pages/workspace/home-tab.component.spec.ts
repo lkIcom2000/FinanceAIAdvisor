@@ -2,9 +2,11 @@ import { HttpTestingController } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { HomeOverview } from '../../api/models/home-overview';
+import { RuleView } from '../../api/models/rule-view';
 import { NeedsStatement } from '../../api/models/needs-statement';
 import { httpTestingProviders } from '../../testing/session-testing';
 import { HomeTabComponent } from './home-tab.component';
+import { RuleSetupService } from './rule-setup.service';
 
 function figure(provId: string, value: string, unit: 'EUR' | 'MONTHS' | 'COUNT' = 'EUR') {
   return { provId, label: provId, value, unit };
@@ -82,11 +84,16 @@ describe('HomeTabComponent', () => {
     }).compileComponents();
   });
 
-  async function render(body: HomeOverview, needs: NeedsStatement | null = null) {
+  async function render(
+    body: HomeOverview,
+    needs: NeedsStatement | null = null,
+    rules: RuleView[] = [],
+  ) {
     const fixture = TestBed.createComponent(HomeTabComponent);
     fixture.detectChanges();
     const http = TestBed.inject(HttpTestingController);
     http.expectOne('/api/overview/home').flush(body);
+    http.expectOne('/api/rules').flush(rules);
     http
       .expectOne('/api/chat/needs-statement')
       .flush(needs, needs ? {} : { status: 204, statusText: 'No Content' });
@@ -132,7 +139,7 @@ describe('HomeTabComponent', () => {
     expect(element.querySelector('.risk')).toBeNull();
   });
 
-  it('shows the Notifications and rules empty states and no rule button', async () => {
+  it('shows the Notifications and rules empty states and the Set up a rule button', async () => {
     const element = await render(home());
     const sections = Array.from(element.querySelectorAll('.section'));
     expect(sections.map((s) => text(s.querySelector('.label')))).toEqual([
@@ -146,7 +153,42 @@ describe('HomeTabComponent', () => {
     expect(text(sections[1].querySelector('.empty'))).toBe(
       "You haven't set up any rules. With a rule, Fine can take care of small things for you, like keeping your current account above zero.",
     );
-    expect(element.textContent).not.toContain('Set up a rule');
+    const open = vi.spyOn(TestBed.inject(RuleSetupService), 'open').mockReturnValue(undefined);
+    const setup = sections[1].querySelector('.setup-rule') as HTMLButtonElement;
+    expect(text(setup)).toBe('Set up a rule');
+    setup.click();
+    expect(open).toHaveBeenCalled();
+  });
+
+  it("shows Lena's rule as a card with its summary, limits, start date and Revoke", async () => {
+    const summary =
+      'Keep my current account above 0 EUR, using my overnight deposit, but never let the overnight deposit fall below 2,000 EUR';
+    const element = await render(home(), null, [
+      {
+        id: 'r1',
+        template: 'SAFETY_CUSHION',
+        summary,
+        fromName: 'Overnight deposit',
+        toName: 'Current account',
+        limits: { maxPerAction: '300.00', maxPerMonth: '600.00', floor: '2000.00' },
+        activeSince: '2026-10-03',
+        actionCount: 0,
+      },
+    ]);
+    const card = element.querySelector('.rule') as HTMLElement;
+    expect(text(card.querySelector('.rule-title'))).toBe(summary);
+    expect(Array.from(card.querySelectorAll('.bounds div')).map(text)).toEqual([
+      'From Overnight deposit',
+      'To Current account',
+      'Most per transfer 300.00 EUR',
+      'Most per month 600.00 EUR',
+      'Minimum balance of Overnight deposit 2,000.00 EUR',
+    ]);
+    expect(text(card.querySelector('.supporting'))).toBe('No actions under this rule yet');
+    expect(text(card.querySelector('.rule-status span'))).toContain('Active since');
+    expect(text(card.querySelector('.revoke'))).toBe('Revoke');
+    expect(element.querySelector('.section .empty + .empty')).toBeNull();
+    expect(card.textContent?.toLowerCase()).not.toContain('mandate');
   });
 
   it("lists Jonas's contracts with the duplicate and missing-cover lines", async () => {

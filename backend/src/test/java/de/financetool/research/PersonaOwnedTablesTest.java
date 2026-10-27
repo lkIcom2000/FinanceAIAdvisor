@@ -36,6 +36,7 @@ class PersonaOwnedTablesTest extends PostgresIntegrationTest {
             Map.entry("suitability_profiles", "profile"),
             Map.entry("needs_profiles", "profile"),
             Map.entry("actions", "actions"),
+            Map.entry("mandates", "actions"),
             Map.entry("triggers", "monitoring"),
             Map.entry("notifications", "monitoring"));
 

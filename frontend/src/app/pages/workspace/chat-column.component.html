@@ -30,6 +30,13 @@
             {{ s }}
           </button>
         }
+        <!-- FR-36: chat can only open the rule setup dialog, never start a rule. -->
+        <button type="button" class="chip setup-rule" (click)="setupRule()">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path [attr.d]="icons['chat']" />
+          </svg>
+          Set up a rule
+        </button>
       </div>
     </article>
   }

@@ -13,6 +13,7 @@ import de.financetool.actions.Actions;
 import de.financetool.actions.NotAwaitingConfirmationException;
 import de.financetool.actions.ProposedAction;
 import de.financetool.actions.adapter.ActionRepository;
+import de.financetool.actions.adapter.MandateRepository;
 import de.financetool.actions.domain.ActionState;
 import de.financetool.actions.domain.ActionType;
 import de.financetool.actions.domain.AutonomyGate;
@@ -87,6 +88,9 @@ class ActionServiceTest extends PostgresIntegrationTest {
 
     @Autowired
     ActionRepository repository;
+
+    @Autowired
+    MandateRepository mandateRows;
 
     @Autowired
     AuditWriter audit;
@@ -222,7 +226,7 @@ class ActionServiceTest extends PostgresIntegrationTest {
         when(missingRule.gateMeasures(any(), any(), any(), any())).thenReturn(new GateMeasures(
                 new BigDecimal("5000.00"), true, BigDecimal.ONE, 1, new BigDecimal("2700.00"), null));
         ActionService service = new ActionService(bank, bookings, missingRule, profiles, completeness, mandates, repository,
-                audit);
+                mandateRows, audit);
 
         ActionProposal proposal = propose(service, new ProposedAction(ActionType.SHORTFALL_TRANSFER,
                 RegulatoryClass.PAYMENT, new BigDecimal("300.00"), overnight, current, null));
@@ -245,7 +249,7 @@ class ActionServiceTest extends PostgresIntegrationTest {
         when(core.transferBalances(any(), any(), any(), any(), any())).thenReturn(new TransferBalances(
                 new BigDecimal("1850.00"), new BigDecimal("1750.00"), new BigDecimal("2700.00"),
                 new BigDecimal("2800.00")));
-        return new ActionService(bank, bookings, core, profiles, completeness, mandates, repository, audit);
+        return new ActionService(bank, bookings, core, profiles, completeness, mandates, repository, mandateRows, audit);
     }
 
     @Test

@@ -24,6 +24,9 @@
     "description" : "Confirm a transfer Fine prepared",
     "name" : "actions"
   }, {
+    "description" : "Rules that let Fine move money within limits you set",
+    "name" : "rules"
+  }, {
     "description" : "The persona of the session",
     "name" : "persona"
   }, {
@@ -660,6 +663,134 @@
         "summary" : "Where a figure comes from: source, inputs, assumptions and checks",
         "tags" : [ "provenance" ]
       }
+    },
+    "/api/rules" : {
+      "get" : {
+        "operationId" : "rules",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/RuleView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Your active rules, oldest first",
+        "tags" : [ "rules" ]
+      },
+      "post" : {
+        "operationId" : "start",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RuleRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RuleView"
+                }
+              }
+            },
+            "description" : "The rule is active"
+          },
+          "400" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RuleView"
+                }
+              }
+            },
+            "description" : "The limits can't be used"
+          },
+          "409" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RuleView"
+                }
+              }
+            },
+            "description" : "A rule of this kind is already active"
+          }
+        },
+        "summary" : "Start a rule",
+        "tags" : [ "rules" ]
+      }
+    },
+    "/api/rules/check" : {
+      "post" : {
+        "operationId" : "check",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RuleRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CheckView"
+                }
+              }
+            },
+            "description" : "The texts of the check step"
+          },
+          "400" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CheckView"
+                }
+              }
+            },
+            "description" : "The limits can't be used"
+          }
+        },
+        "summary" : "Check a rule's limits and describe it; nothing is stored",
+        "tags" : [ "rules" ]
+      }
+    },
+    "/api/rules/setup" : {
+      "get" : {
+        "operationId" : "setup",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/TemplateView"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "The rule templates with the limits Fine suggests; empty without both accounts",
+        "tags" : [ "rules" ]
+      }
     }
   },
   "components" : {
@@ -1108,6 +1239,31 @@
         },
         "required" : [ "label", "value" ]
       },
+      "CheckView" : {
+        "type" : "object",
+        "description" : "The \"Check and confirm\" step",
+        "properties" : {
+          "summary" : {
+            "type" : "string"
+          },
+          "undoAndStop" : {
+            "type" : "string"
+          },
+          "will" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "wont" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        },
+        "required" : [ "summary", "undoAndStop", "will", "wont" ]
+      },
       "ConfirmResult" : {
         "type" : "object",
         "description" : "The outcome of a confirmation",
@@ -1375,6 +1531,26 @@
           }
         },
         "required" : [ "contractIds", "coverage", "kind", "provId" ]
+      },
+      "Limits" : {
+        "type" : "object",
+        "description" : "A rule's limits; EUR as decimal strings",
+        "properties" : {
+          "floor" : {
+            "type" : "string",
+            "description" : "The source account's minimum balance after a transfer",
+            "example" : "2000.00"
+          },
+          "maxPerAction" : {
+            "type" : "string",
+            "example" : "300.00"
+          },
+          "maxPerMonth" : {
+            "type" : "string",
+            "example" : "600.00"
+          }
+        },
+        "required" : [ "floor", "maxPerAction", "maxPerMonth" ]
       },
       "LiquidityOverview" : {
         "type" : "object",
@@ -1806,6 +1982,62 @@
         },
         "required" : [ "description", "kind" ]
       },
+      "RuleRequest" : {
+        "type" : "object",
+        "description" : "The rule a persona asks for",
+        "properties" : {
+          "floor" : {
+            "type" : "string"
+          },
+          "maxPerAction" : {
+            "type" : "string"
+          },
+          "maxPerMonth" : {
+            "type" : "string"
+          },
+          "template" : {
+            "type" : "string",
+            "enum" : [ "SAFETY_CUSHION", "EMERGENCY_FUND_TOP_UP" ]
+          }
+        }
+      },
+      "RuleView" : {
+        "type" : "object",
+        "description" : "An active rule",
+        "properties" : {
+          "actionCount" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "activeSince" : {
+            "type" : "string",
+            "format" : "date"
+          },
+          "fromName" : {
+            "type" : "string",
+            "description" : "The account money comes from; absent if it no longer exists"
+          },
+          "id" : {
+            "type" : "string"
+          },
+          "limits" : {
+            "$ref" : "#/components/schemas/Limits"
+          },
+          "summary" : {
+            "type" : "string",
+            "description" : "The plain-language summary"
+          },
+          "template" : {
+            "type" : "string",
+            "enum" : [ "SAFETY_CUSHION", "EMERGENCY_FUND_TOP_UP" ]
+          },
+          "toName" : {
+            "type" : "string",
+            "description" : "The account money goes to; absent if it no longer exists"
+          }
+        },
+        "required" : [ "actionCount", "activeSince", "id", "limits", "summary", "template" ]
+      },
       "SaveAssessmentRequest" : {
         "type" : "object",
         "description" : "Save my answers: one answer per question of the card",
@@ -1852,6 +2084,42 @@
           }
         },
         "required" : [ "displayName", "role" ]
+      },
+      "TemplateView" : {
+        "type" : "object",
+        "description" : "A rule template with the limits Fine suggests",
+        "properties" : {
+          "alreadyActive" : {
+            "type" : "boolean"
+          },
+          "floor" : {
+            "$ref" : "#/components/schemas/Figure"
+          },
+          "fromName" : {
+            "type" : "string"
+          },
+          "maxPerAction" : {
+            "$ref" : "#/components/schemas/Figure"
+          },
+          "maxPerMonth" : {
+            "$ref" : "#/components/schemas/Figure"
+          },
+          "source" : {
+            "type" : "string",
+            "description" : "Where the suggestion comes from"
+          },
+          "template" : {
+            "type" : "string",
+            "enum" : [ "SAFETY_CUSHION", "EMERGENCY_FUND_TOP_UP" ]
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "toName" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "alreadyActive", "floor", "fromName", "maxPerAction", "maxPerMonth", "source", "template", "title", "toName" ]
       },
       "TransferReview" : {
         "type" : "object",

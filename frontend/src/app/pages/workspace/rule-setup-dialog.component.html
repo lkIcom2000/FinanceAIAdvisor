@@ -1,0 +1,119 @@
+<h2 mat-dialog-title #heading tabindex="-1">Set up a rule</h2>
+<mat-dialog-content>
+  @let error = loadError();
+  @let list = templates();
+  @if (error) {
+    <p class="problem" role="alert">{{ error }}</p>
+  } @else if (list) {
+    <ol class="steps">
+      @for (label of stepLabels; track label; let i = $index) {
+        <li
+          [class.current]="step() === i"
+          [class.done]="step() > i"
+          [attr.aria-current]="step() === i ? 'step' : null"
+        >
+          <span class="step-number" aria-hidden="true">{{ i + 1 }}</span>
+          {{ label }}
+        </li>
+      }
+    </ol>
+    @if (step() === 0) {
+      <ul class="templates">
+        @for (t of list; track t.template) {
+          <li>
+            <button
+              type="button"
+              class="template"
+              [class.selected]="chosen()?.template === t.template"
+              [attr.aria-disabled]="t.alreadyActive"
+              [attr.aria-describedby]="t.alreadyActive ? 'active-' + t.template : null"
+              (click)="choose(t)"
+            >
+              <span class="template-title">{{ t.title }}</span>
+              <span class="template-accounts">From {{ t.fromName }} to {{ t.toName }}</span>
+              @if (t.alreadyActive) {
+                <span class="template-active" [id]="'active-' + t.template"
+                  >You already have this rule.</span
+                >
+              }
+            </button>
+          </li>
+        }
+      </ul>
+    } @else if (step() === 1) {
+      @if (chosen(); as t) {
+        <dl class="accounts">
+          <div>
+            <dt>From</dt>
+            &ngsp;
+            <dd>{{ t.fromName }}</dd>
+          </div>
+          <div>
+            <dt>To</dt>
+            &ngsp;
+            <dd>{{ t.toName }}</dd>
+          </div>
+        </dl>
+        @for (f of fields; track f.key) {
+          <label class="field">
+            <span class="field-label">{{ f.label }}</span>
+            <input
+              type="text"
+              inputmode="decimal"
+              aria-describedby="rule-limits-source rule-problem"
+              [attr.aria-invalid]="problem() ? true : null"
+              [value]="limits()[f.key]"
+              (input)="setLimit(f.key, $any($event.target).value)"
+            />
+          </label>
+        }
+        <p class="source" id="rule-limits-source">{{ t.source }}</p>
+      }
+    } @else {
+      @if (check(); as c) {
+        <p class="summary">{{ c.summary }}</p>
+        <h3 class="list-title">Fine will</h3>
+        <ul class="will">
+          @for (line of c.will; track line) {
+            <li>{{ line }}</li>
+          }
+        </ul>
+        <h3 class="list-title">Fine will not</h3>
+        <ul class="wont">
+          @for (line of c.wont; track line) {
+            <li>{{ line }}</li>
+          }
+        </ul>
+        <p class="undo">{{ c.undoAndStop }}</p>
+      }
+    }
+    @if (problem(); as p) {
+      <p class="problem" id="rule-problem" role="alert">{{ p }}</p>
+    }
+  } @else {
+    <p class="loading">Loading the rules you can set up&hellip;</p>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  @if (error || !list) {
+    <button mat-button type="button" mat-dialog-close>Close</button>
+  } @else {
+    @if (step() === 0) {
+      <button mat-button type="button" mat-dialog-close>Cancel</button>
+    } @else {
+      <button mat-button type="button" class="back" [disabled]="busy()" (click)="go(step() - 1)">
+        Back
+      </button>
+    }
+    @if (step() === 1) {
+      <button mat-flat-button type="button" class="next" [disabled]="busy()" (click)="toCheck()">
+        Next
+      </button>
+    }
+    @if (step() === 2) {
+      <button mat-flat-button type="button" class="start" [disabled]="busy()" (click)="start()">
+        Start this rule
+      </button>
+    }
+  }
+</mat-dialog-actions>

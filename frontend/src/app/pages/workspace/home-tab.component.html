@@ -50,11 +50,54 @@
   </section>
 
   <section class="card section" aria-labelledby="home-rules-title">
-    <h2 id="home-rules-title" class="label">Your rules</h2>
-    <p class="empty">
-      You haven't set up any rules. With a rule, Fine can take care of small things for you, like
-      keeping your current account above zero.
-    </p>
+    <div class="section-head">
+      <h2 id="home-rules-title" class="label">Your rules</h2>
+      <button mat-stroked-button type="button" class="setup-rule" (click)="setupRule()">
+        Set up a rule
+      </button>
+    </div>
+    @let rs = rules();
+    @if (rs === 'failed') {
+      <p class="error" role="alert">We couldn't load your rules. Please try again later.</p>
+    } @else if (rs && rs.length) {
+      <ul class="rules">
+        @for (r of rs; track r.id) {
+          <li class="rule">
+            <h3 class="rule-title">{{ r.summary }}</h3>
+            <dl class="bounds">
+              @if (r.fromName) {
+                <div><dt>From</dt>&ngsp;<dd>{{ r.fromName }}</dd></div>
+              }
+              @if (r.toName) {
+                <div><dt>To</dt>&ngsp;<dd>{{ r.toName }}</dd></div>
+              }
+              <div>
+                <dt>Most per transfer</dt>&ngsp;<dd>{{ r.limits.maxPerAction | figure: 'EUR' }}</dd>
+              </div>
+              <div>
+                <dt>Most per month</dt>&ngsp;<dd>{{ r.limits.maxPerMonth | figure: 'EUR' }}</dd>
+              </div>
+              <div>
+                <dt>Minimum balance{{ r.fromName ? ' of ' + r.fromName : '' }}</dt>&ngsp;<dd>{{
+                  r.limits.floor | figure: 'EUR'
+                }}</dd>
+              </div>
+            </dl>
+            <p class="supporting">{{ actionsLine(r.actionCount) }}</p>
+            <div class="rule-status">
+              <span>Active since {{ formatDate(r.activeSince) }}</span>
+              <!-- Story 9.4 makes Revoke work; it is always visible on the card (UX-DR22). -->
+              <button type="button" class="revoke" disabled>Revoke</button>
+            </div>
+          </li>
+        }
+      </ul>
+    } @else if (rs) {
+      <p class="empty">
+        You haven't set up any rules. With a rule, Fine can take care of small things for you, like
+        keeping your current account above zero.
+      </p>
+    }
   </section>
 
   <section class="card section insurance" aria-labelledby="home-insurance-title">

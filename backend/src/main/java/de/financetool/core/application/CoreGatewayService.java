@@ -12,6 +12,7 @@ import de.financetool.core.domain.AccountBalance;
 import de.financetool.core.domain.AccountIds;
 import de.financetool.core.domain.EmergencyFundTopUp;
 import de.financetool.core.domain.RuleChangeFigures;
+import de.financetool.core.domain.RuleLimits;
 import de.financetool.core.domain.TransferBalances;
 import de.financetool.core.domain.RuleParameterChange;
 import de.financetool.core.domain.CashFlowForecast;
@@ -401,6 +402,16 @@ class CoreGatewayService implements CoreGateway {
         return record(context, origin, EmergencyFundTopUp.of(fund.number(EmergencyFundTarget.OUTPUT_CURRENT),
                 fund.number(EmergencyFundTarget.OUTPUT_TARGET), figures.netIncome().number(MonthlyNetIncome.OUTPUT),
                 fund.number(EmergencyFundTarget.OUTPUT_MONTHLY_EXPENSES)), List.of(), Map.of());
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY, noRollbackFor = NoValidRuleParameterException.class)
+    public CoreResult ruleLimits(RequestContext context, EvidenceOrigin origin) {
+        LiquidityFigures liquidity = liquidity(context, origin);
+        CoreResult topUp = emergencyFundTopUp(context, origin);
+        return record(context, origin, RuleLimits.of(liquidity.shortfall().number(ShortfallDetection.OUTPUT_LOWEST),
+                liquidity.emergencyFund().number(EmergencyFundTarget.OUTPUT_TARGET),
+                topUp.number(EmergencyFundTopUp.OUTPUT)), List.of(), Map.of());
     }
 
     @Override

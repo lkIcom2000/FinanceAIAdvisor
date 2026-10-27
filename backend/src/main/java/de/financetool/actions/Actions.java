@@ -1,8 +1,11 @@
 package de.financetool.actions;
 
+import de.financetool.actions.domain.RuleBounds;
+import de.financetool.actions.domain.RuleTemplate;
 import de.financetool.shared.PersonaScope;
 import de.financetool.shared.RequestContext;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,8 +30,42 @@ public interface Actions {
      */
     Map<UUID, ActionSummary> summaries(PersonaScope scope, Collection<UUID> actionIds);
 
-    /** The number of the scope's active rules (Mandates), in the caller's transaction; none exist before Epic 9. */
+    /** The number of the scope's rules (Mandates) that are not revoked, in the caller's transaction. */
     int activeRules(PersonaScope scope);
+
+    /**
+     * The scope's rules that are not revoked, oldest first, read only in the caller's transaction.
+     *
+     * @throws IllegalArgumentException if {@code scope} is not the context's persona
+     */
+    List<Rule> rules(RequestContext context, PersonaScope scope);
+
+    /**
+     * The rule templates with the limits the Core suggests at {@code context.asOf()} (its figures are stored as
+     * evidence in the caller's transaction); empty if the persona lacks a current account or an overnight deposit.
+     *
+     * @throws IllegalArgumentException if {@code scope} is not the context's persona
+     */
+    List<RuleSetup> ruleSetup(RequestContext context, PersonaScope scope);
+
+    /**
+     * The "Check and confirm" texts of a rule; nothing is stored.
+     *
+     * @throws InvalidRuleException if the limits can't be used
+     */
+    RuleCheck checkRule(RuleTemplate template, RuleBounds bounds);
+
+    /**
+     * Starts a rule (FR-36, AD-10) on {@code context.asOf()} with the template's accounts and writes an {@code ACTION}
+     * Audit Record ({@code event: rule_created}), in the caller's transaction.
+     *
+     * @param fixtureVersion the persona's fixture version, for the Audit Record
+     * @throws InvalidRuleException if the limits can't be used or the persona lacks one of the accounts
+     * @throws RuleAlreadyActiveException if a rule of the template is already active
+     * @throws IllegalArgumentException if {@code scope} is not the context's persona
+     */
+    Rule createRule(RequestContext context, PersonaScope scope, String fixtureVersion, RuleTemplate template,
+            RuleBounds bounds);
 
     /**
      * The L2 dialog for the scope's Action at {@code context.asOf()}: balances from the Core, the stored reason. Read

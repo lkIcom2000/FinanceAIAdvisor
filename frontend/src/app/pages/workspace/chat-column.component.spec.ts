@@ -13,6 +13,7 @@ import {
   SLOW_AFTER_MS,
   STEP_INTERVAL_MS,
 } from './chat-column.component';
+import { RuleSetupService } from './rule-setup.service';
 
 const GREETING =
   "Hi Lena, I'm Fine. I can explain money topics, look at your situation and calculate what-ifs. " +
@@ -131,7 +132,9 @@ describe('ChatColumnComponent', () => {
   it('greets an empty conversation with three suggestion chips that send their text', () => {
     render();
     expect(text(element.querySelector('.greeting .body'))).toBe(GREETING);
-    const chips = Array.from(element.querySelectorAll<HTMLButtonElement>('.greeting .chip'));
+    const chips = Array.from(
+      element.querySelectorAll<HTMLButtonElement>('.greeting .chip:not(.setup-rule)'),
+    );
     expect(chips.map(text)).toEqual([
       'How does an emergency fund work?',
       'What is an ETF savings plan?',
@@ -144,6 +147,16 @@ describe('ChatColumnComponent', () => {
     expect(post.request.method).toBe('POST');
     expect(post.request.body).toEqual({ text: 'What is an ETF savings plan?' });
     expect(element.querySelector('.greeting')).toBeNull();
+  });
+
+  it('opens the rule setup dialog from the Set up a rule chip without sending a message', () => {
+    render();
+    const open = vi.spyOn(TestBed.inject(RuleSetupService), 'open').mockReturnValue(undefined);
+    const chip = element.querySelector('.greeting .setup-rule') as HTMLButtonElement;
+    expect(text(chip)).toBe('Set up a rule');
+    chip.click();
+    expect(open).toHaveBeenCalled();
+    http.expectNone('/api/chat/messages');
   });
 
   it('lists the history as a polite log, without the greeting', () => {

@@ -29,6 +29,7 @@ import { ChatMessage } from '../../api/models/chat-message';
 import { ChatProposalParameter } from '../../api/models/chat-proposal-parameter';
 import { ChatService } from '../../api/services/chat.service';
 import { ChatComposerComponent } from './chat-composer.component';
+import { RuleSetupService } from './rule-setup.service';
 
 export type Outcome = NonNullable<ChatMessage['outcome']>;
 
@@ -136,8 +137,14 @@ export class ChatColumnComponent {
   private readonly dialog = inject(MatDialog);
   protected readonly links = inject(FigureLinksService);
   private readonly prompt = inject(ChatPromptService);
+  private readonly ruleSetup = inject(RuleSetupService);
 
   protected readonly suggestions = SUGGESTIONS;
+
+  /** The "Set up a rule" chip: opens the setup dialog; the chat itself never starts a rule. */
+  protected setupRule(): void {
+    this.ruleSetup.open();
+  }
   protected readonly steps = signal<readonly string[]>(WAITING_STEPS);
   protected readonly outcomes = OUTCOME_LABELS;
   protected readonly proposalLabel = PROPOSAL_LABEL;

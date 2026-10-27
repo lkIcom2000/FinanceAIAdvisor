@@ -8,3 +8,4 @@ export { NotificationsService } from './services/notifications.service';
 export { OverviewService } from './services/overview.service';
 export { PersonaService } from './services/persona.service';
 export { ProvenanceService } from './services/provenance.service';
+export { RulesService } from './services/rules.service';
