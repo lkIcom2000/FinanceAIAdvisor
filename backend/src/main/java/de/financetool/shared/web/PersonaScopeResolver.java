@@ -2,6 +2,7 @@ package de.financetool.shared.web;
 
 import de.financetool.shared.PersonaScope;
 import de.financetool.shared.Role;
+import de.financetool.shared.domain.PersonaId;
 import org.springframework.core.MethodParameter;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
@@ -26,6 +27,21 @@ public class PersonaScopeResolver implements HandlerMethodArgumentResolver {
     public PersonaScope resolveArgument(MethodParameter parameter, ModelAndViewContainer mavContainer,
             NativeWebRequest webRequest, WebDataBinderFactory binderFactory) {
         return currentScope();
+    }
+
+    /**
+     * The scope a researcher acts in on the persona a research path names (AD-11: the researcher acts on any
+     * persona). Only for an authenticated {@code RESEARCHER}; the caller checks that the persona exists.
+     *
+     * @throws AccessDeniedException without a researcher session
+     */
+    public static PersonaScope forResearcher(PersonaId personaId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof FinePrincipal principal
+                && principal.user().role() == Role.RESEARCHER) {
+            return new PersonaScope(personaId);
+        }
+        throw new AccessDeniedException("A researcher session is required");
     }
 
     static PersonaScope currentScope() {

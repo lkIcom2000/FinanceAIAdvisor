@@ -27,6 +27,14 @@ class EscalationService implements EscalationCases {
     }
 
     @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public UUID openForTrigger(PersonaScope scope, TriggerSnapshot snapshot) {
+        UUID id = UUID.randomUUID();
+        cases.insertTriggerCase(scope, id, snapshot);
+        return id;
+    }
+
+    @Override
     public Map<UUID, TurnCase> turnCases(PersonaScope scope) {
         return cases.turnCases(scope);
     }

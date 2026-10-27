@@ -11,6 +11,7 @@ emergencyFundTarget | Comfortable emergency fund (6 months of expenses) | 36234f
 emergencyFundTarget | Emergency fund target (3 months of expenses) | 81d3fc03184bbdbf
 emergencyFundTarget | Emergency fund | 1d6bab885f372525
 emergencyFundTarget | Months of expenses in the target | 11a6259f1c0a5765
+emergencyFundTopUp | Suggested top-up of your emergency fund | 800375475bca0100
 holdingValue | Value of World equity ETF | 60c94f0b43160b11
 investmentTotals | Monthly savings plan contributions | cf3c3bea2f03996a
 investmentTotals | Value of your investments today | fe8a95d11c3a4f85
@@ -22,6 +23,7 @@ monteCarloProjection | Low end after 30 years (1 in 10 chance it's lower) | d126
 monteCarloProjection | Middle outcome after 30 years | bf2aa8d2f95e0f23
 monteCarloProjection | Middle outcome in today's money | 7685b3000d3048a9
 monteCarloProjection | Total paid in after 30 years | b8e3e76441278ab1
+monthlyNetIncome | Average monthly net income | ed65ed331fd8f001
 savingsPlanAmount | Monthly amount of World equity ETF savings plan | bc163f395f42c22d
 shortfallDetection | Lowest expected balance (31 Oct 2026) | 3b0b2eb68f741847
 variableSpending | Average monthly variable spending | 94f7727b2b3145bc

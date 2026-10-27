@@ -55,6 +55,11 @@ class ArchitectureTest {
     }
 
     @Test
+    void monitoringReadsNoPricesAndOnlyCoreFigures() {
+        ArchitectureRules.MONITORING_IS_PRICE_FREE.check(PRODUCTION);
+    }
+
+    @Test
     void bankTablesAreWrittenOnlyThroughBankPortOrReset() {
         ArchitectureRules.BANK_WRITES_ONLY_THROUGH_BANK_PORT.check(PRODUCTION);
     }

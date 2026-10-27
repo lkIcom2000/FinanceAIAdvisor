@@ -9,6 +9,10 @@ import de.financetool.bank.BankReadPort;
 import de.financetool.bank.BankSnapshot;
 import de.financetool.core.CoreGateway;
 import de.financetool.core.domain.AccountBalance;
+import de.financetool.core.domain.AccountIds;
+import de.financetool.core.domain.EmergencyFundTopUp;
+import de.financetool.core.domain.RuleChangeFigures;
+import de.financetool.core.domain.RuleParameterChange;
 import de.financetool.core.domain.CashFlowForecast;
 import de.financetool.core.domain.CategorySelection;
 import de.financetool.core.domain.CostCalculation;
@@ -48,9 +52,11 @@ import de.financetool.knowledge.RuleParamPort;
 import de.financetool.knowledge.RuleParameter;
 import de.financetool.shared.RequestContext;
 import de.financetool.shared.domain.SourcedNumber;
+import de.financetool.shared.domain.Unit;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -368,6 +374,65 @@ class CoreGatewayService implements CoreGateway {
     }
 
     @Override
+    @Transactional(propagation = Propagation.MANDATORY, noRollbackFor = NoValidRuleParameterException.class)
+    public CoreResult emergencyFundTopUp(RequestContext context, EvidenceOrigin origin) {
+        ProfileFigures figures = profileFigures(context, origin);
+        CoreResult fund = figures.emergencyFund();
+        return record(context, origin, EmergencyFundTopUp.of(fund.number(EmergencyFundTarget.OUTPUT_CURRENT),
+                fund.number(EmergencyFundTarget.OUTPUT_TARGET), figures.netIncome().number(MonthlyNetIncome.OUTPUT),
+                fund.number(EmergencyFundTarget.OUTPUT_MONTHLY_EXPENSES)), List.of(), Map.of());
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public RuleChangeFigures ruleChanges(RequestContext context, EvidenceOrigin origin, LocalDate since) {
+        List<RuleChangeFigures.Change> changes = ruleParameters.startingBetween(since, context.asOf()).stream()
+                .sorted(Comparator.comparing(RuleParameter::validFrom).thenComparing(RuleParameter::key))
+                .map(version -> {
+                    RuleParameterValue current = value(version);
+                    RuleParameterValue previous = ruleParameters.previous(version).map(CoreGatewayService::value)
+                            .orElse(null);
+                    CoreResult figures = record(context, origin,
+                            RuleParameterChange.of(current, previous, Unit.valueOf(version.unit())), List.of(),
+                            Map.of(current.key(), current));
+                    return new RuleChangeFigures.Change(version.key(), RuleParameterChange.plainName(version.key()),
+                            version.version(), version.validFrom(),
+                            figures);
+                })
+                .toList();
+        List<RuleChangeFigures.Announcement> announcements = ruleParameters.announcements().stream()
+                .map(a -> new RuleChangeFigures.Announcement(a.id(), a.topic(), a.title(), a.keys(), a.announcedOn(),
+                        a.effectiveFrom(), a.source(), allValid(a.keys(), a.effectiveFrom())))
+                .toList();
+        return new RuleChangeFigures(changes, announcements);
+    }
+
+    @Override
+    public AccountIds accountIds(RequestContext context) {
+        BankSnapshot snapshot = bank.snapshot(context.personaId(), context.asOf());
+        UUID overnight = snapshot.accounts().stream()
+                .filter(a -> a.type() == AccountType.OVERNIGHT)
+                .map(BankSnapshot.Account::id)
+                .findFirst()
+                .orElse(null);
+        return new AccountIds(currentAccount(snapshot, context).id(), overnight);
+    }
+
+    private boolean allValid(List<String> keys, LocalDate date) {
+        try {
+            keys.forEach(key -> ruleParameters.valid(key, date));
+            return !keys.isEmpty();
+        } catch (NoValidRuleParameterException e) {
+            return false;
+        }
+    }
+
+    private static RuleParameterValue value(RuleParameter parameter) {
+        return new RuleParameterValue(parameter.key(), parameter.value(), parameter.version(),
+                parameter.validFrom(), parameter.validTo());
+    }
+
+    @Override
     public void requireSubsidyRules(LocalDate date) {
         subsidyRules(date);
     }
@@ -425,9 +490,7 @@ class CoreGatewayService implements CoreGateway {
 
     /** The Rule Parameter version valid at {@code asOf}; the port refuses a key without one. */
     private RuleParameterValue parameter(String key, LocalDate asOf) {
-        RuleParameter parameter = ruleParameters.valid(key, asOf);
-        return new RuleParameterValue(parameter.key(), parameter.value(), parameter.version(),
-                parameter.validFrom(), parameter.validTo());
+        return value(ruleParameters.valid(key, asOf));
     }
 
     /** Keys every output without storing evidence: for intermediate figures nobody is shown. */

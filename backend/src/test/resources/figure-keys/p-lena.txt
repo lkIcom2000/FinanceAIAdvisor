@@ -11,9 +11,11 @@ emergencyFundTarget | Comfortable emergency fund (6 months of expenses) | 434131
 emergencyFundTarget | Emergency fund target (3 months of expenses) | 63a0d5c5ace005e0
 emergencyFundTarget | Emergency fund | 92fbe1ca73868d41
 emergencyFundTarget | Months of expenses in the target | 4e2a7f93817a1d27
+emergencyFundTopUp | Suggested top-up of your emergency fund | 5b48d3e4652c793f
 liquidAssets | Liquid assets | 6a3098f3b205f8e3
 missingEssentialCover | Contracts covering liability | 7c4cdeb1d410691e
 missingEssentialCover | Contracts covering occupational disability | f55ebc8a8200ba1d
+monthlyNetIncome | Average monthly net income | 0f316e53a0cde9e9
 shortfallDetection | Forecast balance on 1 Nov 2026 | a69dc057228bbc32
 shortfallDetection | Lowest expected balance (1 Nov 2026) | 655a1bff0d42fce5
 variableSpending | Average monthly variable spending | 3a0827ba1f391dce

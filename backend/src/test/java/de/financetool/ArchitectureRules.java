@@ -167,6 +167,23 @@ final class ArchitectureRules {
                     .and(DescribedPredicate.not(USE_CASE_OR_ITS_NESTED_TYPE)))
             .because("AD-21: controllers never call module services directly");
 
+    /** Price, holding and index data, and the modules monitoring must reach only through the CoreGateway. */
+    static final DescribedPredicate<JavaClass> PRICE_DATA_OR_RAW_SOURCES = resideInAnyPackage(
+            "de.financetool.bank..", "de.financetool.knowledge..")
+            .or(DescribedPredicate.describe("WealthFigures, Investments or IndexReturns",
+                    type -> Set.of("de.financetool.core.domain.WealthFigures", "de.financetool.core.domain.Investments",
+                            "de.financetool.core.application.IndexReturns").contains(type.getName())
+                            || type.getName().startsWith("de.financetool.core.domain.WealthFigures$")));
+
+    static final ArchRule MONITORING_IS_PRICE_FREE = noClasses()
+            .that().resideInAPackage("de.financetool.monitoring..")
+            .should().dependOnClassesThat(PRICE_DATA_OR_RAW_SOURCES)
+            .orShould().callMethodWhere(DescribedPredicate.describe("CoreGateway.wealth or investmentTotals",
+                    call -> call.getTargetOwner().getName().equals("de.financetool.core.CoreGateway")
+                            && Set.of("wealth", "investmentTotals").contains(call.getName())))
+            .because("Story 8.2 (S9): no Trigger follows a market move, so monitoring reads no prices, holdings or"
+                    + " index data, and it gets every figure from the CoreGateway");
+
     private ArchitectureRules() {
     }
 }

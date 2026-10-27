@@ -1,0 +1,10 @@
+# Announced rule changes (Story 8.2, S12b): a change known before its Rule Parameters exist. Monitoring escalates a
+# subsidy announcement to a human advisor while it has no confirmed source or no Rule Parameter valid on its
+# effective date. Read by knowledge.RuleParamPort.
+#
+# Fields: id, topic (e.g. subsidy), title (plain words), keys (the Rule Parameter keys it will set), announced_on,
+# effective_from, source (null = not confirmed).
+#
+# Empty in the real data: planted announcements exist only in tests.
+
+announcements: []

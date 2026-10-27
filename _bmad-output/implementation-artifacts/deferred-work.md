@@ -13,3 +13,6 @@
 
 - `CoreGateway.gateMeasures` derives the emergency fund after an Action only from the source account: an `EF_TOP_UP` into the overnight deposit leaves `emergencyFundAfter` unchanged, so a Mandate floor check could cap it at L2 wrongly. Low until Mandates exist; add the target account to `gateMeasures` in Epic 9.
 - `Actions.propose` has no dedupe: two calls for the same trigger, type and as-of store two Actions and two Audit Records. Maybe-false, medium if true; settle in Story 8.2 (monitoring call pattern, dedupe per trigger).
+- source_spec: `_bmad-output/implementation-artifacts/spec-8-2-monitoring-run-at-a-simulated-date-with-all-mvp-triggers.md`
+  summary: An EF_BELOW_TARGET Trigger is keyed per month, so a first run during a forecast shortfall stores the info-only note and no EF_TOP_UP is proposed later that month after the shortfall clears.
+  evidence: Trigger key `(overnight id, yyyy-MM)` is frozen in the Story 8.2 intent; changing it needs a human decision (e.g. a variant in the period).

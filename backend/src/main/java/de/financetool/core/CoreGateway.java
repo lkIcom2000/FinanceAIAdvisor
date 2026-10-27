@@ -2,6 +2,7 @@ package de.financetool.core;
 
 import de.financetool.audit.EvidenceOrigin;
 import de.financetool.bank.BankSnapshot;
+import de.financetool.core.domain.AccountIds;
 import de.financetool.core.domain.CoreResult;
 import de.financetool.core.domain.GateMeasures;
 import de.financetool.core.domain.InsuranceFigures;
@@ -9,6 +10,7 @@ import de.financetool.core.domain.LiquidityFigures;
 import de.financetool.core.domain.NeedsFigures;
 import de.financetool.core.domain.ProfileFigures;
 import de.financetool.core.domain.RecommendationFigures;
+import de.financetool.core.domain.RuleChangeFigures;
 import de.financetool.core.domain.WealthFigures;
 import de.financetool.core.domain.WhatIfFigures;
 import de.financetool.shared.RequestContext;
@@ -36,6 +38,19 @@ public interface CoreGateway {
     String EMERGENCY_FUND = "current";
     /** The output of {@link ProfileFigures#emergencyFund} that is the average monthly expenses. */
     String MONTHLY_EXPENSES = "monthlyExpenses";
+    /** The output of {@link LiquidityFigures#emergencyFund} that is the emergency fund target. */
+    String EMERGENCY_FUND_TARGET = "target";
+    /** The output of {@link LiquidityFigures#shortfall} that is the expected balance on the first day below zero. */
+    String SHORTFALL = "shortfall";
+    /** The output of {@link LiquidityFigures#shortfall} that is the lowest expected balance. */
+    String LOWEST_BALANCE = "lowest";
+    /** The output of an {@link InsuranceFigures.Contract#premium}. */
+    String PREMIUM = "premium";
+    /** The output of {@link #emergencyFundTopUp}. */
+    String EMERGENCY_FUND_TOP_UP = "amount";
+    /** The outputs of a {@link RuleChangeFigures.Change#figures}: the new value and the value it replaces. */
+    String RULE_VALUE = "value";
+    String RULE_PREVIOUS_VALUE = "previous";
 
     /** The persona's current account balance at the end of {@code asOf} (function {@code accountBalance}). */
     CoreResult currentAccountBalance(RequestContext context, EvidenceOrigin origin);
@@ -155,6 +170,26 @@ public interface CoreGateway {
      * @throws IllegalStateException if the persona has no current account
      */
     GateMeasures gateMeasures(RequestContext context, BankSnapshot snapshot, UUID sourceAccountId, BigDecimal amount);
+
+    /**
+     * The emergency fund top-up at the end of {@code asOf} (function {@code emergencyFundTopUp}): the gap to the
+     * target, at most the monthly net income minus the monthly expenses, never negative. Its inputs carry the keys of
+     * {@link #profileFigures}.
+     *
+     * @throws de.financetool.knowledge.NoValidRuleParameterException if an emergency-fund Rule Parameter has no
+     *     version valid at {@code asOf}
+     */
+    CoreResult emergencyFundTopUp(RequestContext context, EvidenceOrigin origin);
+
+    /**
+     * The Rule Parameter versions whose validity starts after {@code since} and on or before {@code asOf}, each with
+     * the value it replaces (function {@code ruleParameterChange}), and every announced rule change with whether its
+     * keys have versions valid on its effective date.
+     */
+    RuleChangeFigures ruleChanges(RequestContext context, EvidenceOrigin origin, LocalDate since);
+
+    /** The ids of the persona's current account and overnight deposit at {@code asOf}; nothing is stored. */
+    AccountIds accountIds(RequestContext context);
 
     /**
      * The Core's refusal without inputs: checks that every subsidy rule has a version valid on {@code date}.

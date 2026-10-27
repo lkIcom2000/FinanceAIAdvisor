@@ -18,6 +18,7 @@ import de.financetool.core.domain.WealthFigures;
 import de.financetool.core.domain.WithdrawalDuration;
 import de.financetool.core.domain.RiesterSubsidy;
 import de.financetool.knowledge.NoValidRuleParameterException;
+import de.financetool.knowledge.RuleAnnouncement;
 import de.financetool.knowledge.RuleParamPort;
 import de.financetool.knowledge.RuleParameter;
 import de.financetool.shared.RequestContext;
@@ -113,6 +114,21 @@ class CoreGatewayServiceTest {
             @Override
             public List<RuleParameter> allValid(LocalDate asOf) {
                 throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public List<RuleParameter> startingBetween(LocalDate after, LocalDate until) {
+                return List.of();
+            }
+
+            @Override
+            public Optional<RuleParameter> previous(RuleParameter version) {
+                return Optional.empty();
+            }
+
+            @Override
+            public List<RuleAnnouncement> announcements() {
+                return List.of();
             }
         };
     }

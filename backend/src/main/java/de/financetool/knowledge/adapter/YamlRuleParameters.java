@@ -1,6 +1,7 @@
 package de.financetool.knowledge.adapter;
 
 import de.financetool.knowledge.NoValidRuleParameterException;
+import de.financetool.knowledge.RuleAnnouncement;
 import de.financetool.knowledge.RuleParamPort;
 import de.financetool.knowledge.RuleParameter;
 import de.financetool.shared.AppHome;
@@ -14,9 +15,11 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.yaml.snakeyaml.LoaderOptions;
@@ -31,16 +34,20 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
 class YamlRuleParameters implements RuleParamPort {
 
     static final String FILE = "rules/rule_parameters.yaml";
+    static final String ANNOUNCEMENTS = "announcements.yaml";
 
     private final List<RuleParameter> parameters;
+    private final List<RuleAnnouncement> announcements;
 
     @Autowired
     YamlRuleParameters(AppHome appHome) {
         this(appHome.data().resolve(FILE));
     }
 
+    /** @param file the Rule Parameters; the announcements are read from {@value #ANNOUNCEMENTS} next to it */
     YamlRuleParameters(Path file) {
         this.parameters = load(file);
+        this.announcements = loadAnnouncements(file.resolveSibling(ANNOUNCEMENTS));
     }
 
     @Override
@@ -57,6 +64,59 @@ class YamlRuleParameters implements RuleParamPort {
     @Override
     public List<RuleParameter> allValid(LocalDate asOf) {
         return parameters.stream().filter(p -> p.isValidAt(asOf)).toList();
+    }
+
+    @Override
+    public List<RuleParameter> startingBetween(LocalDate after, LocalDate until) {
+        return parameters.stream()
+                .filter(p -> p.validFrom().isAfter(after) && !p.validFrom().isAfter(until))
+                .toList();
+    }
+
+    @Override
+    public Optional<RuleParameter> previous(RuleParameter version) {
+        return parameters.stream()
+                .filter(p -> p.key().equals(version.key()) && p.validFrom().isBefore(version.validFrom()))
+                .max(Comparator.comparing(RuleParameter::validFrom));
+    }
+
+    @Override
+    public List<RuleAnnouncement> announcements() {
+        return announcements;
+    }
+
+    /** The announcements next to the Rule Parameters; none if the file does not exist. */
+    static List<RuleAnnouncement> loadAnnouncements(Path file) {
+        if (!Files.exists(file)) {
+            return List.of();
+        }
+        Object root;
+        try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+            root = new Yaml(new SafeConstructor(new LoaderOptions())).load(reader);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Cannot read rule announcements " + file, e);
+        }
+        if (!(root instanceof Map<?, ?> map) || !(map.get("announcements") instanceof List<?> entries)) {
+            throw new IllegalStateException(file + " needs an 'announcements' list");
+        }
+        List<RuleAnnouncement> result = new ArrayList<>();
+        for (Object entry : entries) {
+            if (!(entry instanceof Map<?, ?> e) || !(e.get("keys") instanceof List<?> keys)) {
+                throw new IllegalStateException(file + ": every announcement is a map with a 'keys' list");
+            }
+            try {
+                result.add(new RuleAnnouncement(text(e, "id"), text(e, "topic"), text(e, "title"),
+                        keys.stream().map(Object::toString).toList(), date(e.get("announced_on")),
+                        date(e.get("effective_from")), e.get("source") == null ? null : e.get("source").toString()));
+            } catch (RuntimeException ex) {
+                throw new IllegalStateException(file + ": invalid announcement " + e.get("id") + ": "
+                        + ex.getMessage(), ex);
+            }
+        }
+        if (result.stream().map(RuleAnnouncement::id).distinct().count() != result.size()) {
+            throw new IllegalStateException(file + ": announcement ids must be unique");
+        }
+        return result.stream().sorted(Comparator.comparing(RuleAnnouncement::announcedOn)).toList();
     }
 
     static List<RuleParameter> load(Path file) {

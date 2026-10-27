@@ -3,7 +3,9 @@ package de.financetool.escalation.adapter;
 import de.financetool.escalation.EscalationCases;
 import de.financetool.shared.PersonaScope;
 import de.financetool.shared.domain.PersonaId;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -32,6 +34,17 @@ public class EscalationCaseRepository {
                 VALUES (?, ?, 'TURN', ?, ?, ?, ?::jsonb, ?, 'OPEN')""")
                 .params(id, scope.id(), snapshot.turnId(), snapshot.question(), snapshot.draft(),
                         JSON.writeValueAsString(snapshot.blockReasons()), snapshot.reasonClass())
+                .update();
+    }
+
+    public void insertTriggerCase(PersonaScope scope, UUID id, EscalationCases.TriggerSnapshot snapshot) {
+        List<String> reasons = new ArrayList<>();
+        reasons.add("TRIGGER:" + snapshot.triggerId());
+        reasons.addAll(snapshot.reasons());
+        jdbc.sql("""
+                INSERT INTO escalation_cases (id, persona_id, origin, turn_id, question, block_reasons, status)
+                VALUES (?, ?, 'TRIGGER', NULL, ?, ?::jsonb, 'OPEN')""")
+                .params(id, scope.id(), snapshot.summary(), JSON.writeValueAsString(reasons))
                 .update();
     }
 

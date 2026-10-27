@@ -45,6 +45,7 @@ class FigureKeyFreezeTest {
         gateway.liquidity(context, EvidenceOrigin.OVERVIEW);
         gateway.wealth(context, EvidenceOrigin.OVERVIEW);
         gateway.insurance(context, EvidenceOrigin.OVERVIEW);
+        gateway.emergencyFundTopUp(context, EvidenceOrigin.MONITORING);
 
         List<String> keys = stored.stream().map(i -> (Provenance) i.content())
                 .map(p -> p.function() + " | " + p.label() + " | " + p.provId())

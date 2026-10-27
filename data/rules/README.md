@@ -13,6 +13,13 @@ by their source as a design parameter or assumption are modelling choices, not l
 - `valid_to` is the last day a version applies; `null` means open-ended.
 - A key without a version valid at the date asked makes the Core refuse to compute; the turn escalates (UJ-5).
 
+## Announcements
+
+`announcements.yaml` lists announced rule changes (Story 8.2): a change known before its Rule Parameters exist, with
+`id`, `topic`, `title`, the `keys` it will set, `announced_on`, `effective_from` and `source` (`null` = not confirmed).
+Monitoring escalates a `subsidy` announcement to a human advisor while it has no source or one of its keys has no
+version valid on `effective_from`. The real list is empty; planted announcements exist only in tests.
+
 ## Modelling decisions
 
 - **Riester subsidy (§§ 10a, 84-86 EStG)** is valid to 2026-12-31. The retirement-savings reform announced for

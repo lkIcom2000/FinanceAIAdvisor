@@ -35,7 +35,9 @@ class PersonaOwnedTablesTest extends PostgresIntegrationTest {
             Map.entry("escalation_cases", "escalation"),
             Map.entry("suitability_profiles", "profile"),
             Map.entry("needs_profiles", "profile"),
-            Map.entry("actions", "actions"));
+            Map.entry("actions", "actions"),
+            Map.entry("triggers", "monitoring"),
+            Map.entry("notifications", "monitoring"));
 
     /** Append-only evidence: never reset (AD-13). */
     static final Set<String> NEVER_RESET = Set.of("audit_records", "evidence_items");
