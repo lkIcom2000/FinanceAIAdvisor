@@ -17,6 +17,7 @@ import {
   ConfirmActionDialogData,
   ConfirmActionDialogResult,
 } from './confirm-action-dialog.component';
+import { RuleSetupService } from './rule-setup.service';
 
 /** The status chip of a Notification: plain word and inline Material icon path (UX-DR19). */
 export const STATUS_CHIPS: Record<Notification['status'], { label: string; icon: string }> = {
@@ -62,6 +63,7 @@ export class NotificationListComponent {
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
   private readonly actions = inject(ActionsService);
+  private readonly rules = inject(RuleSetupService);
 
   protected readonly chips = STATUS_CHIPS;
   protected readonly formatDate = formatDate;
@@ -119,7 +121,11 @@ export class NotificationListComponent {
       this.snackBar.open(message, undefined, { duration: 5000 });
     };
     this.actions.undo({ id: actionId }).subscribe({
-      next: (result) => done(result.message),
+      next: (result) => {
+        // The rule cards show the open undo deadline, so they reload too.
+        this.rules.changed.update((c) => c + 1);
+        done(result.message);
+      },
       error: (e: unknown) =>
         done(
           e instanceof HttpErrorResponse && e.status === 409 && typeof e.error?.detail === 'string'

@@ -7,6 +7,7 @@ import { READ_AFTER_MS } from '../../shared/read-on-view.directive';
 import { notification } from '../../testing/notification-testing';
 import { httpTestingProviders } from '../../testing/session-testing';
 import { NotificationListComponent } from './notification-list.component';
+import { RuleSetupService } from './rule-setup.service';
 
 /** A controllable IntersectionObserver: `show(share)` reports that share of every observed element in view. */
 class FakeIntersectionObserver {
@@ -417,6 +418,7 @@ describe('NotificationListComponent', () => {
       expect(text(cards()[0].querySelector('.status'))).toBe('Undone');
       expect(undoButton()).toBeNull();
       expect(cards()[0].querySelector('.undo-ended')).toBeNull();
+      expect(TestBed.inject(RuleSetupService).changed()).toBe(1);
     });
 
     it('shows the reason of a rejected undo and fetches the list again', () => {

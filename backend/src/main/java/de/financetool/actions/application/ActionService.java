@@ -59,6 +59,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Supplier;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -277,9 +278,10 @@ class ActionService implements Actions {
     public ActionProposal propose(RequestContext context, PersonaScope scope, String fixtureVersion,
             ProposedAction proposed) {
         requireSamePersona(context, scope);
-        BankSnapshot snapshot = bank.snapshot(scope.personaId(), context.asOf());
-        Gate gate = gate(context, scope, snapshot, proposed.type(), proposed.regulatoryClass(), proposed.amount(),
-                proposed.sourceAccountId(), proposed.targetAccountId());
+        // The snapshot is read only after the gate has locked the covering rule, so a concurrent L3 run on the same
+        // rule decides on the balance and month sum the first one left behind.
+        Gate gate = gate(context, scope, () -> bank.snapshot(scope.personaId(), context.asOf()), proposed.type(),
+                proposed.regulatoryClass(), proposed.amount(), proposed.sourceAccountId(), proposed.targetAccountId());
 
         ActionState state;
         AutonomyLevel level;
@@ -356,7 +358,7 @@ class ActionService implements Actions {
         if (from.isEmpty() || to.isEmpty()) {
             refusal = List.of(GateReasons.ACCOUNT_MISSING);
         } else {
-            gate = gate(context, scope, snapshot, row.type(), row.regulatoryClass(), row.amount(),
+            gate = gate(context, scope, () -> snapshot, row.type(), row.regulatoryClass(), row.amount(),
                     row.sourceAccountId(), row.targetAccountId());
             if (gate.decision() == null || gate.decision().level().compareTo(AutonomyLevel.L2) < 0) {
                 refusal = gate.criteria();
@@ -479,13 +481,13 @@ class ActionService implements Actions {
         }
     }
 
-    private Gate gate(RequestContext context, PersonaScope scope, BankSnapshot snapshot, ActionType type,
+    private Gate gate(RequestContext context, PersonaScope scope, Supplier<BankSnapshot> snapshot, ActionType type,
             RegulatoryClass regulatoryClass, BigDecimal amount, UUID sourceAccountId, UUID targetAccountId) {
-        GateMeasures measures = core.gateMeasures(context, snapshot, sourceAccountId, targetAccountId, amount);
         GateAction action = new GateAction(type, regulatoryClass, amount, type.reversible());
-        boolean suitabilityComplete = completeness.strictMissing(profiles.stored(scope), INVESTMENT_TOPIC).isEmpty();
         Optional<MandateBounds> mandate = mandates.covering(scope, action, sourceAccountId, targetAccountId,
                 context.asOf());
+        GateMeasures measures = core.gateMeasures(context, snapshot.get(), sourceAccountId, targetAccountId, amount);
+        boolean suitabilityComplete = completeness.strictMissing(profiles.stored(scope), INVESTMENT_TOPIC).isEmpty();
         GateContext gateContext = new GateContext(measures.liquidAssets(), measures.dataConfidenceHigh(),
                 suitabilityComplete, mandate, measures.sourceAfter());
         GateDecision decision = measures.emergencyFundTarget() == null ? null

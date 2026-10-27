@@ -20,7 +20,8 @@ public final class RuleTexts {
     static final BigDecimal LARGEST = new BigDecimal("1000000");
 
     public static final String UNDO_AND_STOP = "You can undo each transfer with one tap until 5 pm on the next"
-            + " business day. You can stop this rule at any time under \"Your rules\" on the Home tab.";
+            + " business day. You can stop this rule at any time with \"Revoke\" on its card under \"Your rules\" on"
+            + " the Home tab.";
 
     private RuleTexts() {
     }

@@ -33,9 +33,15 @@
 - Frontend: `RevokeRuleDialogComponent` ("Stop this rule?", Keep it / Stop this rule), `RuleSetupService.revoke`, `started` renamed `changed`; Home "Stopped rules (n)" `<details>`.
 - verify 893/0/0, frontend 143. Commit: see `git log` "feat: Story 9.4".
 
+## Epic-end review (2026-10-27)
+
+- One sonnet reviewer over `f177ee7..aaac674` main code, 5 findings. Fixed: the gate locks the covering rule (`mandates.covering`, `FOR UPDATE`) before the bank snapshot and `gateMeasures` are read (`gate` takes a `Supplier<BankSnapshot>`), so concurrent L3 runs on one rule cannot both pass the floor; an undo bumps `RuleSetupService.changed` so the rule cards drop a stale `undoUntil`; `RuleTexts.UNDO_AND_STOP` names the "Revoke" control on the card. Deferred (`deferred-work.md` §Epic 9): monthly limit is net of undone transfers; `undoable` lacks an `asOf >= executedOn` check (unreachable).
+- verify 893/0/0, frontend 143 + build. Commit: see `git log` "fix: Epic 9 epic-end review".
+
 ## Next
 
-- Epic 9 stories are all built (9.1–9.4). Epic 9 end: batched follow-up review, epic-end compose check, joint Epic 8 + 9 retro.
+- Epic-end compose check in a fresh session: rebuild the image (V22, V23), `research` profile, prepare `uj1-shortfall-lena` (3 notifications, 1 rule active), undo the Done-for-you transfer, set up and revoke a rule, foreign-persona probes on rules/undo → 404, frontend 200; then back to `default`.
+- Then the joint Epic 8 + 9 retro (inputs: `epic-8-handoff.md`, this note, specs 8.1–9.4, `deferred-work.md` §Epic 8/9, commits `3e81510..HEAD`).
 
 ## Checklist per story (lean loop, memory build-loop-economy)
 

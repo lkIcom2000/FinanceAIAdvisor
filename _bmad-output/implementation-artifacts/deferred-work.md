@@ -22,3 +22,8 @@
 - `GateReasons.eur` and `NotificationTemplates.eur` format amounts twice (`ActionController` uses the monitoring copy for the dialog sentence, `GateReasons` its own for reasons). Low; move one formatter to `shared` when a third caller appears.
 - `ActionState.proposedAt(L3)` throws: once Epic 9 lets `MandateLookup.active`/`covering` return a Mandate, every L3-eligible Action would roll back the monitoring run and study prepare. Epic 9 must add L3 execution (or map L3 to L2 with a criterion) in the same story that returns the first Mandate; add a guard test there.
 - A superseded transfer (a newer Action of the same type waits for the OK) still shows "Needs your OK" until the user confirms it and gets the "newer suggestion" refusal. Low; a `SUPERSEDED` state (migration + chip) would hide it.
+
+## Deferred from: Epic 9 epic-end review (2026-10-27)
+
+- The monthly rule limit counts only `EXECUTED` rule transfers (`MandateRepository.executedSum`), so an undone transfer frees its budget again (net reading: the limit caps money that stays moved). Kept as is; revisit if the study needs a gross cap (`state IN ('EXECUTED','UNDONE')`).
+- `undoable` in the Notification list does not check `asOf >= executedOn`; unreachable today because the list hides items after the simulated date.
