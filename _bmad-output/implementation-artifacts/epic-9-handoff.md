@@ -38,10 +38,14 @@
 - One sonnet reviewer over `f177ee7..aaac674` main code, 5 findings. Fixed: the gate locks the covering rule (`mandates.covering`, `FOR UPDATE`) before the bank snapshot and `gateMeasures` are read (`gate` takes a `Supplier<BankSnapshot>`), so concurrent L3 runs on one rule cannot both pass the floor; an undo bumps `RuleSetupService.changed` so the rule cards drop a stale `undoUntil`; `RuleTexts.UNDO_AND_STOP` names the "Revoke" control on the card. Deferred (`deferred-work.md` §Epic 9): monthly limit is net of undone transfers; `undoable` lacks an `asOf >= executedOn` check (unreachable).
 - verify 893/0/0, frontend 143 + build. Commit: see `git log` "fix: Epic 9 epic-end review".
 
+## Epic-end compose check (2026-10-27)
+
+- Image rebuilt (V22, V23 applied), `research` profile: `uj1-shortfall-lena` prepares "3 notifications (…), 1 rule active"; Done-for-you item undoable until "Fri 16 Oct, 5 pm"; undo → "Transfer undone. 90.00 EUR is back in your overnight deposit.", repeat → 409, item `UNDONE` with the undid suffix, rule card `undoUntil` cleared. Revoke cushion rule → `stoppedOn`, repeat → 409; check 400 on per-month < per-transfer; top-up rule created 201, duplicate 409, revoked. Marco on Lena's action/rules → 404, Marco's rules `[]`. Frontend 200. Back on `default` (researcher login 401, prepare 404, frontend 200).
+- Live finding (open, for the retro): after the undo, Lena's suggested cushion floor is the emergency-fund target 5,993.49 EUR, above her overnight balance of 5,700 EUR, so the suggested rule could never move money, and the check step doesn't warn about it.
+
 ## Next
 
-- Epic-end compose check in a fresh session: rebuild the image (V22, V23), `research` profile, prepare `uj1-shortfall-lena` (3 notifications, 1 rule active), undo the Done-for-you transfer, set up and revoke a rule, foreign-persona probes on rules/undo → 404, frontend 200; then back to `default`.
-- Then the joint Epic 8 + 9 retro (inputs: `epic-8-handoff.md`, this note, specs 8.1–9.4, `deferred-work.md` §Epic 8/9, commits `3e81510..HEAD`).
+- Joint Epic 8 + 9 retro done (`epic-8-9-retro-2026-10-27.md`, accepted-with-open-items; Epics 8 and 9 `done`). Open items A1–A4, P1 in `sprint-status.yaml` `action_items`; A1 (rule check warns when floor ≥ source balance) before the UAT.
 
 ## Checklist per story (lean loop, memory build-loop-economy)
 

@@ -122,6 +122,8 @@ This document breaks the final application of the research prototype "Fine" (Spr
 - FR-59: Special-termination Letter Template for a confirmed premium increase: versioned, filled only from confirmed facts and persona data, served by the backend as printable HTML; offered as `legal` Action capped at L1; never sent; no objection templates.
 - FR-60: Document deletion removes original and extracted values; facts no longer used; forecast reverts; audit keeps only hashes and redacted extraction; no automatic retention.
 - FR-61: Document Acceptance Suite runs the Document Test Set, reports SM-10, and runs the red-team letters checking SM-7.
+- FR-62: Questions about the user's own situation are answered with the user's Core figures for the topic; the system never asks for financial data it holds.
+- FR-63: Follow-up questions on the last released answer are understood; one previous turn goes to NLU and phrasing at every exposure level, at `none` only the depersonalised question and the LLM-phrased answer (templates and advisor replies only as Core figures); previous-turn numbers are sourced only if they came from the Core.
 
 ### NonFunctional Requirements
 
@@ -279,6 +281,8 @@ From the Architecture Spine (no starter template is prescribed; Story 1.1 scaffo
 | FR-59 | Epic 10 | 10.5 | Letter Template as static HTML |
 | FR-60 | Epic 10 | 10.1, 10.3 | Document deletion |
 | FR-61 | Epic 10, Epic 11 | 10.6, 11.2, 11.5 | Document Acceptance Suite |
+| FR-62 | Epic 13 | 13.4 | Personal answers with Core figures |
+| FR-63 | Epic 13 | 13.5 | One-turn follow-up context |
 
 All 61 FRs (FR-1 to FR-61) are mapped. FR-49 is a moved requirement and FR-19 and FR-34 were removed by the scope reduction of 2026-10-21; each of them is covered by a verification-matrix row (Story 11.5), and FR-49 additionally by a test that asserts the app has no baseline mode.
 
@@ -334,7 +338,7 @@ The researcher prepares and runs in-person study sessions on the study laptop wi
 
 ### Epic 13: Follow-up Fixes
 Improvements found after an epic was closed and added at the user's request (Commc, 2026-10-26). Not part of the original FR mapping; each story names the gap it closes.
-**FRs covered:** none new (refines FR-9, FR-29)
+**FRs covered:** FR-62, FR-63 (added 2026-10-27, sprint-change-proposal-2026-10-27.md); refines FR-9, FR-12, FR-13, FR-29, FR-43, FR-44
 
 **Dependency flow:** 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12. Each epic builds only on earlier epics. Epics 4–7 can be reordered among themselves after Epic 3; Epic 10 needs Epics 3 and 8 (explanation turn, To-do Trigger, `legal` gate row); Epic 11 runs S15–S18 and therefore follows Epic 10. Epics 5 and 11 are not needed before the user test and can run in parallel with or after it.
 
@@ -1727,3 +1731,87 @@ So that what-if questions and handovers build on the right context.
 **Given** a blank regeneration or exposure level `none`
 **When** a case snapshot or the Number Check ledger is built
 **Then** the snapshot keeps the first draft, and the ledger sources only numbers the model was shown (including numbers in the class instruction)
+
+### Story 13.3: Split TurnOrchestrator into stage classes (technical debt)
+
+As a developer,
+I want each turn stage in its own class,
+So that the tool plan and the prompt payload can change without touching a 638-line orchestrator.
+
+**Gap:** retro 6/7 item C2 (open). Stories 13.4 and 13.5 change the tool plan and the payload stages (sprint-change-proposal-2026-10-27.md).
+
+**Acceptance Criteria:**
+
+**Given** `TurnOrchestrator`
+**When** the split is done
+**Then** at least the tool plan (stage 3) and block routing (stage 10) are separate classes, the orchestrator only sequences stages, and no behaviour changes: all existing advisory tests pass unchanged except for constructor wiring
+
+### Story 13.4: Fine answers questions about my situation with my data
+
+As a persona,
+I want Fine to use what it knows about me when I ask about my own situation,
+So that I get an answer for me, not a generic one or a question about data Fine already has.
+
+**Gap:** live check 2026-10-27 (p-lena, "how much emergency fund should I aim for?" → generic `INFORM`, asked for income and expenses). FR-62. **Needs 13.3. Before Epic 12.**
+
+**Acceptance Criteria:**
+
+**Given** a question in the first person ("I", "my", "should I", German "ich", "mein")
+**When** the NLU extracts it
+**Then** the subject is personal, not `generic`, with recorded-fixture tests for both languages
+
+**Given** an `INFORM` turn with a personal subject and a recognised topic
+**When** the tool plan runs
+**Then** it adds the Core figures for that topic by one rule per topic (e.g. emergency fund → monthly expenses, current reserve, target range; retirement → goal projection; protection → coverage summary), the figures are recorded in the Audit Record, and the Number Check sources them
+
+**Given** an `INFORM` prompt
+**When** it is built
+**Then** it forbids asking for financial data that the system holds, and a test with p-lena's emergency-fund question at exposure `none` asserts the answer names her figures and asks for none of them
+
+**Given** a topic without a rule, or a generic question
+**When** it is planned
+**Then** the turn stays as today (no Core figures), so general explanations are unchanged
+
+### Story 13.5: Fine understands a follow-up on its last answer
+
+As a persona,
+I want to ask "Why?" or "And with 200 €?" after an answer,
+So that the chat feels like a normal conversation.
+
+**Gap:** `ExposureFilter` drops all history at `none`; `DialogState` covers only the profile form and the what-if proposal. FR-63. **Needs 13.3. Before Epic 12.** Touches persona data: separate Blind Hunter review.
+
+**Acceptance Criteria:**
+
+**Given** a released turn followed by a new message
+**When** the NLU and the phrasing role are prompted
+**Then** both receive exactly one previous released turn, at every Data Exposure Level, and the prompt budget drops it first when space runs out (AD-14)
+
+**Given** exposure `none`
+**When** the previous turn is built
+**Then** it is the depersonalised question plus Fine's LLM-phrased answer; a Suitability Statement, demands-and-needs statement, refusal or advisor reply passes only its Core figures, never its text
+
+**Given** numbers in the previous turn
+**When** the Number Check ledger is built
+**Then** only those that came from Core outputs of that turn are sourced; other numbers in it are not
+
+**Given** the reference configuration
+**When** the context changes prompts
+**Then** it is recorded as a deviation from the Experiment Track (E4), and prompt hashes change in the Audit Record
+
+**Given** the turn after a `PARAMETER_PROPOSAL` or `ASSESSMENT` state
+**When** it runs
+**Then** `DialogState` keeps precedence (AD-24); the one-turn context does not replace it
+
+### Story 13.6: A repeated answer request returns the same answer
+
+As a persona,
+I want a double click or a retried request to give me the one answer,
+So that I never see "turn failed" for a question Fine already answered.
+
+**Gap:** a duplicate `POST /answer` runs the model twice; the second insert fails on `messages_reply_to_key` and returns `503 TURN_FAILED` (`AnswerMessageUseCase`, `findReply` without a lock). Live check 2026-10-27.
+
+**Acceptance Criteria:**
+
+**Given** two concurrent `POST /answer` requests for the same question
+**When** both run
+**Then** the model runs once (the question is locked before the model call, e.g. `SELECT … FOR UPDATE` on the question row), or a `DuplicateKeyException` on insert returns the stored reply; both requests get `200` with the same answer, and an integration test with two parallel requests covers it

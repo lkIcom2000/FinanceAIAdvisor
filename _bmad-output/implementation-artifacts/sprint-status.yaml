@@ -42,7 +42,7 @@
 #   configuration with a derivedFrom block (AD-25). Check E3 before 3.9, E1 before 4.2/4.3.
 
 generated: 10-21-2026 13:52
-last_updated: 2026-10-27
+last_updated: 10-27-2026 23:14
 project: FinanceTool
 project_key: NOKEY
 tracking_system: file-system
@@ -101,20 +101,20 @@ development_status:
   7-1-what-if-from-chat-with-a-range-chart: done
   epic-7-retrospective: done
 
-  epic-8: in-progress  # [critical-path]
-  8-1-autonomy-gate-and-action-proposals: review  # [code-review] Autonomy Gate
-  8-2-monitoring-run-at-a-simulated-date-with-all-mvp-triggers: review
-  8-3-notifications-on-the-home-tab: review
-  8-4-confirm-an-action-exactly-and-see-why-it-needs-my-ok: review  # 2026-10-27, spec spec-8-4-confirm-an-action-exactly.md
-  8-5-prepare-a-persona-for-a-study-session: review  # 2026-10-27, spec spec-8-5-prepare-a-persona-for-a-study-session.md
-  epic-8-retrospective: optional  # joint with Epic 9 (Commc 2026-10-27)
+  epic-8: done  # [critical-path] closed 2026-10-27 with the joint 8/9 retro (accepted-with-open-items)
+  8-1-autonomy-gate-and-action-proposals: done  # [code-review] Autonomy Gate
+  8-2-monitoring-run-at-a-simulated-date-with-all-mvp-triggers: done
+  8-3-notifications-on-the-home-tab: done
+  8-4-confirm-an-action-exactly-and-see-why-it-needs-my-ok: done  # 2026-10-27, spec spec-8-4-confirm-an-action-exactly.md
+  8-5-prepare-a-persona-for-a-study-session: done  # 2026-10-27, spec spec-8-5-prepare-a-persona-for-a-study-session.md
+  epic-8-retrospective: done      # joint with Epic 9 (Commc 2026-10-27)
 
-  epic-9: in-progress  # [critical-path]
-  9-1-set-up-a-rule-with-explicit-limits: review
-  9-2-fine-acts-within-my-rule-and-tells-me-immediately: review
-  9-3-undo-with-one-tap: review
-  9-4-stop-a-rule-at-any-time: review
-  epic-9-retrospective: optional
+  epic-9: done  # [critical-path] closed 2026-10-27 with the joint 8/9 retro (accepted-with-open-items)
+  9-1-set-up-a-rule-with-explicit-limits: done
+  9-2-fine-acts-within-my-rule-and-tells-me-immediately: done
+  9-3-undo-with-one-tap: done
+  9-4-stop-a-rule-at-any-time: done
+  epic-9-retrospective: done
 
   epic-10: backlog  # [critical-path] except 10.6
   10-1-document-intake-pipeline-and-the-documents-module: backlog  # [code-review] Redaction and Grounding Check
@@ -142,6 +142,10 @@ development_status:
   epic-13: backlog  # Follow-up fixes (Commc 2026-10-26); placement relative to the UAT open
   13-1-fine-answers-in-german-when-written-to-in-german: backlog
   13-2-epic-3-seam-fixes-technical-debt: done  # 2026-10-27 (Epic 3 retro A1-A4)
+  13-3-split-turnorchestrator-into-stage-classes: backlog  # retro 6/7 C2; before 13.4, 13.5 (SCP 2026-10-27)
+  13-4-fine-answers-questions-about-my-situation-with-my-data: backlog  # before Epic 12
+  13-5-fine-understands-a-follow-up-on-its-last-answer: backlog  # before Epic 12
+  13-6-a-repeated-answer-request-returns-the-same-answer: backlog
   epic-13-retrospective: optional
 action_items:
   - id: "epic-1-retro-item-1-a1-archunit-rules-for-ad-21-ar3-transact"
@@ -309,7 +313,7 @@ action_items:
   - id: "epic-6-retro-item-24-c2-extract-stage-classes-from-turnorches"
     epic: 6
     action: "C2: Extract stage classes from TurnOrchestrator (tool plan, block routing)
-      before the next stage or tool is added"
+      before the next stage or tool is added"  # -> Story 13.3 (sprint-change-proposal-2026-10-27.md)
     owner: "Dev (Claude)"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-6-7-retro-2026-10-26.md"
@@ -339,32 +343,67 @@ action_items:
     action: "P1: Send independent reads, greps and edits in one message; aim at 80
       or fewer API calls per story session"
     owner: "Dev (Claude)"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-6-7-retro-2026-10-26.md"
   - id: "epic-6-retro-item-29-p2-no-whole-file-reads-of-files-over-abo"
     epic: 6
     action: "P2: No whole-file reads of files over about 300 lines; grep -n then sed
       windows of 80 lines or fewer"
     owner: "Dev (Claude)"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-6-7-retro-2026-10-26.md"
   - id: "epic-6-retro-item-30-p3-live-checks-always-in-their-own-fresh"
     epic: 6
     action: "P3: Live checks always in their own fresh session from the handoff, one
       per epic block"
     owner: "Dev (Claude)"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-6-7-retro-2026-10-26.md"
   - id: "epic-6-retro-item-31-p4-trim-the-build-loop-economy-memory-to"
     epic: 6
     action: "P4: Trim the build-loop-economy memory to the rules in force; do not
       re-read it at session start"
     owner: "Dev (Claude)"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-6-7-retro-2026-10-26.md"
   - id: "epic-6-retro-item-32-p5-handoff-notes-list-scheduled-prerequi"
     epic: 6
     action: "P5: Handoff notes list scheduled prerequisites under Next"
     owner: "Dev (Claude)"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-6-7-retro-2026-10-26.md"
+  - id: "epic-9-retro-item-33-a1-rule-check-warns-when-the-floor-is-at"
+    epic: 9
+    action: "A1: Rule check warns when the floor is at or above the source account
+      balance (POST /api/rules/check and dialog step 3)"
+    owner: "Dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-8-9-retro-2026-10-27.md"
+  - id: "epic-9-retro-item-34-a2-move-one-eur-formatter-to-shared-and"
+    epic: 9
+    action: "A2: Move one EUR formatter to shared and drop the other three copies
+      (GateReasons, RuleTexts, NotificationTemplates, Wording)"
+    owner: "Dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-8-9-retro-2026-10-27.md"
+  - id: "epic-9-retro-item-35-a3-split-rule-lifecycle-out-of-actionser"
+    epic: 9
+    action: "A3: Split rule lifecycle out of ActionService (e.g. MandateService) before
+      Epic 10 adds Action types"
+    owner: "Dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-8-9-retro-2026-10-27.md"
+  - id: "epic-9-retro-item-36-a4-record-in-the-architecture-that-monit"
+    epic: 9
+    action: "A4: Record in the architecture that monitoring hosts the web/use-case
+      layer for Actions and Rules (AD-12)"
+    owner: "Commc"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-8-9-retro-2026-10-27.md"
+  - id: "epic-9-retro-item-37-p1-handoff-checklist-step-5-sets-the-sto"
+    epic: 9
+    action: "P1: Handoff checklist step 5 sets the story to done in sprint-status.yaml
+      after the commit"
+    owner: "Dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-8-9-retro-2026-10-27.md"

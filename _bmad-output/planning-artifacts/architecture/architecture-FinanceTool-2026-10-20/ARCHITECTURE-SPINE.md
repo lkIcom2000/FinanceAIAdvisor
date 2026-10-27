@@ -124,7 +124,7 @@ flowchart LR
 - **Rule:**
   - **One port.** All model calls go through `LlmPort.generate(role, messages, decoding, schema)`, which returns `LlmResult(text, modelTag, digest, decoding, promptTokens, truncated, latency)`.
   - **Adapter.** The adapter is a thin client on Spring `RestClient` over Ollama's native `/api/chat` and `/api/embed`. Spring AI is not used.
-  - **Exposure filter.** The phrasing role receives only a `PromptPayload` built by the exposure filter at the configured Data Exposure Level. Implemented levels are `aggregated` and `none` (PRD FR-43); `raw` or `pseudonymised` is added only if E4 selects it. The filter also covers the chat history, which is limited to the last released turns. User input, retrieved text and Document text go only into delimited data slots. The `nlu` role also serves Document type detection and extraction (AD-26).
+  - **Exposure filter.** The phrasing role receives only a `PromptPayload` built by the exposure filter at the configured Data Exposure Level. Implemented levels are `aggregated` and `none` (PRD FR-43); `raw` or `pseudonymised` is added only if E4 selects it. The filter also covers the chat history, which is exactly one previous released turn (PRD FR-63). At `none` that turn is the depersonalised question plus the LLM-phrased answer; template texts and advisor replies pass only their Core figures. The Number Check ledger sources previous-turn numbers only if they were Core outputs. User input, retrieved text and Document text go only into delimited data slots. The `nlu` role also serves Document type detection and extraction (AD-26).
   - **Prompt budget.** Every chat model has a configured `numCtx` and a fixed prompt budget. Truncation drops history first and KB passages second. It never drops Core results or the system part, and any truncation is recorded.
   - **Output handling.** LLM output is treated as text only.
   - **Prompt files.** Prompts are versioned files in `config/prompts/`, and their hash is recorded per call. They carry the PRD §5 tone rules for vulnerable users.
@@ -381,6 +381,7 @@ flowchart BT
   - **States.** Each conversation has one `DialogState`: `NONE`, `ASSESSMENT(fieldQueue)` or `PARAMETER_PROPOSAL(SimulationSpec)`.
   - **Parameter proposals.** A what-if or `COMPUTE` turn whose parameters were extracted from natural language first returns a parameter proposal card. The Core runs only after the user confirms or edits it.
   - **Assessment answers.** Assessment answers are written only through the `profile` module's confirm control.
+  - **Follow-up context.** Follow-up context (PRD FR-63) is not a DialogState; it is the one-turn history in the prompt payload. A DialogState takes precedence when set.
 
 ### AD-25: Experiment results enter only as versioned configuration
 

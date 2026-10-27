@@ -176,12 +176,12 @@ When the profile is complete and the request is in scope, the system gives a Cat
 #### FR-12: Numbers only from the Deterministic Core
 Every number in a response that is specific to the persona or the calculation comes from a Deterministic Core call recorded in the Audit Record. The LLM may not compute or alter numbers (`COMPUTE`).
 - An automated Number Check compares every number in the drafted text with the sourced numbers of that turn. A mismatch blocks the response (FR-52).
-- Sourced numbers are Deterministic Core outputs, Rule Parameter values, numbers in the cited Knowledge Base passages, and numbers in the user's own message. Any other number is a mismatch.
+- Sourced numbers are Deterministic Core outputs (of this turn, and of the previous turn passed as context under FR-63), Rule Parameter values, numbers in the cited Knowledge Base passages, and numbers in the user's own message. Any other number is a mismatch.
 - A number matches if it equals a sourced number after rounding to the precision shown in the text. If the text marks the number as approximate ("about", "roughly"), a deviation of up to 5% is accepted.
 - Dates, list positions and quoted article or paragraph numbers are excluded from the check. English (1,000.50) and German (1.000,50) number formats are both parsed.
 
 #### FR-13: Source-backed explanations
-General explanations (`INFORM`) cite Knowledge Base sources with their validity dates when retrieval is on. If no valid source exists, the system says so instead of answering from model knowledge. When the Agent Configuration has retrieval off (E1 result, 2026-10-23), `INFORM` answers are general explanations without citations and are released only after the Check Chain passes.
+General explanations (`INFORM`) cite Knowledge Base sources with their validity dates when retrieval is on. If no valid source exists, the system says so instead of answering from model knowledge. When the Agent Configuration has retrieval off (E1 result, 2026-10-23), `INFORM` answers are general explanations without citations and are released only after the Check Chain passes. A general explanation asked about the user's own situation also uses the user's Core figures (FR-62).
 
 #### FR-14: Transparent refusal
 For out-of-scope requests (single stocks, derivatives, crypto, forex/CFD, building-society savings, insurance tariff selection, individual tax advice, legal assessment of letters or contracts such as objections), the system states that the topic is outside the service, gives the reason, and offers the nearest in-scope alternative (`REFUSE_OUT_OF_SCOPE`).
@@ -191,6 +191,18 @@ When a question presupposes a non-existent law, product, ISIN, guarantee or fact
 
 #### FR-16: No guarantees, no market timing
 The system never promises returns or capital protection. It never recommends buying or selling based on expected price or interest-rate movements.
+
+#### FR-62: Answers about the user's own situation
+When a question concerns the user's own situation ("I", "my", "should I"), the system answers with the user's data, whatever the Expected Behavior class. (Added 2026-10-27, sprint-change-proposal-2026-10-27.md.)
+- The orchestrator adds the Deterministic Core figures for the recognised topic to the turn (one rule per topic, FR-44). The Number Check applies to them as to any Core output (FR-12).
+- The system never asks the user for financial data that it already holds (accounts, income, expenses, balances, profile fields). It asks only for data it does not hold.
+- A personal question stays `INFORM` when it asks for an explanation; it does not become a Recommendation.
+
+#### FR-63: Follow-up questions
+The system understands a follow-up question on its last released answer ("Why?", "And with 200 €?"). (Added 2026-10-27, sprint-change-proposal-2026-10-27.md.)
+- The NLU and the phrasing role receive exactly one previous released turn as context, at every Data Exposure Level (FR-43).
+- At `none`, that turn consists of the depersonalised question and Fine's LLM-phrased answer. Template texts (Suitability Statement, demands-and-needs statement, refusals) and advisor replies are not passed as text; at most their Deterministic Core figures are.
+- Numbers from the previous turn count as sourced only if they came from the Deterministic Core (FR-12).
 
 ### 4.4 Suitability and Needs Assessment
 
@@ -367,10 +379,10 @@ Through the advisor endpoints, the advisor retrieves the list of open cases. Eac
 **Description:** The LLM is the untrusted edge. It sees as little personal data as the Data Exposure Level allows, uses only whitelisted tools, and is swappable. Realizes UJ-6.
 
 #### FR-43: Data Exposure Levels
-The data passed to the LLM is configurable per Agent Configuration: `aggregated` or `none`. Under `none`, the LLM receives only Deterministic Core results and no persona attributes. The levels `raw` and `pseudonymised` are evaluated in the Experiment Track (E4); if E4 selects one of them, it is added to the application. Document processing uses the fixed level `redacted` (FR-55).
+The data passed to the LLM is configurable per Agent Configuration: `aggregated` or `none`. Under `none`, the LLM receives only Deterministic Core results and no persona attributes. The levels `raw` and `pseudonymised` are evaluated in the Experiment Track (E4); if E4 selects one of them, it is added to the application. Document processing uses the fixed level `redacted` (FR-55). Under `none`, the one previous turn passed for follow-ups (FR-63) is the depersonalised question and an answer phrased from Core results, so it carries no persona attributes. E4 evaluated single-turn prompts; this context is a documented deviation from the Experiment Track (§8.1).
 
 #### FR-44: Orchestrated tools
-The orchestrator, not the LLM, decides which whitelisted Deterministic Core, Knowledge Base and Bank Adapter read functions run. It decides from the FR-9 classification and the extracted parameters. The LLM receives the tool results and only phrases the answer. This puts all E1 models on an equal footing, whether or not they support native function calling.
+The orchestrator, not the LLM, decides which whitelisted Deterministic Core, Knowledge Base and Bank Adapter read functions run. It decides from the FR-9 classification and the extracted parameters. The LLM receives the tool results and only phrases the answer. This puts all E1 models on an equal footing, whether or not they support native function calling. For questions about the user's own situation, the plan also includes the Core figures of the recognised topic (FR-62).
 - Parameters extracted from natural language (e.g. for FR-33) are shown to the user before the result is computed.
 - No component can trigger an Action directly from LLM output. Actions are proposed by the monitoring loop or confirmed by the user, and always routed through the Autonomy Gate.
 - Document content can never propose, parameterise or trigger an Action. Accounts and IBANs found in Documents are never Action targets.
@@ -512,6 +524,8 @@ These experiments run in the Experiment Track. The component table below describ
 | E4 | Data Exposure Level | raw → pseudonymised → aggregated → none | Privacy versus quality trade-off |
 
 **Run plan.** Experiments run one factor at a time, in the order E1 → E2 → E3 → E4. Each varies one factor from the Reference Configuration. The winner of each experiment becomes the reference value for the next. The initial Reference Configuration is Llama 3.x + retrieval, the advisor role prompt, `A+B+C`, and `aggregated`. The hybrid-versus-baseline comparison uses the final Reference Configuration.
+
+**Follow-up context.** E4 compared exposure levels on single-turn prompts. The application passes one previous turn at every level (FR-63); this is recorded as a deviation, and prompt hashes in the Audit Record show it.
 
 **Components per configuration.** The Autonomy Gate is not part of E1–E4; it is always on and is evaluated by the Scenario Test Set.
 
