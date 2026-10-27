@@ -42,7 +42,7 @@
 #   configuration with a derivedFrom block (AD-25). Check E3 before 3.9, E1 before 4.2/4.3.
 
 generated: 10-21-2026 13:52
-last_updated: 10-26-2026 21:52
+last_updated: 10-27-2026 09:00
 project: FinanceTool
 project_key: NOKEY
 tracking_system: file-system
@@ -101,8 +101,8 @@ development_status:
   7-1-what-if-from-chat-with-a-range-chart: done
   epic-7-retrospective: done
 
-  epic-8: backlog  # [critical-path]
-  8-1-autonomy-gate-and-action-proposals: backlog  # [code-review] Autonomy Gate
+  epic-8: in-progress  # [critical-path]
+  8-1-autonomy-gate-and-action-proposals: review  # [code-review] Autonomy Gate
   8-2-monitoring-run-at-a-simulated-date-with-all-mvp-triggers: backlog
   8-3-notifications-on-the-home-tab: backlog
   8-4-confirm-an-action-exactly-and-see-why-it-needs-my-ok: backlog

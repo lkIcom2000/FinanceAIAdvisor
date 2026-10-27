@@ -1,7 +1,9 @@
 package de.financetool.core;
 
 import de.financetool.audit.EvidenceOrigin;
+import de.financetool.bank.BankSnapshot;
 import de.financetool.core.domain.CoreResult;
+import de.financetool.core.domain.GateMeasures;
 import de.financetool.core.domain.InsuranceFigures;
 import de.financetool.core.domain.LiquidityFigures;
 import de.financetool.core.domain.NeedsFigures;
@@ -16,6 +18,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Module API: the single entry point to the Deterministic Core (AD-2). Every call reads its data for the context's
@@ -140,6 +143,18 @@ public interface CoreGateway {
      */
     CoreResult riesterSubsidy(RequestContext context, EvidenceOrigin origin, BigDecimal priorYearGrossIncome,
             List<Integer> childrenBirthYears);
+
+    /**
+     * The measures the Autonomy Gate decides on (FR-35), from the given snapshot only: liquid assets, Data Confidence
+     * (thresholds from {@code context.thresholds()}), the overnight deposit after moving {@code amount} out of
+     * {@code sourceAccountId} (unchanged if that is not the overnight deposit) and the emergency fund target. Nothing
+     * is stored; no transaction is needed.
+     *
+     * @param snapshot the persona's bank snapshot at {@code context.asOf()}, read once by the caller
+     * @param amount {@code null} counts as 0
+     * @throws IllegalStateException if the persona has no current account
+     */
+    GateMeasures gateMeasures(RequestContext context, BankSnapshot snapshot, UUID sourceAccountId, BigDecimal amount);
 
     /**
      * The Core's refusal without inputs: checks that every subsidy rule has a version valid on {@code date}.

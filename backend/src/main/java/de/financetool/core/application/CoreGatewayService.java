@@ -23,6 +23,7 @@ import de.financetool.core.domain.EmergencyFundTarget;
 import de.financetool.core.domain.Figure;
 import de.financetool.core.domain.DuplicateCoverage;
 import de.financetool.core.domain.FigureKey;
+import de.financetool.core.domain.GateMeasures;
 import de.financetool.core.domain.InsuranceContract;
 import de.financetool.core.domain.InsuranceFigures;
 import de.financetool.core.domain.InsurancePremium;
@@ -56,6 +57,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -324,6 +326,48 @@ class CoreGatewayService implements CoreGateway {
     }
 
     @Override
+    public GateMeasures gateMeasures(RequestContext context, BankSnapshot snapshot, UUID sourceAccountId,
+            BigDecimal amount) {
+        Objects.requireNonNull(snapshot, "snapshot");
+        LocalDate asOf = context.asOf();
+        BankSnapshot.Account current = currentAccount(snapshot, context);
+        Optional<BankSnapshot.Account> overnight = snapshot.accounts().stream()
+                .filter(a -> a.type() == AccountType.OVERNIGHT)
+                .findFirst();
+        SourcedNumber currentFigure = keyed(context, AccountBalance.of(AccountBalance.Account.CURRENT,
+                current.openingDate(), current.openingBalance(), BankMapping.bookings(snapshot, current.id()), asOf))
+                .number(AccountBalance.OUTPUT);
+        SourcedNumber overnightFigure = overnight
+                .map(a -> keyed(context, AccountBalance.of(AccountBalance.Account.OVERNIGHT, a.openingDate(),
+                        a.openingBalance(), BankMapping.bookings(snapshot, a.id()), asOf))
+                        .number(AccountBalance.OUTPUT))
+                .orElse(null);
+        BigDecimal liquidAssets = Liquidity.liquidAssets(currentFigure, overnightFigure).outputs().getFirst().value();
+
+        DataConfidence.Result confidence = DataConfidence.of(BankMapping.entries(snapshot, null), asOf,
+                context.thresholds().dataConfidenceMinCoverage(), context.thresholds().dataConfidenceMaxGapDays());
+
+        BigDecimal overnightNow = overnightFigure == null ? new BigDecimal("0.00") : overnightFigure.value();
+        boolean fromOvernight = overnight.isPresent() && overnight.get().id().equals(sourceAccountId);
+        BigDecimal overnightAfter = fromOvernight && amount != null ? overnightNow.subtract(amount) : overnightNow;
+
+        BigDecimal target;
+        try {
+            RuleParameterValue monthsMin = parameter(EmergencyFundTarget.MONTHS_MIN, asOf);
+            RuleParameterValue monthsMax = parameter(EmergencyFundTarget.MONTHS_MAX, asOf);
+            CoreComputation fund = EmergencyFundTarget.of(overnightFigure, BankMapping.entries(snapshot, current.id()),
+                    asOf, monthsMin, monthsMax);
+            target = fund.outputs().stream()
+                    .filter(f -> f.outputKey().equals(EmergencyFundTarget.OUTPUT_TARGET))
+                    .findFirst().orElseThrow().value();
+        } catch (NoValidRuleParameterException e) {
+            target = null;
+        }
+        return new GateMeasures(liquidAssets, confidence.high(), confidence.coverage(), confidence.longestGapDays(),
+                overnightAfter, target);
+    }
+
+    @Override
     public void requireSubsidyRules(LocalDate date) {
         subsidyRules(date);
     }
@@ -384,6 +428,18 @@ class CoreGatewayService implements CoreGateway {
         RuleParameter parameter = ruleParameters.valid(key, asOf);
         return new RuleParameterValue(parameter.key(), parameter.value(), parameter.version(),
                 parameter.validFrom(), parameter.validTo());
+    }
+
+    /** Keys every output without storing evidence: for intermediate figures nobody is shown. */
+    private static CoreResult keyed(RequestContext context, CoreComputation computation) {
+        String fingerprint = context.configFingerprint().value();
+        List<SourcedNumber> numbers = computation.outputs().stream()
+                .map(output -> new SourcedNumber(FigureKey.of(context.personaId(), computation.function(),
+                        computation.keyInputs(), context.asOf(), fingerprint, output.outputKey()), output.value(),
+                        output.unit(), output.label()))
+                .toList();
+        return new CoreResult(computation.function(), computation.inputs(), computation.outputs(),
+                computation.assumptions(), computation.ruleParamVersions(), numbers);
     }
 
     /** Keys every output, stores one evidence item per output and returns the keyed result. */

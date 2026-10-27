@@ -61,6 +61,39 @@ class CoreGatewayServiceTest {
                 .doesNotContain("cashFlowForecast", "emergencyFundTarget");
     }
 
+    @Test
+    void theGateMeasuresComeFromTheSnapshotStoreNothingAndTolerateAMissingRuleParameter() {
+        UUID current = UUID.randomUUID();
+        UUID overnight = UUID.randomUUID();
+        BankSnapshot snapshot = new BankSnapshot(TestContexts.LENA, TestContexts.AS_OF,
+                List.of(new BankSnapshot.Account(current, AccountType.CURRENT, "Current account", "DE00",
+                        LocalDate.of(2025, 7, 1), new BigDecimal("100.00"), new BigDecimal("100.00")),
+                        new BankSnapshot.Account(overnight, AccountType.OVERNIGHT, "Overnight", "DE01",
+                                LocalDate.of(2025, 7, 1), new BigDecimal("2000.00"), new BigDecimal("2000.00"))),
+                List.of(), List.of(), List.of(), List.of());
+        List<EvidenceItem> stored = new ArrayList<>();
+        CoreGatewayService gateway = new CoreGatewayService((persona, asOf) -> snapshot, stored::addAll, PARAMETERS,
+                Optional::empty);
+
+        de.financetool.core.domain.GateMeasures measures = gateway.gateMeasures(TestContexts.context(), snapshot,
+                overnight, new BigDecimal("300.00"));
+
+        assertThat(measures.liquidAssets()).isEqualByComparingTo("2100.00");
+        assertThat(measures.overnightAfter()).isEqualByComparingTo("1700.00");
+        assertThat(measures.emergencyFundTarget()).isEqualByComparingTo("0.00");
+        assertThat(measures.dataConfidenceHigh()).isFalse();
+        assertThat(gateway.gateMeasures(TestContexts.context(), snapshot, current, new BigDecimal("300.00"))
+                .overnightAfter()).isEqualByComparingTo("2000.00");
+        assertThat(stored).isEmpty();
+
+        CoreGatewayService missing = new CoreGatewayService((persona, asOf) -> snapshot, stored::addAll,
+                port((key, asOf) -> {
+                    throw new NoValidRuleParameterException("No version of Rule Parameter " + key);
+                }), Optional::empty);
+        assertThat(missing.gateMeasures(TestContexts.context(), snapshot, overnight, null).emergencyFundTarget())
+                .isNull();
+    }
+
     static final Map<String, String> PROJECTION_PARAMETERS = Map.of("projection_equity_mean_return", "0.06",
             "projection_equity_volatility", "0.15", "reference_ter_world_equity_etf", "0.002",
             "projection_inflation", "0.02", "projection_default_horizon_years", "30",
