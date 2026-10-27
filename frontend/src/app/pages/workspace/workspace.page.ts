@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   ElementRef,
   afterNextRender,
   computed,
@@ -12,6 +13,7 @@ import {
 import { Router } from '@angular/router';
 import { MatTabGroup, MatTabsModule } from '@angular/material/tabs';
 import { FigureLinksService } from '../../shared/figure-links.service';
+import { NotificationsService } from '../../shared/notifications.service';
 import { AppHeaderComponent } from '../../shell/app-header.component';
 import { ChatColumnComponent } from './chat-column.component';
 import { HomeTabComponent } from './home-tab.component';
@@ -50,6 +52,7 @@ export type OverviewTab = (typeof OVERVIEW_TABS)[number]['key'];
 export class WorkspacePage {
   private readonly router = inject(Router);
   protected readonly links = inject(FigureLinksService);
+  protected readonly notifications = inject(NotificationsService);
 
   readonly tab = input<string | undefined>();
 
@@ -68,6 +71,9 @@ export class WorkspacePage {
   private shownIndex = 0;
 
   constructor() {
+    // The Home list and the tab badge share one poll for as long as the workspace is open.
+    this.notifications.start();
+    inject(DestroyRef).onDestroy(() => this.notifications.stop());
     afterNextRender(() => {
       this.shownIndex = this.tabGroup().selectedIndex ?? 0;
       this.links.shown(OVERVIEW_TABS[this.shownIndex].key);

@@ -1,0 +1,75 @@
+package de.financetool.monitoring.application;
+
+import de.financetool.actions.Actions;
+import de.financetool.actions.domain.ActionState;
+import de.financetool.audit.EvidenceReader;
+import de.financetool.monitoring.adapter.NotificationRepository;
+import de.financetool.monitoring.domain.NotificationStatus;
+import de.financetool.shared.PersonaScope;
+import de.financetool.shared.domain.SourcedNumber;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * The Home tab's Notifications (FR-7, FR-32): status from the linked Action's current state (AD-10), figures read back
+ * from the persona's evidence items, and the read state.
+ */
+@Service
+public class ShowNotificationsUseCase {
+
+    /**
+     * One Notification as the customer sees it.
+     *
+     * @param date the simulated date of the monitoring run
+     * @param figures the cited figures in cited order; one without stored evidence is left out
+     * @param question the prepared chat question, or {@code null}
+     */
+    public record Item(UUID id, NotificationStatus status, String title, String body, LocalDate date,
+            List<SourcedNumber> figures, boolean read, String question) {
+
+        public Item {
+            figures = List.copyOf(figures);
+        }
+    }
+
+    private final NotificationRepository notifications;
+    private final Actions actions;
+    private final EvidenceReader evidence;
+
+    ShowNotificationsUseCase(NotificationRepository notifications, Actions actions, EvidenceReader evidence) {
+        this.notifications = notifications;
+        this.actions = actions;
+        this.evidence = evidence;
+    }
+
+    /** The persona's Notifications, newest first. */
+    @Transactional(readOnly = true)
+    public List<Item> list(PersonaScope scope) {
+        List<NotificationRepository.Listed> listed = notifications.findNewestFirst(scope);
+        Map<UUID, ActionState> states = actions.states(scope, listed.stream()
+                .map(l -> l.row().actionId()).filter(Objects::nonNull).toList());
+        // One evidence read for the whole list: the poll runs every 10 s.
+        Map<String, SourcedNumber> figures = evidence.figures(scope, listed.stream()
+                        .flatMap(l -> l.row().citedProvIds().stream()).distinct().toList())
+                .stream().collect(Collectors.toMap(SourcedNumber::provId, f -> f));
+        return listed.stream().map(l -> {
+            NotificationRepository.Row row = l.row();
+            ActionState state = row.actionId() == null ? null : states.get(row.actionId());
+            return new Item(row.id(), NotificationStatus.of(row.outcome(), state), row.title(), row.body(),
+                    row.asOf(), row.citedProvIds().stream().filter(figures::containsKey).map(figures::get).toList(),
+                    l.read(), row.question());
+        }).toList();
+    }
+
+    /** @return {@code false} if no Notification with this id belongs to the scope's persona */
+    @Transactional
+    public boolean markRead(PersonaScope scope, UUID id) {
+        return notifications.markRead(scope, id);
+    }
+}

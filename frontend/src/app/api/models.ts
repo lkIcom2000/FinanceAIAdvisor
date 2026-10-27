@@ -32,6 +32,7 @@ export type { LoginRequest } from './models/login-request';
 export type { Money } from './models/money';
 export type { NeedsArea } from './models/needs-area';
 export type { NeedsStatement } from './models/needs-statement';
+export type { Notification } from './models/notification';
 export type { PersonaResponse } from './models/persona-response';
 export type { PostMessageRequest } from './models/post-message-request';
 export type { ProblemCode } from './models/problem-code';

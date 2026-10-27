@@ -2,6 +2,9 @@ package de.financetool.audit.adapter;
 
 import de.financetool.shared.PersonaScope;
 import java.time.OffsetDateTime;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -41,6 +44,23 @@ public class AuditRecordRepository {
                 ON CONFLICT (prov_id) DO NOTHING""")
                 .params(provId, personaId, origin, originId, content)
                 .update();
+    }
+
+    /** The contents of the evidence items with these keys that belong to the scope's persona, by key. */
+    public Map<String, String> findEvidence(Collection<String> provIds, PersonaScope scope) {
+        if (provIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, String> found = new HashMap<>();
+        jdbc.sql("""
+                SELECT prov_id, content::text AS content FROM evidence_items
+                WHERE prov_id IN (:provIds) AND persona_id = :personaId""")
+                .param("provIds", provIds)
+                .param("personaId", scope.id())
+                .query(rs -> {
+                    found.put(rs.getString("prov_id"), rs.getString("content"));
+                });
+        return found;
     }
 
     /** The content of an evidence item, only if it belongs to the scope's persona. */

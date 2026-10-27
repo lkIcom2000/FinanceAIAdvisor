@@ -23,8 +23,16 @@ import java.util.stream.Collectors;
  */
 public final class NotificationTemplates {
 
-    /** A title and body. */
-    public record Text(String title, String body) {
+    /**
+     * A title and body.
+     *
+     * @param question the prepared chat question for "Ask Fine about this", or {@code null}
+     */
+    public record Text(String title, String body, String question) {
+
+        public Text(String title, String body) {
+            this(title, body, null);
+        }
     }
 
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH);
@@ -49,7 +57,8 @@ public final class NotificationTemplates {
                         + " is due on " + date(premium.nextDueDate())
                         + ", no later than the day your balance drops below zero. Paying the premium monthly would"
                         + " avoid this every"
-                        + " year.");
+                        + " year.",
+                "Should I pay my premium for " + premium.typeName() + " monthly instead of yearly?");
     }
 
     public static Text emergencyFundWhileShortfall(SourcedNumber fund, SourcedNumber target) {
@@ -76,7 +85,8 @@ public final class NotificationTemplates {
     public static Text duplicateCoverage(Duplicate duplicate) {
         return new Text("You may be paying twice for " + duplicate.plainWords() + " insurance",
                 "More than one of your contracts covers " + duplicate.plainWords() + ". Check whether you need all"
-                        + " of them; Fine can help you compare them.");
+                        + " of them; Fine can help you compare them.",
+                "Do I need all of my contracts that cover " + duplicate.plainWords() + "?");
     }
 
     public static Text subsidyRuleChange(RuleChange change) {
@@ -84,7 +94,8 @@ public final class NotificationTemplates {
         return new Text("A subsidy rule has changed",
                 "The " + lowerFirst(change.name()) + " is " + value(change.value()) + " from "
                         + date(change.validFrom()) + before + ". This may change the subsidy you can get. Ask Fine"
-                        + " what it means for you.");
+                        + " what it means for you.",
+                "What does the change to the " + lowerFirst(change.name()) + " mean for me?");
     }
 
     /** One note for an ECB decision: old and new rates, what they usually move, no investment wording (S19). */

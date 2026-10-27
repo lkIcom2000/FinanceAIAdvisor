@@ -211,6 +211,6 @@ public final class TriggerDetection {
     private static PlannedNotification note(NotificationOutcome outcome, NotificationTemplates.Text text,
             List<SourcedNumber> cited) {
         return new PlannedNotification(outcome, text.title(), text.body(),
-                cited.stream().map(SourcedNumber::provId).toList());
+                cited.stream().map(SourcedNumber::provId).toList(), text.question());
     }
 }

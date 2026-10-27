@@ -14,6 +14,10 @@
         <mat-tab>
           <ng-template mat-tab-label>
             {{ t.label }}
+            @if (t.key === 'home' && notifications.unread(); as unread) {
+              <span class="tab-badge" aria-hidden="true">{{ unread }}</span>
+              <span class="visually-hidden">({{ unread }} unread)</span>
+            }
             @if (links.dots().has(t.key)) {
               <span class="tab-dot" aria-hidden="true"></span>
               <span class="visually-hidden">(shows a figure from the chat)</span>

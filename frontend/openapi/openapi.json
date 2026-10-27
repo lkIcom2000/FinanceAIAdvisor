@@ -23,6 +23,9 @@
   }, {
     "description" : "The persona of the session",
     "name" : "persona"
+  }, {
+    "description" : "What Fine noticed about your finances",
+    "name" : "notifications"
   } ],
   "paths" : {
     "/api/auth/csrf" : {
@@ -390,6 +393,51 @@
         },
         "summary" : "The latest demands-and-needs statement Fine released in the chat",
         "tags" : [ "chat" ]
+      }
+    },
+    "/api/notifications" : {
+      "get" : {
+        "operationId" : "list",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/Notification"
+                  }
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Your Notifications, newest first",
+        "tags" : [ "notifications" ]
+      }
+    },
+    "/api/notifications/{id}/read" : {
+      "post" : {
+        "operationId" : "markRead",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Read"
+          },
+          "404" : {
+            "description" : "No such Notification for this persona"
+          }
+        },
+        "summary" : "Mark a Notification as read; marking it again changes nothing",
+        "tags" : [ "notifications" ]
       }
     },
     "/api/overview/home" : {
@@ -1303,6 +1351,46 @@
           }
         },
         "required" : [ "areas", "facts", "figures" ]
+      },
+      "Notification" : {
+        "type" : "object",
+        "description" : "A note from Fine's monitoring, with the figures that triggered it",
+        "properties" : {
+          "body" : {
+            "type" : "string",
+            "description" : "The plain explanation incl. outcome"
+          },
+          "date" : {
+            "type" : "string",
+            "format" : "date",
+            "description" : "The date Fine noticed it"
+          },
+          "figures" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Figure"
+            }
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "question" : {
+            "type" : "string",
+            "description" : "The prepared chat question for \"Ask Fine about this\"; absent if none"
+          },
+          "read" : {
+            "type" : "boolean"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "FOR_YOUR_INFORMATION", "RECOMMENDATION", "NEEDS_YOUR_OK", "DONE_FOR_YOU", "UNDONE", "WITH_AN_ADVISOR" ]
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "body", "date", "figures", "id", "read", "status", "title" ]
       },
       "PersonaResponse" : {
         "type" : "object",

@@ -8,7 +8,10 @@ import de.financetool.shared.PersonaScope;
 import de.financetool.shared.domain.PersonaId;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -63,6 +66,21 @@ public class ActionRepository {
                         List.of(JSON.readValue(rs.getString("capping_criteria"), String[].class)),
                         rs.getObject("as_of", LocalDate.class)))
                 .list();
+    }
+
+    /** The states of the persona's Actions with these ids; other ids are left out. */
+    public Map<UUID, ActionState> states(PersonaScope scope, Collection<UUID> ids) {
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, ActionState> states = new HashMap<>();
+        jdbc.sql("SELECT id, state FROM actions WHERE id IN (:ids) AND persona_id = :personaId")
+                .param("ids", ids)
+                .param("personaId", scope.id())
+                .query(rs -> {
+                    states.put(rs.getObject("id", UUID.class), ActionState.valueOf(rs.getString("state")));
+                });
+        return states;
     }
 
     /** Persona reset: deletes the persona's Actions; returns the number of deleted rows. */

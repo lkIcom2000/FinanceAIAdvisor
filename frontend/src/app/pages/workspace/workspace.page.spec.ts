@@ -276,4 +276,29 @@ describe('WorkspacePage', () => {
       expect.objectContaining({ queryParams: { tab: 'wealth' } }),
     );
   });
+
+  it('shows the unread Notifications count on the Home tab label', async () => {
+    const fixture = TestBed.createComponent(WorkspacePage);
+    fixture.detectChanges();
+    answerPersona();
+    const unread = (id: string) => ({
+      id,
+      status: 'FOR_YOUR_INFORMATION',
+      title: id,
+      body: id,
+      date: '2026-10-15',
+      figures: [],
+      read: false,
+    });
+    TestBed.inject(HttpTestingController)
+      .expectOne('/api/notifications')
+      .flush([unread('n1'), unread('n2'), { ...unread('n3'), read: true }]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const tabs = (fixture.nativeElement as HTMLElement).querySelectorAll('[role="tab"]');
+
+    expect(tabs[0].querySelector('.tab-badge')?.textContent).toBe('2');
+    expect(tabs[0].textContent).toContain('(2 unread)');
+    expect(tabs[1].querySelector('.tab-badge')).toBeNull();
+  });
 });

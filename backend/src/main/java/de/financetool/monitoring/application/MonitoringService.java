@@ -106,7 +106,7 @@ class MonitoringService implements Monitoring {
                 UUID id = UUID.randomUUID();
                 UUID linked = note.outcome() == NotificationOutcome.ACTION ? actionId : null;
                 notifications.insert(scope, new NotificationRepository.Row(id, triggerId, linked, note.outcome(),
-                        note.title(), note.body(), note.citedProvIds(), asOf));
+                        note.title(), note.body(), note.citedProvIds(), asOf, note.question()));
                 audit.write(context, new AuditEntry(AuditKind.NOTIFICATION, null, null, fixtureVersion,
                         body(id, trigger, triggerId, linked, caseId, note)));
                 notificationIds.add(id);
@@ -177,6 +177,7 @@ class MonitoringService implements Monitoring {
         body.put("title", note.title());
         body.put("text", note.body());
         body.put("citedProvIds", note.citedProvIds());
+        body.put("question", note.question());
         return body;
     }
 }

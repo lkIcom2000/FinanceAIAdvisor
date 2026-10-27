@@ -5,13 +5,16 @@ import {
   ElementRef,
   Injector,
   afterNextRender,
+  effect,
   inject,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
+import { ChatPromptService } from '../../shared/chat-prompt.service';
 import { FigureLinksService } from '../../shared/figure-links.service';
 import { FigurePipe, fractionToPercent, percentToFraction } from '../../shared/figure.pipe';
 import { provideEchartsCore } from 'ngx-echarts';
@@ -132,6 +135,7 @@ export class ChatColumnComponent {
   private readonly injector = inject(Injector);
   private readonly dialog = inject(MatDialog);
   protected readonly links = inject(FigureLinksService);
+  private readonly prompt = inject(ChatPromptService);
 
   protected readonly suggestions = SUGGESTIONS;
   protected readonly steps = signal<readonly string[]>(WAITING_STEPS);
@@ -181,6 +185,23 @@ export class ChatColumnComponent {
         }
       },
       error: () => this.load.set('failed'),
+    });
+    // "Ask Fine about this" (FR-32): sent once the chat is loaded; while an answer is pending it waits in the composer.
+    effect(() => {
+      if (!this.prompt.pending() || this.load() !== 'ready') {
+        return;
+      }
+      untracked(() => {
+        const text = this.prompt.take();
+        if (!text) {
+          return;
+        }
+        if (this.isBusy()) {
+          this.composer()?.restore(text);
+        } else {
+          this.send(text);
+        }
+      });
     });
   }
 

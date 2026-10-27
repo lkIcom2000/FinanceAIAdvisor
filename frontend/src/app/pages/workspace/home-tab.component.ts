@@ -9,6 +9,7 @@ import { OverviewService } from '../../api/services/overview.service';
 import { formatDate, formatShortDate } from '../../shared/dates';
 import { FigurePipe, formatFigure } from '../../shared/figure.pipe';
 import { WhyLinkComponent } from '../../shared/why-link.component';
+import { NotificationListComponent } from './notification-list.component';
 
 type HomeState =
   { status: 'loading' } | { status: 'failed' } | { status: 'ready'; home: HomeOverview };
@@ -21,12 +22,11 @@ interface FlagLine {
 }
 
 /**
- * Home tab: the summary (the Liquidity tab's figures with the same keys), Notifications and rules (empty until
- * Epics 8 and 9) and "Your insurance" with the demands-and-needs statement once the chat made one. Every figure comes from the backend; this component only formats.
+ * Home tab: the summary (the Liquidity tab's figures with the same keys), Notifications, rules (empty until Epic 9) and "Your insurance" with the demands-and-needs statement once the chat made one. Every figure comes from the backend; this component only formats.
  */
 @Component({
   selector: 'app-home-tab',
-  imports: [FigurePipe, WhyLinkComponent],
+  imports: [FigurePipe, NotificationListComponent, WhyLinkComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './home-tab.component.html',
   styleUrl: './home-tab.component.scss',

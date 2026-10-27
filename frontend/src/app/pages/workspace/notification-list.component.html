@@ -1,0 +1,63 @@
+@let items = feed.items();
+@if (items.length) {
+  <ul class="notifications">
+    @for (n of items; track n.id) {
+      @let open = expanded().has(n.id);
+      <li
+        class="notification"
+        [class.unread]="!n.read"
+        [attr.data-status]="n.status"
+        [appReadOnView]="!n.read"
+        (seen)="feed.markRead(n.id)"
+      >
+        <button
+          type="button"
+          class="summary"
+          [attr.aria-expanded]="open"
+          [attr.aria-controls]="open ? 'notification-' + n.id : null"
+          (click)="toggle(n)"
+        >
+          <span class="status">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path [attr.d]="chips[n.status].icon" />
+            </svg>
+            {{ chips[n.status].label }}
+          </span>
+          <span class="title">{{ n.title }}</span>
+          <span class="date">{{ formatDate(n.date) }}</span>
+          @if (!n.read) {
+            <span class="visually-hidden">(unread)</span>
+          }
+        </button>
+        @if (n.figures.length) {
+          <ul class="figures" aria-label="Figures behind this notification">
+            @for (f of n.figures; track f.provId) {
+              <li class="figure">
+                <span class="figure-chip">
+                  <span class="figure-label">{{ f.label }}</span>&ngsp;
+                  <span class="figure-value">{{ f.value | figure: f.unit }}</span>
+                </span>
+                <app-why-link [provId]="f.provId" />
+              </li>
+            }
+          </ul>
+        }
+        @if (open) {
+          <div class="details" [id]="'notification-' + n.id">
+            <p class="body">{{ n.body }}</p>
+            @if (n.status === 'RECOMMENDATION' && n.question) {
+              <button mat-stroked-button type="button" class="ask" (click)="ask(n)">
+                Ask Fine about this
+              </button>
+            }
+          </div>
+        }
+      </li>
+    }
+  </ul>
+} @else {
+  <p class="empty">
+    Nothing needs your attention right now. Fine checks your accounts regularly and will let you
+    know.
+  </p>
+}

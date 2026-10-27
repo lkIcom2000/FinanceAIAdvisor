@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { provideEchartsCore } from 'ngx-echarts';
 import { ChatMessage } from '../../api/models/chat-message';
+import { ChatPromptService } from '../../shared/chat-prompt.service';
 import { httpTestingProviders } from '../../testing/session-testing';
 import {
   ChatColumnComponent,
@@ -996,5 +997,29 @@ describe('ChatColumnComponent', () => {
     expect(panel.textContent).toContain('Needs level only');
     panel.querySelector<HTMLButtonElement>('.statement-figure')!.click();
     http.expectOne('/api/provenance/dan000000000001');
+  });
+
+  it('sends a prepared question from "Ask Fine about this" as a chat message', () => {
+    render();
+    TestBed.inject(ChatPromptService).ask('Should I pay my premium monthly instead of yearly?');
+    fixture.detectChanges();
+
+    const post = http.expectOne('/api/chat/messages');
+    expect(post.request.body).toEqual({ text: 'Should I pay my premium monthly instead of yearly?' });
+    expect(TestBed.inject(ChatPromptService).pending()).toBeNull();
+  });
+
+  it('puts a prepared question into the composer while an answer is pending', () => {
+    render();
+    typeAndSend('What is an ETF?');
+    const pending = http.expectOne('/api/chat/messages');
+
+    TestBed.inject(ChatPromptService).ask('Do I need all of my contracts that cover liability?');
+    fixture.detectChanges();
+
+    http.expectNone('/api/chat/messages');
+    expect(field().value).toBe('Do I need all of my contracts that cover liability?');
+    pending.flush(question, { status: 201, statusText: 'Created' });
+    http.expectOne('/api/chat/messages/q1/answer');
   });
 });

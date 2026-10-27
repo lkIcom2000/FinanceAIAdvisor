@@ -4,11 +4,13 @@ import de.financetool.audit.AuditEntry;
 import de.financetool.audit.AuditExport;
 import de.financetool.audit.AuditWriter;
 import de.financetool.audit.EvidenceItem;
+import de.financetool.audit.EvidenceReader;
 import de.financetool.audit.EvidenceStore;
 import de.financetool.audit.Provenance;
 import de.financetool.audit.adapter.AuditRecordRepository;
 import de.financetool.shared.PersonaScope;
 import de.financetool.shared.RequestContext;
+import de.financetool.shared.domain.SourcedNumber;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
@@ -24,7 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /** Writes and exports Audit Records and evidence items, always inside the caller's transaction (AD-7, AD-16). */
 @Service
-class AuditService implements AuditWriter, EvidenceStore, AuditExport {
+class AuditService implements AuditWriter, EvidenceStore, EvidenceReader, AuditExport {
 
     private final AuditRecordRepository records;
     private final AuditPayloadMapper mapper;
@@ -48,6 +50,16 @@ class AuditService implements AuditWriter, EvidenceStore, AuditExport {
             records.insertEvidenceIfAbsent(item.provId(), item.personaId().value(),
                     item.origin().name().toLowerCase(Locale.ROOT), item.originId(), mapper.toJson(item.content()));
         }
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY, readOnly = true)
+    public List<SourcedNumber> figures(PersonaScope scope, List<String> provIds) {
+        Map<String, String> stored = records.findEvidence(provIds, scope);
+        return provIds.stream().filter(stored::containsKey)
+                .map(id -> mapper.fromJson(stored.get(id), Provenance.class))
+                .map(p -> new SourcedNumber(p.provId(), p.value(), p.unit(), p.label()))
+                .toList();
     }
 
     /** The provenance stored under {@code provId}, if it belongs to the scope's persona. */

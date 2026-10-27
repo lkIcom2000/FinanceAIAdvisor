@@ -23,6 +23,7 @@ import de.financetool.profile.ProfileCompleteness;
 import de.financetool.profile.Profiles;
 import de.financetool.shared.PersonaScope;
 import de.financetool.shared.RequestContext;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -62,6 +63,12 @@ class ActionService implements Actions {
         this.mandates = mandates;
         this.actions = actions;
         this.audit = audit;
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY, readOnly = true)
+    public Map<UUID, ActionState> states(PersonaScope scope, Collection<UUID> actionIds) {
+        return actions.states(scope, actionIds);
     }
 
     @Override

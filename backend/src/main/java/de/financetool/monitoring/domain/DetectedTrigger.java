@@ -35,9 +35,13 @@ public record DetectedTrigger(TriggerType type, String subjectId, String period,
         }
     }
 
-    /** A templated Notification; an {@code ACTION} one is linked to the Trigger's Action. */
+    /**
+     * A templated Notification; an {@code ACTION} one is linked to the Trigger's Action.
+     *
+     * @param question the prepared chat question for "Ask Fine about this", or {@code null}
+     */
     public record PlannedNotification(NotificationOutcome outcome, String title, String body,
-            List<String> citedProvIds) {
+            List<String> citedProvIds, String question) {
 
         public PlannedNotification {
             Objects.requireNonNull(outcome, "outcome");
