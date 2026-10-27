@@ -42,9 +42,17 @@
             }
           </ul>
         }
+        @if (n.status === 'NEEDS_YOUR_OK' && n.actionId) {
+          <button mat-flat-button type="button" class="review" (click)="review(n)">
+            Review and confirm
+          </button>
+        }
         @if (open) {
           <div class="details" [id]="'notification-' + n.id">
             <p class="body">{{ n.body }}</p>
+            @if (n.status === 'NEEDS_YOUR_OK' && n.reason) {
+              <p class="reason">{{ n.reason }}</p>
+            }
             @if (n.status === 'RECOMMENDATION' && n.question) {
               <button mat-stroked-button type="button" class="ask" (click)="ask(n)">
                 Ask Fine about this

@@ -7,7 +7,8 @@
 - 8.1 deviations (spec Implementation Notes): gate takes `GateThresholds` (domain may not see `shared.config`); `GateMeasures` carries Data Confidence as plain fields; Core returns `emergencyFundTarget = null` for a missing Rule Parameter.
 - Story 8.2 done, commit `b3cf679` (spec `spec-8-2-monitoring-run-at-a-simulated-date-with-all-mvp-triggers.md`): `MonitoringService.run`, tables `triggers`/`notifications` (V19), templated texts in `monitoring.domain.NotificationTemplates`, `POST /api/research/personas/{id}/monitoring/run`. verify 761/0/0.
 - Story 8.3 done (spec `spec-8-3-notifications-on-the-home-tab.md`, sprint-status `review`): `GET /api/notifications`, `POST /api/notifications/{id}/read` (`monitoring.web.NotificationController` over `monitoring.application.ShowNotificationsUseCase`), status from `monitoring.domain.NotificationStatus.of(outcome, actionState)`, new reads `Actions.states(scope, ids)` and `audit.EvidenceReader.figures(scope, provIds)`, V20 `read_at`/`question` (fixed per-template questions in `NotificationTemplates.Text`). Frontend: root `shared/NotificationsService` (poll 10 s/60 s, started/stopped by the workspace page, cleared on stop), `NotificationListComponent` in the Home tab, `ReadOnViewDirective`, `ChatPromptService` consumed by the chat column, unread badge on the Home label. verify 780/0/0.
-- Next: Story 8.4 (confirm an Action exactly). The Notification list has no confirm control yet; 8.4 adds it on `NEEDS_YOUR_OK` items and flips them to `DONE_FOR_YOU` via the Action state.
+- Story 8.4 done (spec `spec-8-4-confirm-an-action-exactly.md`): `actions.reason` (V21) from `actions.domain.GateReasons` (deciding criterion = lowest cap, `AutonomyGate.cap`); `Actions.review`/`confirm` (same row, persona-wide row lock, re-check: state, Rule Parameter, gate ≥ L2, accounts, cover; `BankPort.transfer` + `ACTION` Audit Record `event: confirm`, `outcome: executed|refused`); `Actions.states` → `summaries`; `CoreGateway.transferBalances`. Use case + controller in `monitoring` (`ConfirmActionUseCase`, `ActionController`, `GET /api/actions/{id}/review`, `POST /api/actions/{id}/confirm`) since `actions -> personas` is outside AD-12. Notification item gains `actionId`, `reason`. Frontend: `ConfirmActionDialogComponent`, "Review and confirm" on Needs-your-OK items, snackbar, `NotificationsService.refresh()`. verify 836/0/0, frontend 124.
+- Next: Story 8.5 (study presets: `POST /api/research/study/prepare/{presetId}`, reset + date + setup + monitoring in one use case, reproducibility test).
 
 ## Notes for 8.2
 
@@ -25,6 +26,8 @@
 5. Fix, then full `verify -Dfine.it.required=true` (+ frontend test/build when touched); commit; update this note; /clear.
 
 ## Open
+
+- Deferred from 8.4: confirming after the simulated date moved before the Action's `as_of` books back-dated (low; reset deletes Actions).
 
 - Deferred from 8.1: `gateMeasures` ignores a target overnight account for the emergency fund after an `EF_TOP_UP` (fix with Mandates in Epic 9).
 - Retro 6/7 items C2 (orchestrator stages) and C3 (needs text agrees with the profile) fit before or into Epic 8; C4/C5 are Commc decisions.

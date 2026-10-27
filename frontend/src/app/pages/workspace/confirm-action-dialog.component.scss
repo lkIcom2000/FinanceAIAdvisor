@@ -1,0 +1,71 @@
+h2 {
+  font: var(--fine-title);
+  color: var(--mat-sys-on-surface);
+
+  &:focus {
+    outline: none;
+  }
+}
+
+.sentence {
+  margin: 0 0 16px;
+  font: var(--fine-body);
+  font-weight: 600;
+  color: var(--mat-sys-on-surface);
+}
+
+.accounts {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.account {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+
+  dt {
+    font: var(--fine-body);
+    color: var(--mat-sys-on-surface);
+  }
+
+  dd {
+    display: inline-flex;
+    gap: 8px;
+    margin: 0;
+    font: var(--fine-body);
+  }
+}
+
+.figure {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.reason,
+.loading {
+  margin: 0;
+  font: var(--fine-body);
+  color: var(--mat-sys-on-surface);
+}
+
+.why {
+  min-height: 24px;
+  padding: 0 4px;
+  margin-left: -4px;
+  border: 0;
+  background: none;
+  color: var(--mat-sys-primary);
+  font: var(--fine-label);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.why-text {
+  margin: 4px 0 0;
+  font: var(--fine-body-sm);
+  color: var(--mat-sys-on-surface-variant);
+}

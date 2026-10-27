@@ -1,7 +1,7 @@
 package de.financetool.monitoring.application;
 
+import de.financetool.actions.ActionSummary;
 import de.financetool.actions.Actions;
-import de.financetool.actions.domain.ActionState;
 import de.financetool.audit.EvidenceReader;
 import de.financetool.monitoring.adapter.NotificationRepository;
 import de.financetool.monitoring.domain.NotificationStatus;
@@ -29,9 +29,11 @@ public class ShowNotificationsUseCase {
      * @param date the simulated date of the monitoring run
      * @param figures the cited figures in cited order; one without stored evidence is left out
      * @param question the prepared chat question, or {@code null}
+     * @param actionId the linked Action, or {@code null}
+     * @param reason why the linked Action needs the user's OK or was refused, or {@code null}
      */
     public record Item(UUID id, NotificationStatus status, String title, String body, LocalDate date,
-            List<SourcedNumber> figures, boolean read, String question) {
+            List<SourcedNumber> figures, boolean read, String question, UUID actionId, String reason) {
 
         public Item {
             figures = List.copyOf(figures);
@@ -52,7 +54,7 @@ public class ShowNotificationsUseCase {
     @Transactional(readOnly = true)
     public List<Item> list(PersonaScope scope) {
         List<NotificationRepository.Listed> listed = notifications.findNewestFirst(scope);
-        Map<UUID, ActionState> states = actions.states(scope, listed.stream()
+        Map<UUID, ActionSummary> summaries = actions.summaries(scope, listed.stream()
                 .map(l -> l.row().actionId()).filter(Objects::nonNull).toList());
         // One evidence read for the whole list: the poll runs every 10 s.
         Map<String, SourcedNumber> figures = evidence.figures(scope, listed.stream()
@@ -60,10 +62,11 @@ public class ShowNotificationsUseCase {
                 .stream().collect(Collectors.toMap(SourcedNumber::provId, f -> f));
         return listed.stream().map(l -> {
             NotificationRepository.Row row = l.row();
-            ActionState state = row.actionId() == null ? null : states.get(row.actionId());
-            return new Item(row.id(), NotificationStatus.of(row.outcome(), state), row.title(), row.body(),
-                    row.asOf(), row.citedProvIds().stream().filter(figures::containsKey).map(figures::get).toList(),
-                    l.read(), row.question());
+            ActionSummary action = row.actionId() == null ? null : summaries.get(row.actionId());
+            return new Item(row.id(), NotificationStatus.of(row.outcome(), action == null ? null : action.state()),
+                    row.title(), row.body(), row.asOf(),
+                    row.citedProvIds().stream().filter(figures::containsKey).map(figures::get).toList(), l.read(),
+                    row.question(), row.actionId(), action == null ? null : action.reason());
         }).toList();
     }
 

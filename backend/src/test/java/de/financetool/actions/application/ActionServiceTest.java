@@ -7,8 +7,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import de.financetool.PostgresIntegrationTest;
+import de.financetool.actions.ActionConfirmation;
 import de.financetool.actions.ActionProposal;
 import de.financetool.actions.Actions;
+import de.financetool.actions.NotAwaitingConfirmationException;
 import de.financetool.actions.ProposedAction;
 import de.financetool.actions.adapter.ActionRepository;
 import de.financetool.actions.domain.ActionState;
@@ -17,6 +19,7 @@ import de.financetool.actions.domain.AutonomyGate;
 import de.financetool.actions.domain.AutonomyLevel;
 import de.financetool.actions.domain.RegulatoryClass;
 import de.financetool.audit.AuditWriter;
+import de.financetool.bank.BankPort;
 import de.financetool.bank.BankReadPort;
 import de.financetool.core.CoreGateway;
 import de.financetool.core.domain.GateMeasures;
@@ -31,6 +34,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -66,6 +70,9 @@ class ActionServiceTest extends PostgresIntegrationTest {
 
     @Autowired
     BankReadPort bank;
+
+    @Autowired
+    BankPort bookings;
 
     @Autowired
     Profiles profiles;
@@ -212,7 +219,7 @@ class ActionServiceTest extends PostgresIntegrationTest {
         CoreGateway missingRule = mock(CoreGateway.class);
         when(missingRule.gateMeasures(any(), any(), any(), any())).thenReturn(new GateMeasures(
                 new BigDecimal("5000.00"), true, BigDecimal.ONE, 1, new BigDecimal("2700.00"), null));
-        ActionService service = new ActionService(bank, missingRule, profiles, completeness, mandates, repository,
+        ActionService service = new ActionService(bank, bookings, missingRule, profiles, completeness, mandates, repository,
                 audit);
 
         ActionProposal proposal = propose(service, new ProposedAction(ActionType.SHORTFALL_TRANSFER,
@@ -227,5 +234,66 @@ class ActionServiceTest extends PostgresIntegrationTest {
         });
         assertThat(auditRows(proposal.actionId())).singleElement()
                 .satisfies(a -> assertThat(a).containsEntry("kind", "ACTION"));
+    }
+
+    ActionService serviceWith(boolean dataConfidenceHigh, BigDecimal emergencyFundTarget) {
+        CoreGateway core = mock(CoreGateway.class);
+        when(core.gateMeasures(any(), any(), any(), any())).thenReturn(new GateMeasures(new BigDecimal("5000.00"),
+                dataConfidenceHigh, BigDecimal.ONE, 1, new BigDecimal("2700.00"), emergencyFundTarget));
+        return new ActionService(bank, bookings, core, profiles, completeness, mandates, repository, audit);
+    }
+
+    @Test
+    void aReCheckThatNoLongerAllowsTheTransferKeepsItWaitingWithTheNewReason() {
+        ActionProposal proposal = propose(actions, new ProposedAction(ActionType.SHORTFALL_TRANSFER,
+                RegulatoryClass.PAYMENT, new BigDecimal("300.00"), overnight, current, null));
+        assertThat(proposal.state()).isEqualTo(ActionState.AWAITING_CONFIRMATION);
+
+        var lowData = transaction.execute(tx -> serviceWith(false, new BigDecimal("6000.00"))
+                .confirm(context, scope, FIXTURE, proposal.actionId())).orElseThrow();
+        assertThat(lowData.done()).isFalse();
+        assertThat(lowData.reason())
+                .isEqualTo("I can only suggest this, because some of your recent account data is missing.");
+        assertThat(repository.findAll(scope)).singleElement().satisfies(row -> {
+            assertThat(row.state()).isEqualTo(ActionState.AWAITING_CONFIRMATION);
+            assertThat(row.cappingCriteria())
+                    .containsExactly(AutonomyGate.NO_COVERING_MANDATE, AutonomyGate.DATA_CONFIDENCE_LOW);
+            assertThat(row.reason()).isEqualTo(lowData.reason());
+        });
+
+        var missingRule = transaction.execute(tx -> serviceWith(true, null)
+                .confirm(context, scope, FIXTURE, proposal.actionId())).orElseThrow();
+        assertThat(missingRule.done()).isFalse();
+        assertThat(missingRule.reason()).startsWith("I can't make this transfer right now");
+        assertThat(repository.findAll(scope)).singleElement().satisfies(row -> {
+            assertThat(row.state()).isEqualTo(ActionState.AWAITING_CONFIRMATION);
+            assertThat(row.cappingCriteria()).containsExactly(ActionService.RULE_PARAMETER_MISSING);
+        });
+        assertThat(jdbc.queryForList("SELECT payload->'body'->>'outcome' FROM audit_records WHERE action_id = ?"
+                + " AND kind = 'ACTION' ORDER BY seq", String.class, proposal.actionId()))
+                .containsExactly(null, "refused", "refused");
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM transactions WHERE persona_id = ?"
+                + " AND origin = 'BANK_PORT'", Long.class, LENA.value())).isZero();
+    }
+
+    @Test
+    void onlyATransferAwaitingConfirmationCanBeReviewedOrConfirmed() {
+        ActionProposal recommended = transaction.execute(tx -> serviceWith(false, new BigDecimal("6000.00"))
+                .propose(context, scope, FIXTURE, new ProposedAction(ActionType.SHORTFALL_TRANSFER,
+                        RegulatoryClass.PAYMENT, new BigDecimal("300.00"), overnight, current, null)));
+        assertThat(recommended.state()).isEqualTo(ActionState.RECOMMENDED);
+        ActionProposal selfTransfer = propose(actions, new ProposedAction(ActionType.SHORTFALL_TRANSFER,
+                RegulatoryClass.PAYMENT, new BigDecimal("300.00"), overnight, overnight, null));
+        assertThat(selfTransfer.state()).isEqualTo(ActionState.AWAITING_CONFIRMATION);
+
+        for (UUID id : List.of(recommended.actionId(), selfTransfer.actionId())) {
+            assertThatThrownBy(() -> transaction.execute(tx -> actions.confirm(context, scope, FIXTURE, id)))
+                    .isInstanceOf(NotAwaitingConfirmationException.class);
+            assertThatThrownBy(() -> transaction.execute(tx -> actions.review(context, scope, id)))
+                    .isInstanceOf(NotAwaitingConfirmationException.class);
+        }
+        Optional<ActionConfirmation> unknown = transaction.execute(tx -> actions.confirm(context, scope, FIXTURE,
+                UUID.randomUUID()));
+        assertThat(unknown).isEmpty();
     }
 }

@@ -9,6 +9,11 @@ import { Figure } from '../models/figure';
 export interface Notification {
 
   /**
+   * The Action Fine prepared, for "Review and confirm"; absent if none
+   */
+  actionId?: string;
+
+  /**
    * The plain explanation incl. outcome
    */
   body: string;
@@ -25,6 +30,11 @@ export interface Notification {
    */
   question?: string;
   read: boolean;
+
+  /**
+   * Why the Action needs your OK, in plain words; absent if none
+   */
+  reason?: string;
   status: 'FOR_YOUR_INFORMATION' | 'RECOMMENDATION' | 'NEEDS_YOUR_OK' | 'DONE_FOR_YOU' | 'UNDONE' | 'WITH_AN_ADVISOR';
   title: string;
 }

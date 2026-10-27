@@ -47,7 +47,10 @@ class NotificationController {
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<FigureView> figures,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean read,
             @Schema(description = "The prepared chat question for \"Ask Fine about this\"; absent if none")
-            String question) {
+            String question,
+            @Schema(description = "The Action Fine prepared, for \"Review and confirm\"; absent if none")
+            UUID actionId,
+            @Schema(description = "Why the Action needs your OK, in plain words; absent if none") String reason) {
     }
 
     private final ShowNotificationsUseCase showNotifications;
@@ -61,7 +64,8 @@ class NotificationController {
     List<Notification> list(@Parameter(hidden = true) PersonaScope scope) {
         return showNotifications.list(scope).stream()
                 .map(i -> new Notification(i.id(), i.status(), i.title(), i.body(), i.date(),
-                        i.figures().stream().map(FigureView::of).toList(), i.read(), i.question()))
+                        i.figures().stream().map(FigureView::of).toList(), i.read(), i.question(), i.actionId(),
+                        i.reason()))
                 .toList();
     }
 

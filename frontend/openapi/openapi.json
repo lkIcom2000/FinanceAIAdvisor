@@ -21,6 +21,9 @@
     "description" : "The chat with Fine",
     "name" : "chat"
   }, {
+    "description" : "Confirm a transfer Fine prepared",
+    "name" : "actions"
+  }, {
     "description" : "The persona of the session",
     "name" : "persona"
   }, {
@@ -28,6 +31,100 @@
     "name" : "notifications"
   } ],
   "paths" : {
+    "/api/actions/{id}/confirm" : {
+      "post" : {
+        "operationId" : "confirm",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConfirmResult"
+                }
+              }
+            },
+            "description" : "Done, or refused with the reason"
+          },
+          "404" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConfirmResult"
+                }
+              }
+            },
+            "description" : "No such Action for this persona"
+          },
+          "409" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConfirmResult"
+                }
+              }
+            },
+            "description" : "Not (or no longer) a transfer waiting for your OK"
+          }
+        },
+        "summary" : "Confirm the transfer: Fine checks it again and makes it, or tells you why not",
+        "tags" : [ "actions" ]
+      }
+    },
+    "/api/actions/{id}/review" : {
+      "get" : {
+        "operationId" : "review",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TransferReview"
+                }
+              }
+            },
+            "description" : "The transfer"
+          },
+          "404" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TransferReview"
+                }
+              }
+            },
+            "description" : "No such Action for this persona"
+          },
+          "409" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TransferReview"
+                }
+              }
+            },
+            "description" : "Not a transfer waiting for your OK"
+          }
+        },
+        "summary" : "The transfer waiting for your OK, with both accounts before and after",
+        "tags" : [ "actions" ]
+      }
+    },
     "/api/auth/csrf" : {
       "get" : {
         "operationId" : "csrf",
@@ -567,6 +664,24 @@
   },
   "components" : {
     "schemas" : {
+      "AccountChange" : {
+        "type" : "object",
+        "description" : "One account of the transfer, before and after it; balances in EUR as decimal strings",
+        "properties" : {
+          "after" : {
+            "type" : "string",
+            "example" : "2500.00"
+          },
+          "before" : {
+            "type" : "string",
+            "example" : "2700.00"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "after", "before", "name" ]
+      },
       "AssessmentAnswer" : {
         "type" : "object",
         "description" : "The answer to one question: a choice key, an amount or number as a decimal string, or a short text",
@@ -993,6 +1108,28 @@
         },
         "required" : [ "label", "value" ]
       },
+      "ConfirmResult" : {
+        "type" : "object",
+        "description" : "The outcome of a confirmation",
+        "properties" : {
+          "amountText" : {
+            "type" : "string",
+            "example" : "200.00 EUR"
+          },
+          "done" : {
+            "type" : "boolean"
+          },
+          "reason" : {
+            "type" : "string",
+            "description" : "Why the transfer was not made; absent once done"
+          },
+          "why" : {
+            "type" : "string",
+            "description" : "The \"Why?\" explanation of the reason; absent once done"
+          }
+        },
+        "required" : [ "amountText", "done" ]
+      },
       "DatedFigure" : {
         "type" : "object",
         "description" : "A balance on a day, e.g. the first forecast day below zero",
@@ -1356,6 +1493,11 @@
         "type" : "object",
         "description" : "A note from Fine's monitoring, with the figures that triggered it",
         "properties" : {
+          "actionId" : {
+            "type" : "string",
+            "format" : "uuid",
+            "description" : "The Action Fine prepared, for \"Review and confirm\"; absent if none"
+          },
           "body" : {
             "type" : "string",
             "description" : "The plain explanation incl. outcome"
@@ -1381,6 +1523,10 @@
           },
           "read" : {
             "type" : "boolean"
+          },
+          "reason" : {
+            "type" : "string",
+            "description" : "Why the Action needs your OK, in plain words; absent if none"
           },
           "status" : {
             "type" : "string",
@@ -1706,6 +1852,35 @@
           }
         },
         "required" : [ "displayName", "role" ]
+      },
+      "TransferReview" : {
+        "type" : "object",
+        "description" : "The exact transfer waiting for your OK",
+        "properties" : {
+          "amountText" : {
+            "type" : "string",
+            "example" : "200.00 EUR"
+          },
+          "from" : {
+            "$ref" : "#/components/schemas/AccountChange"
+          },
+          "reason" : {
+            "type" : "string",
+            "description" : "Why it needs your OK"
+          },
+          "sentence" : {
+            "type" : "string",
+            "example" : "Move 200.00 EUR from Overnight deposit to Current account"
+          },
+          "to" : {
+            "$ref" : "#/components/schemas/AccountChange"
+          },
+          "why" : {
+            "type" : "string",
+            "description" : "The \"Why?\" explanation"
+          }
+        },
+        "required" : [ "amountText", "from", "reason", "sentence", "to", "why" ]
       },
       "WealthOverview" : {
         "type" : "object",

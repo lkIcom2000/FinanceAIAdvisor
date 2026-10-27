@@ -12,6 +12,7 @@ import de.financetool.core.domain.AccountBalance;
 import de.financetool.core.domain.AccountIds;
 import de.financetool.core.domain.EmergencyFundTopUp;
 import de.financetool.core.domain.RuleChangeFigures;
+import de.financetool.core.domain.TransferBalances;
 import de.financetool.core.domain.RuleParameterChange;
 import de.financetool.core.domain.CashFlowForecast;
 import de.financetool.core.domain.CategorySelection;
@@ -329,6 +330,25 @@ class CoreGatewayService implements CoreGateway {
         parameters.put(mean.key(), mean);
         parameters.put(volatility.key(), volatility);
         return new MonteCarloProjection.Parametric(mean, volatility);
+    }
+
+    @Override
+    public TransferBalances transferBalances(RequestContext context, BankSnapshot snapshot, UUID fromAccountId,
+            UUID toAccountId, BigDecimal amount) {
+        Objects.requireNonNull(snapshot, "snapshot");
+        Objects.requireNonNull(amount, "amount");
+        BigDecimal from = accountBalance(snapshot, fromAccountId, context.asOf());
+        BigDecimal to = accountBalance(snapshot, toAccountId, context.asOf());
+        return new TransferBalances(from, from.subtract(amount), to, to.add(amount));
+    }
+
+    private static BigDecimal accountBalance(BankSnapshot snapshot, UUID accountId, LocalDate asOf) {
+        BankSnapshot.Account account = snapshot.accounts().stream()
+                .filter(a -> a.id().equals(accountId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("no account " + accountId + " in the snapshot"));
+        return AccountBalance.of(account.openingDate(), account.openingBalance(),
+                BankMapping.bookings(snapshot, account.id()), asOf).outputs().getFirst().value();
     }
 
     @Override

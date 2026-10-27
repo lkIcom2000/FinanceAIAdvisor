@@ -1,5 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { Notification } from '../../api/models/notification';
 import { ChatPromptService } from '../../shared/chat-prompt.service';
 import { formatDate } from '../../shared/dates';
@@ -8,6 +10,11 @@ import { NotificationsService } from '../../shared/notifications.service';
 import { ReadOnViewDirective } from '../../shared/read-on-view.directive';
 import { WhyLinkComponent } from '../../shared/why-link.component';
 import { ICON_PATHS } from './chat-column.component';
+import {
+  ConfirmActionDialogComponent,
+  ConfirmActionDialogData,
+  ConfirmActionDialogResult,
+} from './confirm-action-dialog.component';
 
 /** The status chip of a Notification: plain word and inline Material icon path (UX-DR19). */
 export const STATUS_CHIPS: Record<Notification['status'], { label: string; icon: string }> = {
@@ -33,7 +40,8 @@ export const STATUS_CHIPS: Record<Notification['status'], { label: string; icon:
 
 /**
  * The Home tab's Notifications (FR-7, FR-32), newest first from the shared poll; the empty state while there are
- * none. Unread items are bold until expanded or 5 s at least half in view. Every figure and status comes from the
+ * none. Unread items are bold until expanded or 5 s at least half in view. An item that needs the user's OK shows the
+ * reason when expanded and offers "Review and confirm" (the L2 dialog). Every figure, reason and status comes from the
  * backend; this component only formats.
  */
 @Component({
@@ -46,6 +54,8 @@ export const STATUS_CHIPS: Record<Notification['status'], { label: string; icon:
 export class NotificationListComponent {
   protected readonly feed = inject(NotificationsService);
   private readonly prompt = inject(ChatPromptService);
+  private readonly dialog = inject(MatDialog);
+  private readonly snackBar = inject(MatSnackBar);
 
   protected readonly chips = STATUS_CHIPS;
   protected readonly formatDate = formatDate;
@@ -60,6 +70,26 @@ export class NotificationListComponent {
       this.feed.markRead(n.id);
     }
     this.expanded.set(open);
+  }
+
+  /** Opens the L2 dialog; afterwards the list is fetched at once, so the item shows its new status or reason. */
+  protected review(n: Notification): void {
+    if (!n.actionId) {
+      return;
+    }
+    this.feed.markRead(n.id);
+    this.dialog
+      .open<ConfirmActionDialogComponent, ConfirmActionDialogData, ConfirmActionDialogResult>(
+        ConfirmActionDialogComponent,
+        { data: { actionId: n.actionId }, width: '480px', maxWidth: '90vw', restoreFocus: true },
+      )
+      .afterClosed()
+      .subscribe((result) => {
+        this.feed.refresh();
+        if (result) {
+          this.snackBar.open(`Done. ${result.amountText} moved.`, undefined, { duration: 5000 });
+        }
+      });
   }
 
   protected ask(n: Notification): void {

@@ -29,7 +29,11 @@ class FakeIntersectionObserver {
     for (const o of FakeIntersectionObserver.all) {
       const entries = o.targets.map(
         (target) =>
-          ({ target, isIntersecting: share > 0, intersectionRatio: share }) as IntersectionObserverEntry,
+          ({
+            target,
+            isIntersecting: share > 0,
+            intersectionRatio: share,
+          }) as IntersectionObserverEntry,
       );
       if (entries.length) {
         o.callback(entries, o as unknown as IntersectionObserver);
@@ -46,7 +50,9 @@ const UJ1: Notification[] = [
   notification('n3', {
     status: 'FOR_YOUR_INFORMATION',
     title: 'Your emergency fund is below its target',
-    figures: [{ provId: 'b000000000000001', label: 'Emergency fund', value: '5700.00', unit: 'EUR' }],
+    figures: [
+      { provId: 'b000000000000001', label: 'Emergency fund', value: '5700.00', unit: 'EUR' },
+    ],
   }),
   notification('n2', {
     status: 'RECOMMENDATION',
@@ -58,6 +64,8 @@ const UJ1: Notification[] = [
   notification('n1', {
     status: 'NEEDS_YOUR_OK',
     title: 'Your current account may run short on 1 Nov 2026',
+    actionId: 'a1',
+    reason: "This needs your OK because you haven't set up a rule for this.",
     figures: [{ provId: 'b000000000000003', label: 'Shortfall', value: '-90.00', unit: 'EUR' }],
   }),
 ];
@@ -211,5 +219,145 @@ describe('NotificationListComponent', () => {
     expect(cards()[1]).toBe(before[0]);
     expect(scroller.scrollTop).toBe(120);
     scroller.remove();
+  });
+
+  describe('Review and confirm', () => {
+    const REVIEW = {
+      sentence: 'Move 200.00 EUR from Overnight deposit to Current account',
+      amountText: '200.00 EUR',
+      from: { name: 'Overnight deposit', before: '2700.00', after: '2500.00' },
+      to: { name: 'Current account', before: '-90.00', after: '110.00' },
+      reason: "This needs your OK because you haven't set up a rule for this.",
+      why: 'Fine moves money on its own only within a rule you have set up.',
+    };
+
+    function overlay(): HTMLElement {
+      return document.querySelector('.cdk-overlay-container') as HTMLElement;
+    }
+
+    function openDialog(): void {
+      render(UJ1);
+      (cards()[2].querySelector('.review') as HTMLButtonElement).click();
+      http.expectOne('/api/actions/a1/review').flush(REVIEW);
+      fixture.detectChanges();
+      vi.advanceTimersByTime(0);
+      fixture.detectChanges();
+    }
+
+    function button(selector: string): HTMLButtonElement {
+      return overlay().querySelector(selector) as HTMLButtonElement;
+    }
+
+    it('shows the reason in the expanded item and the button only on items that need an OK', () => {
+      render(UJ1);
+      expect(cards().map((c) => !!c.querySelector('.review'))).toEqual([false, false, true]);
+      (cards()[2].querySelector('.summary') as HTMLButtonElement).click();
+      fixture.detectChanges();
+      reads();
+      expect(text(cards()[2].querySelector('.reason'))).toBe(
+        "This needs your OK because you haven't set up a rule for this.",
+      );
+    });
+
+    it('shows the exact transfer, both accounts before and after, the reason and Why?', () => {
+      openDialog();
+      reads();
+      expect(text(overlay().querySelector('.sentence'))).toBe(REVIEW.sentence);
+      expect(Array.from(overlay().querySelectorAll('.account')).map((a) => text(a))).toEqual([
+        'Overnight deposit 2,700.00 EUR → after the transfer 2,500.00 EUR',
+        'Current account −90.00 EUR → after the transfer 110.00 EUR',
+      ]);
+      expect(text(overlay().querySelector('.reason'))).toBe(REVIEW.reason);
+      expect(overlay().querySelector('.why-text')).toBeNull();
+      button('.why').click();
+      fixture.detectChanges();
+      expect(text(overlay().querySelector('.why-text'))).toBe(REVIEW.why);
+      expect(text(button('.confirm'))).toBe('Confirm transfer of 200.00 EUR');
+      expect(text(button('.not-now'))).toBe('Not now');
+      button('.not-now').click();
+      vi.advanceTimersByTime(500);
+      http.expectOne('/api/notifications').flush(served);
+    });
+
+    it('closes on success, says Done in a snackbar and fetches the list at once', () => {
+      openDialog();
+      reads();
+      button('.confirm').click();
+      http.expectOne('/api/actions/a1/confirm').flush({ done: true, amountText: '200.00 EUR' });
+      fixture.detectChanges();
+      vi.advanceTimersByTime(500);
+      fixture.detectChanges();
+      const done = UJ1.map((n) => (n.id === 'n1' ? { ...n, status: 'DONE_FOR_YOU' as const } : n));
+      http.expectOne('/api/notifications').flush(done);
+      fixture.detectChanges();
+      expect(overlay().querySelector('app-confirm-action-dialog')).toBeNull();
+      expect(text(overlay().querySelector('.mat-mdc-snack-bar-label'))).toBe(
+        'Done. 200.00 EUR moved.',
+      );
+      expect(text(cards()[2].querySelector('.status'))).toBe('Done for you');
+      expect(cards()[2].querySelector('.review')).toBeNull();
+    });
+
+    it('shows the reason and only Close when the re-check fails', () => {
+      openDialog();
+      reads();
+      button('.confirm').click();
+      http.expectOne('/api/actions/a1/confirm').flush({
+        done: false,
+        amountText: '200.00 EUR',
+        reason:
+          "I can't make this transfer because your overnight deposit holds only 50.00 EUR now.",
+        why: 'Fine checks the balance again right before every transfer.',
+      });
+      fixture.detectChanges();
+      expect(text(overlay().querySelector('.reason'))).toBe(
+        "I can't make this transfer because your overnight deposit holds only 50.00 EUR now.",
+      );
+      expect(overlay().querySelector('.confirm')).toBeNull();
+      expect(overlay().querySelector('.not-now')).toBeNull();
+      expect(text(button('.close'))).toBe('Close');
+      button('.close').click();
+      vi.advanceTimersByTime(500);
+      http.expectOne('/api/notifications').flush(served);
+      expect(overlay().querySelector('.mat-mdc-snack-bar-label')).toBeNull();
+    });
+
+    it('says the transfer is no longer waiting when the review answers 409', () => {
+      render(UJ1);
+      (cards()[2].querySelector('.review') as HTMLButtonElement).click();
+      http
+        .expectOne('/api/actions/a1/review')
+        .flush({ detail: 'x' }, { status: 409, statusText: 'Conflict' });
+      fixture.detectChanges();
+      reads();
+      expect(text(overlay().querySelector('.reason'))).toBe(
+        'This transfer is no longer waiting for your OK.',
+      );
+      expect(overlay().querySelector('.confirm')).toBeNull();
+      button('.close').click();
+      vi.advanceTimersByTime(500);
+      http.expectOne('/api/notifications').flush(served);
+    });
+
+    it('cannot be dismissed while confirming and says so when the answer is lost', () => {
+      openDialog();
+      reads();
+      button('.confirm').click();
+      fixture.detectChanges();
+      expect(button('.confirm').disabled).toBe(true);
+      expect(button('.not-now').disabled).toBe(true);
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      fixture.detectChanges();
+      expect(overlay().querySelector('app-confirm-action-dialog')).not.toBeNull();
+      http.expectOne('/api/actions/a1/confirm').flush(null, { status: 500, statusText: 'Error' });
+      fixture.detectChanges();
+      expect(text(overlay().querySelector('.reason'))).toBe(
+        "We couldn't tell whether this transfer was made. Please check your notifications before trying again.",
+      );
+      button('.close').click();
+      vi.advanceTimersByTime(500);
+      http.expectOne('/api/notifications').flush(served);
+      expect(overlay().querySelector('.mat-mdc-snack-bar-label')).toBeNull();
+    });
   });
 });

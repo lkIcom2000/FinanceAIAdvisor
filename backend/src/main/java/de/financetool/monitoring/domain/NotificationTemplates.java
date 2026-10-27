@@ -143,7 +143,7 @@ public final class NotificationTemplates {
     }
 
     /** "1,240.00 EUR", "−90.00 EUR". */
-    static String eur(BigDecimal amount) {
+    public static String eur(BigDecimal amount) {
         BigDecimal cents = amount.setScale(2, RoundingMode.HALF_UP);
         DecimalFormat format = new DecimalFormat("#,##0.00", DecimalFormatSymbols.getInstance(Locale.ENGLISH));
         return (cents.signum() < 0 ? String.valueOf(MINUS) : "") + format.format(cents.abs()) + " EUR";

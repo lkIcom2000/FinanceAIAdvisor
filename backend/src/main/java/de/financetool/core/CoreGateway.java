@@ -11,6 +11,7 @@ import de.financetool.core.domain.NeedsFigures;
 import de.financetool.core.domain.ProfileFigures;
 import de.financetool.core.domain.RecommendationFigures;
 import de.financetool.core.domain.RuleChangeFigures;
+import de.financetool.core.domain.TransferBalances;
 import de.financetool.core.domain.WealthFigures;
 import de.financetool.core.domain.WhatIfFigures;
 import de.financetool.shared.RequestContext;
@@ -170,6 +171,16 @@ public interface CoreGateway {
      * @throws IllegalStateException if the persona has no current account
      */
     GateMeasures gateMeasures(RequestContext context, BankSnapshot snapshot, UUID sourceAccountId, BigDecimal amount);
+
+    /**
+     * The balances of both accounts at the end of {@code context.asOf()} before and after moving {@code amount} from
+     * {@code fromAccountId} to {@code toAccountId}, for the confirmation dialog. Nothing is stored.
+     *
+     * @param snapshot the persona's bank snapshot at {@code context.asOf()}, read once by the caller
+     * @throws IllegalArgumentException if an account is not in the snapshot
+     */
+    TransferBalances transferBalances(RequestContext context, BankSnapshot snapshot, UUID fromAccountId,
+            UUID toAccountId, BigDecimal amount);
 
     /**
      * The emergency fund top-up at the end of {@code asOf} (function {@code emergencyFundTopUp}): the gap to the

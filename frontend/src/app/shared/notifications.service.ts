@@ -66,6 +66,15 @@ export class NotificationsService {
     this.loaded.set(false);
   }
 
+  /** Polls at once, e.g. after a confirmation changed an item; a request in flight is replaced. */
+  refresh(): void {
+    if (!this.running) {
+      return;
+    }
+    this.request?.unsubscribe();
+    this.poll();
+  }
+
   /** Marks an unread Notification read with one POST; a failed POST shows it unread again. */
   markRead(id: string): void {
     const item = this.items().find((n) => n.id === id);

@@ -1,0 +1,65 @@
+<h2 mat-dialog-title #heading tabindex="-1">Review and confirm</h2>
+<mat-dialog-content>
+  @let stop = stopped();
+  @let r = review();
+  @if (stop) {
+    <p class="reason" role="alert">{{ stop.reason }}</p>
+    @if (stop.why) {
+      <button
+        type="button"
+        class="why"
+        [attr.aria-expanded]="whyOpen()"
+        aria-controls="confirm-why"
+        (click)="toggleWhy()"
+      >
+        Why?
+      </button>
+      @if (whyOpen()) {
+        <p class="why-text" id="confirm-why">{{ stop.why }}</p>
+      }
+    }
+  } @else if (r) {
+    <p class="sentence">{{ r.sentence }}</p>
+    <dl class="accounts">
+      @for (account of [r.from, r.to]; track $index) {
+        <div class="account">
+          <dt>{{ account.name }}</dt>
+          &ngsp;
+          <dd>
+            <span class="figure">{{ account.before | figure: 'EUR' }}</span
+            >&ngsp; <span aria-hidden="true">&rarr;</span>&ngsp;
+            <span class="visually-hidden">after the transfer</span>&ngsp;
+            <span class="figure">{{ account.after | figure: 'EUR' }}</span>
+          </dd>
+        </div>
+      }
+    </dl>
+    <p class="reason">{{ r.reason }}</p>
+    <button
+      type="button"
+      class="why"
+      [attr.aria-expanded]="whyOpen()"
+      aria-controls="confirm-why"
+      (click)="toggleWhy()"
+    >
+      Why?
+    </button>
+    @if (whyOpen()) {
+      <p class="why-text" id="confirm-why">{{ r.why }}</p>
+    }
+  } @else {
+    <p class="loading">Loading the transfer&hellip;</p>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  @if (!stop && r) {
+    <button mat-button type="button" class="not-now" [disabled]="busy()" mat-dialog-close>
+      Not now
+    </button>
+    <button mat-flat-button type="button" class="confirm" [disabled]="busy()" (click)="confirm()">
+      Confirm transfer of {{ r.amountText }}
+    </button>
+  } @else {
+    <button mat-stroked-button type="button" class="close" mat-dialog-close>Close</button>
+  }
+</mat-dialog-actions>
