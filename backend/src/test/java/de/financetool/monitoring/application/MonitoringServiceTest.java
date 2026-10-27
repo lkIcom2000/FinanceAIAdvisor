@@ -2,9 +2,14 @@ package de.financetool.monitoring.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import de.financetool.PostgresIntegrationTest;
+import de.financetool.actions.ActionProposal;
 import de.financetool.actions.Actions;
+import de.financetool.actions.domain.ActionState;
 import de.financetool.actions.domain.AutonomyGate;
 import de.financetool.audit.AuditWriter;
 import de.financetool.audit.EvidenceOrigin;
@@ -149,6 +154,9 @@ class MonitoringServiceTest extends PostgresIntegrationTest {
 
     @Autowired
     PersonaDirectory personas;
+
+    @Autowired
+    AuditWriter audit;
 
     /** The test database is shared by every test class: leave the personas as the fixtures define them. */
     @AfterEach
@@ -340,6 +348,29 @@ class MonitoringServiceTest extends PostgresIntegrationTest {
         assertThat(counts(LENA)).isEqualTo(before);
         assertThat(count("triggers", LENA)).isZero();
         assertThat(count("notifications", LENA)).isZero();
+    }
+
+    @Test
+    void anActionTheGateCouldNotDecideOpensTheAdvisorCaseItsChipPromises() {
+        // The real Action is stored; the gate's answer is the one without a valid Rule Parameter.
+        Actions undecided = mock(Actions.class);
+        when(undecided.propose(any(), any(), any(), any())).thenAnswer(inv -> {
+            ActionProposal stored = actions.propose(inv.getArgument(0), inv.getArgument(1), inv.getArgument(2),
+                    inv.getArgument(3));
+            return new ActionProposal(stored.actionId(), ActionState.ESCALATED, null,
+                    List.of("rule_parameter_missing"));
+        });
+        Monitoring service = new MonitoringService(core, undecided, escalation, personas, triggers, notifications,
+                audit);
+
+        Monitoring.Run run = run(service, LENA);
+
+        assertThat(run.notifications()).first().satisfies(n -> assertThat(n.status()).isEqualTo("WITH_AN_ADVISOR"));
+        assertThat(jdbc.queryForList("SELECT origin, block_reasons::text AS reasons FROM escalation_cases "
+                + "WHERE persona_id = ?", LENA.value())).singleElement().satisfies(c -> {
+                    assertThat(c).containsEntry("origin", "TRIGGER");
+                    assertThat((String) c.get("reasons")).contains("rule_parameter_missing");
+                });
     }
 
     @Test

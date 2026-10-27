@@ -129,7 +129,7 @@ class ActionService implements Actions {
         if (found.isEmpty()) {
             return Optional.empty();
         }
-        ActionRepository.Row row = requireAwaitingTransfer(found.get());
+        ActionRepository.Row row = requireAwaitingTransfer(found.get(), context);
         BankSnapshot snapshot = bank.snapshot(scope.personaId(), context.asOf());
         Optional<BankSnapshot.Account> from = account(snapshot, row.sourceAccountId());
         Optional<BankSnapshot.Account> to = account(snapshot, row.targetAccountId());
@@ -152,7 +152,7 @@ class ActionService implements Actions {
         if (found.isEmpty()) {
             return Optional.empty();
         }
-        ActionRepository.Row row = requireAwaitingTransfer(found.get());
+        ActionRepository.Row row = requireAwaitingTransfer(found.get(), context);
         BankSnapshot snapshot = bank.snapshot(scope.personaId(), context.asOf());
         Optional<BankSnapshot.Account> from = account(snapshot, row.sourceAccountId());
         Optional<BankSnapshot.Account> to = account(snapshot, row.targetAccountId());
@@ -167,10 +167,19 @@ class ActionService implements Actions {
                     row.sourceAccountId());
             if (gate.decision() == null || gate.decision().level().compareTo(AutonomyLevel.L2) < 0) {
                 refusal = gate.criteria();
+            } else if (actions.hasNewerAwaiting(scope, row, context.asOf())) {
+                refusal = List.of(GateReasons.SUPERSEDED);
             } else {
-                BigDecimal fromBefore = core.transferBalances(context, snapshot, row.sourceAccountId(),
-                        row.targetAccountId(), row.amount()).fromBefore();
-                if (fromBefore.compareTo(row.amount()) < 0) {
+                TransferBalances balances = core.transferBalances(context, snapshot, row.sourceAccountId(),
+                        row.targetAccountId(), row.amount());
+                BigDecimal fromBefore = balances.fromBefore();
+                // A top-up is still needed only up to the target: the fund may have grown since the proposal.
+                BigDecimal gap = row.type() == ActionType.EF_TOP_UP
+                        ? gate.measures().emergencyFundTarget().subtract(balances.toBefore()) : null;
+                if (gap != null && gap.compareTo(row.amount()) < 0) {
+                    refusal = List.of(GateReasons.NO_LONGER_NEEDED);
+                    reason = GateReasons.topUpNoLongerNeeded(gap, gate.measures().emergencyFundTarget());
+                } else if (fromBefore.compareTo(row.amount()) < 0) {
                     refusal = List.of(GateReasons.SOURCE_NOT_COVERING);
                     reason = GateReasons.notCovering(from.get().name(), fromBefore);
                 }
@@ -184,10 +193,12 @@ class ActionService implements Actions {
             if (reason == null) {
                 reason = GateReasons.reason(refusal, row.amount(), gate == null ? Optional.empty() : gate.mandate());
             }
-            actions.updateAfterCheck(scope, row.id(), ActionState.AWAITING_CONFIRMATION, row.level(), refusal, reason);
+            // The re-check's level when the gate decided, so level and criteria on the row agree.
+            AutonomyLevel level = gate == null || gate.decision() == null ? row.level() : gate.decision().level();
+            actions.updateAfterCheck(scope, row.id(), ActionState.AWAITING_CONFIRMATION, level, refusal, reason);
             body.put("outcome", "refused");
             body.put("state", ActionState.AWAITING_CONFIRMATION.name());
-            body.put("level", row.level() == null ? null : row.level().name());
+            body.put("level", level == null ? null : level.name());
             body.put("cappingCriteria", refusal);
             body.put("transfer", null);
             confirmation = new ActionConfirmation(false, row.amount(), reason, GateReasons.why(refusal));
@@ -243,8 +254,10 @@ class ActionService implements Actions {
         return new Gate(gateContext, measures, decision);
     }
 
-    private static ActionRepository.Row requireAwaitingTransfer(ActionRepository.Row row) {
-        if (row.state() != ActionState.AWAITING_CONFIRMATION || row.sourceAccountId() == null
+    /** A transfer waiting for the OK at the context's date: one proposed after that date is not (yet) confirmable. */
+    private static ActionRepository.Row requireAwaitingTransfer(ActionRepository.Row row, RequestContext context) {
+        if (row.state() != ActionState.AWAITING_CONFIRMATION || row.asOf().isAfter(context.asOf())
+                || row.sourceAccountId() == null
                 || row.targetAccountId() == null || row.sourceAccountId().equals(row.targetAccountId())
                 || row.amount() == null || row.amount().signum() <= 0
                 || row.regulatoryClass() == RegulatoryClass.INSURANCE

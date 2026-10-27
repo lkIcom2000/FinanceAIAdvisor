@@ -5,6 +5,7 @@ import de.financetool.actions.Actions;
 import de.financetool.actions.ProposedAction;
 import de.financetool.actions.domain.ActionState;
 import de.financetool.audit.AuditEntry;
+import de.financetool.monitoring.domain.NotificationTemplates;
 import de.financetool.audit.AuditKind;
 import de.financetool.audit.AuditWriter;
 import de.financetool.audit.EvidenceOrigin;
@@ -91,6 +92,7 @@ class MonitoringService implements Monitoring {
 
             UUID actionId = null;
             ActionState actionState = null;
+            List<String> actionCriteria = List.of();
             if (trigger.action() != null) {
                 DetectedTrigger.PlannedAction planned = trigger.action();
                 ActionProposal proposal = actions.propose(context, scope, fixtureVersion,
@@ -98,6 +100,7 @@ class MonitoringService implements Monitoring {
                                 planned.sourceAccountId(), planned.targetAccountId(), triggerId));
                 actionId = proposal.actionId();
                 actionState = proposal.state();
+                actionCriteria = proposal.cappingCriteria();
                 runActions.add(new RunAction(actionId, triggerId, planned.type().name(), proposal.state().name(),
                         proposal.level() == null ? null : proposal.level().name(), proposal.cappingCriteria()));
             }
@@ -105,6 +108,11 @@ class MonitoringService implements Monitoring {
             if (trigger.escalation() != null) {
                 caseId = escalation.openForTrigger(scope, new EscalationCases.TriggerSnapshot(triggerId,
                         trigger.escalation().summary(), trigger.escalation().reasons()));
+            } else if (actionState == ActionState.ESCALATED) {
+                // The chip says "With an advisor": an Action the gate could not decide opens the case for it.
+                caseId = escalation.openForTrigger(scope, new EscalationCases.TriggerSnapshot(triggerId,
+                        NotificationTemplates.escalatedActionCaseSummary(trigger.action().type().name(),
+                                trigger.action().amount()), actionCriteria));
             }
             for (DetectedTrigger.PlannedNotification note : trigger.notifications()) {
                 UUID id = UUID.randomUUID();

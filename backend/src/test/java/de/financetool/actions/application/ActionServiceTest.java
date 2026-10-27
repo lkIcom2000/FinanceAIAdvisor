@@ -17,6 +17,8 @@ import de.financetool.actions.domain.ActionState;
 import de.financetool.actions.domain.ActionType;
 import de.financetool.actions.domain.AutonomyGate;
 import de.financetool.actions.domain.AutonomyLevel;
+import de.financetool.actions.domain.GateReasons;
+import de.financetool.core.domain.TransferBalances;
 import de.financetool.actions.domain.RegulatoryClass;
 import de.financetool.audit.AuditWriter;
 import de.financetool.bank.BankPort;
@@ -240,6 +242,9 @@ class ActionServiceTest extends PostgresIntegrationTest {
         CoreGateway core = mock(CoreGateway.class);
         when(core.gateMeasures(any(), any(), any(), any())).thenReturn(new GateMeasures(new BigDecimal("5000.00"),
                 dataConfidenceHigh, BigDecimal.ONE, 1, new BigDecimal("2700.00"), emergencyFundTarget));
+        when(core.transferBalances(any(), any(), any(), any(), any())).thenReturn(new TransferBalances(
+                new BigDecimal("1850.00"), new BigDecimal("1750.00"), new BigDecimal("2700.00"),
+                new BigDecimal("2800.00")));
         return new ActionService(bank, bookings, core, profiles, completeness, mandates, repository, audit);
     }
 
@@ -274,6 +279,66 @@ class ActionServiceTest extends PostgresIntegrationTest {
                 .containsExactly(null, "refused", "refused");
         assertThat(jdbc.queryForObject("SELECT count(*) FROM transactions WHERE persona_id = ?"
                 + " AND origin = 'BANK_PORT'", Long.class, LENA.value())).isZero();
+    }
+
+    RequestContext at(LocalDate asOf) {
+        return new RequestContext(context.agentConfig(), context.configFingerprint(), context.thresholds(),
+                context.kbSnapshot(), context.seeds(), asOf, context.personaId(), context.runId());
+    }
+
+    @Test
+    void onlyTheNewestTransferOfAKindCanBeConfirmedSoMoneyNeverMovesTwice() {
+        ProposedAction transfer = new ProposedAction(ActionType.SHORTFALL_TRANSFER, RegulatoryClass.PAYMENT,
+                new BigDecimal("100.00"), overnight, current, null);
+        ActionProposal older = propose(actions, transfer);
+        ActionProposal newer = transaction.execute(tx -> actions.propose(at(OCT_15.plusDays(1)), scope, FIXTURE,
+                transfer));
+
+        // At the older date the newer one does not exist yet: the older stays confirmable there.
+        boolean newerAtOct15 = repository.hasNewerAwaiting(scope,
+                repository.find(scope, older.actionId()).orElseThrow(), OCT_15);
+        assertThat(newerAtOct15).isFalse();
+        var replaced = transaction.execute(tx -> actions.confirm(at(OCT_15.plusDays(1)), scope, FIXTURE,
+                older.actionId())).orElseThrow();
+        assertThat(replaced.done()).isFalse();
+        assertThat(replaced.reason())
+                .isEqualTo("I can't make this transfer because a newer suggestion of the same kind replaces it.");
+        assertThat(transaction.execute(tx -> actions.confirm(at(OCT_15.plusDays(1)), scope, FIXTURE,
+                newer.actionId())).orElseThrow().done()).isTrue();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM transactions WHERE persona_id = ?"
+                + " AND origin = 'BANK_PORT'", Long.class, LENA.value())).isEqualTo(2);
+    }
+
+    @Test
+    void aTopUpBeyondTheEmergencyFundTargetIsRefused() {
+        ActionProposal topUp = propose(actions, new ProposedAction(ActionType.EF_TOP_UP, RegulatoryClass.PAYMENT,
+                new BigDecimal("100.00"), current, overnight, null));
+        assertThat(topUp.state()).isEqualTo(ActionState.AWAITING_CONFIRMATION);
+
+        ActionService service = serviceWith(true, new BigDecimal("1.00"));
+        var reached = transaction.execute(tx -> service.confirm(context, scope, FIXTURE, topUp.actionId()))
+                .orElseThrow();
+
+        assertThat(reached.done()).isFalse();
+        assertThat(reached.reason()).isEqualTo(
+                "I can't make this transfer because your emergency fund has already reached its target of 1.00 EUR.");
+        assertThat(repository.findAll(scope)).singleElement().satisfies(row -> {
+            assertThat(row.state()).isEqualTo(ActionState.AWAITING_CONFIRMATION);
+            assertThat(row.cappingCriteria()).containsExactly(GateReasons.NO_LONGER_NEEDED);
+            assertThat(row.level()).isEqualTo(AutonomyLevel.L2);
+        });
+    }
+
+    @Test
+    void anActionProposedAfterTheSimulatedDateCannotBeReviewedOrConfirmed() {
+        ActionProposal later = transaction.execute(tx -> actions.propose(at(OCT_15.plusDays(10)), scope, FIXTURE,
+                new ProposedAction(ActionType.SHORTFALL_TRANSFER, RegulatoryClass.PAYMENT, new BigDecimal("100.00"),
+                        overnight, current, null)));
+
+        assertThatThrownBy(() -> transaction.execute(tx -> actions.confirm(context, scope, FIXTURE,
+                later.actionId()))).isInstanceOf(NotAwaitingConfirmationException.class);
+        assertThatThrownBy(() -> transaction.execute(tx -> actions.review(context, scope, later.actionId())))
+                .isInstanceOf(NotAwaitingConfirmationException.class);
     }
 
     @Test

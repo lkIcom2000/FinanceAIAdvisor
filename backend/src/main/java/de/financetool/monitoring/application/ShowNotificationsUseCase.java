@@ -2,10 +2,13 @@ package de.financetool.monitoring.application;
 
 import de.financetool.actions.ActionSummary;
 import de.financetool.actions.Actions;
+import de.financetool.actions.domain.ActionState;
 import de.financetool.audit.EvidenceReader;
 import de.financetool.monitoring.adapter.NotificationRepository;
 import de.financetool.monitoring.domain.NotificationStatus;
+import de.financetool.monitoring.domain.NotificationTemplates;
 import de.financetool.shared.PersonaScope;
+import de.financetool.shared.RequestContextFactory;
 import de.financetool.shared.domain.SourcedNumber;
 import java.time.LocalDate;
 import java.util.List;
@@ -44,16 +47,26 @@ public class ShowNotificationsUseCase {
     private final Actions actions;
     private final EvidenceReader evidence;
 
-    ShowNotificationsUseCase(NotificationRepository notifications, Actions actions, EvidenceReader evidence) {
+    private final RequestContextFactory contexts;
+
+    ShowNotificationsUseCase(NotificationRepository notifications, Actions actions, EvidenceReader evidence,
+            RequestContextFactory contexts) {
         this.notifications = notifications;
         this.actions = actions;
         this.evidence = evidence;
+        this.contexts = contexts;
     }
 
-    /** The persona's Notifications, newest first. */
+    /**
+     * The persona's Notifications up to the simulated date, newest first: after the date moved back, later ones stay
+     * hidden until it reaches them again.
+     */
     @Transactional(readOnly = true)
     public List<Item> list(PersonaScope scope) {
-        List<NotificationRepository.Listed> listed = notifications.findNewestFirst(scope);
+        LocalDate asOf = contexts.forPersona(scope, null).asOf();
+        List<NotificationRepository.Listed> listed = notifications.findNewestFirst(scope).stream()
+                .filter(l -> !l.row().asOf().isAfter(asOf))
+                .toList();
         Map<UUID, ActionSummary> summaries = actions.summaries(scope, listed.stream()
                 .map(l -> l.row().actionId()).filter(Objects::nonNull).toList());
         // One evidence read for the whole list: the poll runs every 10 s.
@@ -63,8 +76,11 @@ public class ShowNotificationsUseCase {
         return listed.stream().map(l -> {
             NotificationRepository.Row row = l.row();
             ActionSummary action = row.actionId() == null ? null : summaries.get(row.actionId());
+            // The stored body is the proposal; the outcome follows the Action's current state.
+            String body = action != null && action.state() == ActionState.EXECUTED
+                    ? row.body() + " " + NotificationTemplates.ACTION_DONE : row.body();
             return new Item(row.id(), NotificationStatus.of(row.outcome(), action == null ? null : action.state()),
-                    row.title(), row.body(), row.asOf(),
+                    row.title(), body, row.asOf(),
                     row.citedProvIds().stream().filter(figures::containsKey).map(figures::get).toList(), l.read(),
                     row.question(), row.actionId(), action == null ? null : action.reason());
         }).toList();

@@ -24,6 +24,12 @@ public final class GateReasons {
     /** At confirmation an account of the transfer no longer exists. */
     public static final String ACCOUNT_MISSING = "account_missing";
 
+    /** At confirmation a later Action of the same type waits for the OK and replaces this one. */
+    public static final String SUPERSEDED = "superseded";
+
+    /** At confirmation the emergency fund needs less than the top-up's amount to reach its target. */
+    public static final String NO_LONGER_NEEDED = "no_longer_needed";
+
     private static final char MINUS = '−';
 
     private GateReasons() {
@@ -60,6 +66,7 @@ public final class GateReasons {
             case RULE_PARAMETER_MISSING -> "I can't make this transfer right now because some information I need for it"
                     + " is missing.";
             case ACCOUNT_MISSING -> "I can't make this transfer because one of its accounts is no longer available.";
+            case SUPERSEDED -> "I can't make this transfer because a newer suggestion of the same kind replaces it.";
             default -> throw new IllegalArgumentException("no reason text for " + deciding(criteria));
         };
     }
@@ -68,6 +75,16 @@ public final class GateReasons {
     public static String notCovering(String accountName, BigDecimal balance) {
         return "I can't make this transfer because your " + lowerFirst(accountName) + " holds only " + eur(balance)
                 + " now.";
+    }
+
+    /** The reason when the emergency fund needs only {@code gap} (zero or less: nothing) to reach its target. */
+    public static String topUpNoLongerNeeded(BigDecimal gap, BigDecimal target) {
+        if (gap.signum() <= 0) {
+            return "I can't make this transfer because your emergency fund has already reached its target of "
+                    + eur(target) + ".";
+        }
+        return "I can't make this transfer because your emergency fund needs only " + eur(gap)
+                + " more to reach its target of " + eur(target) + ".";
     }
 
     /** The fixed "Why?" explanation of the deciding criterion, or {@code null} without criteria. */
@@ -99,6 +116,10 @@ public final class GateReasons {
             case SOURCE_NOT_COVERING -> "Fine checks the balance again right before every transfer and never moves"
                     + " more than the account holds.";
             case ACCOUNT_MISSING -> "Fine checks both accounts again right before every transfer.";
+            case SUPERSEDED -> "Fine checks right before every transfer whether it is still needed. Only the newest"
+                    + " suggestion of a kind can be confirmed, so money never moves twice for the same need.";
+            case NO_LONGER_NEEDED -> "Fine checks right before every transfer whether it is still needed and never"
+                    + " tops up your emergency fund beyond its target.";
             default -> throw new IllegalArgumentException("no explanation for " + deciding(criteria));
         };
     }

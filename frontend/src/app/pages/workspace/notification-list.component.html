@@ -50,7 +50,7 @@
         @if (open) {
           <div class="details" [id]="'notification-' + n.id">
             <p class="body">{{ n.body }}</p>
-            @if (n.status === 'NEEDS_YOUR_OK' && n.reason) {
+            @if (n.status !== 'DONE_FOR_YOU' && n.reason) {
               <p class="reason">{{ n.reason }}</p>
             }
             @if (n.status === 'RECOMMENDATION' && n.question) {

@@ -16,3 +16,9 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-8-2-monitoring-run-at-a-simulated-date-with-all-mvp-triggers.md`
   summary: An EF_BELOW_TARGET Trigger is keyed per month, so a first run during a forecast shortfall stores the info-only note and no EF_TOP_UP is proposed later that month after the shortfall clears.
   evidence: Trigger key `(overnight id, yyyy-MM)` is frozen in the Story 8.2 intent; changing it needs a human decision (e.g. a variant in the period).
+
+## Deferred from: Epic 8 epic-end review (2026-10-27)
+
+- `GateReasons.eur` and `NotificationTemplates.eur` format amounts twice (`ActionController` uses the monitoring copy for the dialog sentence, `GateReasons` its own for reasons). Low; move one formatter to `shared` when a third caller appears.
+- `ActionState.proposedAt(L3)` throws: once Epic 9 lets `MandateLookup.active`/`covering` return a Mandate, every L3-eligible Action would roll back the monitoring run and study prepare. Epic 9 must add L3 execution (or map L3 to L2 with a criterion) in the same story that returns the first Mandate; add a guard test there.
+- A superseded transfer (a newer Action of the same type waits for the OK) still shows "Needs your OK" until the user confirms it and gets the "newer suggestion" refusal. Low; a `SUPERSEDED` state (migration + chip) would hide it.

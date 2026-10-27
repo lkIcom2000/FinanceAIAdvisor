@@ -130,8 +130,22 @@ class NotificationControllerTest extends PostgresIntegrationTest {
         Monitoring.Run run = run(LENA);
         jdbc.update("UPDATE actions SET state = 'EXECUTED' WHERE id = ?", run.actions().getFirst().actionId());
 
-        assertThat(list(login(mvc, "p-lena"))).extracting(i -> i.get("status"))
+        List<Map<String, Object>> items = list(login(mvc, "p-lena"));
+        assertThat(items).extracting(i -> i.get("status"))
                 .containsExactly("FOR_YOUR_INFORMATION", "RECOMMENDATION", "DONE_FOR_YOU");
+        assertThat(items.get(2).get("body")).asString()
+                .endsWith(" You confirmed it, and Fine has made the transfer.");
+        assertThat(items.get(1).get("body")).asString().doesNotContain("You confirmed it");
+    }
+
+    @Test
+    void notificationsAfterTheSimulatedDateStayHiddenUntilTheDateReachesThem() throws Exception {
+        Monitoring.Run run = run(LENA);
+        UUID later = run.notificationIds().getFirst();
+        jdbc.update("UPDATE notifications SET as_of = as_of + 1 WHERE id = ?", later);
+
+        assertThat(list(login(mvc, "p-lena"))).extracting(i -> i.get("id"))
+                .hasSize(2).doesNotContain(later.toString());
     }
 
     @Test

@@ -40,8 +40,9 @@ export const STATUS_CHIPS: Record<Notification['status'], { label: string; icon:
 
 /**
  * The Home tab's Notifications (FR-7, FR-32), newest first from the shared poll; the empty state while there are
- * none. Unread items are bold until expanded or 5 s at least half in view. An item that needs the user's OK shows the
- * reason when expanded and offers "Review and confirm" (the L2 dialog). Every figure, reason and status comes from the
+ * none. Unread items are bold until expanded or 5 s at least half in view. An Action item not yet done shows its
+ * reason when expanded; one that needs the user's OK offers "Review and confirm" (the L2 dialog). Every figure, reason
+ * and status comes from the
  * backend; this component only formats.
  */
 @Component({

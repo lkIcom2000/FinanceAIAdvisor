@@ -94,6 +94,21 @@ public class ActionRepository {
                 .optional();
     }
 
+    /**
+     * Whether a later Action of the same type also waits for the OK at or before {@code asOf}: a later monitoring run
+     * (new month, other shortfall date) replaces the older suggestion, so confirming both never moves money twice.
+     */
+    public boolean hasNewerAwaiting(PersonaScope scope, Row row, LocalDate asOf) {
+        return jdbc.sql("""
+                SELECT EXISTS (SELECT 1 FROM actions a, actions o
+                    WHERE o.id = ? AND o.persona_id = ? AND a.persona_id = o.persona_id AND a.id <> o.id
+                        AND a.type = o.type AND a.state = 'AWAITING_CONFIRMATION' AND a.as_of <= ?
+                        AND (a.as_of, a.created_at, a.id) > (o.as_of, o.created_at, o.id))""")
+                .params(row.id(), scope.id(), asOf)
+                .query(Boolean.class)
+                .single();
+    }
+
     /** Stores the outcome of a confirmation's re-check on the same row. */
     public void updateAfterCheck(PersonaScope scope, UUID id, ActionState state, AutonomyLevel level,
             List<String> cappingCriteria, String reason) {

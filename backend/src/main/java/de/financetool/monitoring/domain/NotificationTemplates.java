@@ -42,7 +42,7 @@ public final class NotificationTemplates {
     }
 
     public static Text shortfallTransfer(Shortfall shortfall, BigDecimal amount) {
-        return new Text(shortfallTitle(shortfall), shortfallFacts(shortfall) + " Fine has prepared a transfer of "
+        return new Text(shortfallTitle(shortfall), shortfallFacts(shortfall) + " Fine suggests a transfer of "
                 + eur(amount) + " from your overnight deposit to your current account to cover it.");
     }
 
@@ -67,7 +67,7 @@ public final class NotificationTemplates {
     }
 
     public static Text emergencyFundTopUp(SourcedNumber fund, SourcedNumber target, BigDecimal amount) {
-        return new Text("Top up your emergency fund", fundFacts(fund, target) + " Fine has prepared a transfer of "
+        return new Text("Top up your emergency fund", fundFacts(fund, target) + " Fine suggests a transfer of "
                 + eur(amount) + " from your current account to your overnight deposit: what an average month leaves"
                 + " over, up to the target.");
     }
@@ -116,6 +116,15 @@ public final class NotificationTemplates {
     }
 
     /** The case summary for the advisor (not shown to the customer). */
+    /** The advisor case of an Action the gate could not decide (no valid Rule Parameter at the date). */
+    public static String escalatedActionCaseSummary(String actionType, BigDecimal amount) {
+        return "Fine could not check the prepared " + actionType + " of " + eur(amount) + " because a Rule Parameter"
+                + " has no valid version at this date; check it with the customer.";
+    }
+
+    /** The outcome line appended to an Action Notification once the user confirmed it and Fine made the transfer. */
+    public static final String ACTION_DONE = "You confirmed it, and Fine has made the transfer.";
+
     public static String announcementCaseSummary(Announcement announcement) {
         return "Announced " + announcement.topic() + " change \"" + announcement.title() + "\" from "
                 + date(announcement.effectiveFrom()) + " has no confirmed source or rules yet; check what it means"
