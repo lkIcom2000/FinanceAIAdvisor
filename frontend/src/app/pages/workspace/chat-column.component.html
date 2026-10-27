@@ -45,7 +45,11 @@
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
               <path [attr.d]="icons[outcomes[outcome].icon]" />
             </svg>
-            <span class="outcome-text">{{ outcomes[outcome].label }}</span>
+            <span class="outcome-text">{{
+              m.proposal?.status === 'OPEN' || m.proposal?.status === 'CANCELLED'
+                ? proposalLabel
+                : outcomes[outcome].label
+            }}</span>
           </div>
         }
         @if (m.premise) {

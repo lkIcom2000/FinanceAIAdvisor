@@ -131,13 +131,19 @@ public class ChatRepository {
 
     /**
      * The last {@code limit} released turns before the user message {@code messageId}, oldest first: each user
-     * message with the agent message answering it. Unanswered questions and advisor messages are not turns.
+     * message with the agent message answering it. When the agent answered that message in turn (a calculated answer
+     * to its proposal, a resumed answer to its assessment card), the turn's agent text is that latest answer.
+     * Unanswered questions and advisor messages are not turns.
      */
     public List<PromptPayload.HistoryTurn> releasedTurnsBefore(PersonaScope scope, UUID messageId, int limit) {
         List<PromptPayload.HistoryTurn> turns = new ArrayList<>(jdbc.sql("""
-                SELECT q.text AS user_text, a.text AS agent_text
+                SELECT q.text AS user_text, COALESCE(f.text, a.text) AS agent_text
                 FROM messages q
                 JOIN messages a ON a.reply_to = q.id AND a.persona_id = q.persona_id AND a.author = 'AGENT'
+                LEFT JOIN LATERAL (
+                    SELECT r.text FROM messages r
+                    WHERE r.reply_to = a.id AND r.persona_id = a.persona_id AND r.author = 'AGENT'
+                    ORDER BY r.seq DESC LIMIT 1) f ON true
                 WHERE q.persona_id = ? AND q.author = 'USER'
                   AND q.seq < (SELECT c.seq FROM messages c WHERE c.id = ? AND c.persona_id = ?)
                 ORDER BY q.seq DESC

@@ -141,7 +141,7 @@ development_status:
 
   epic-13: backlog  # Follow-up fixes (Commc 2026-10-26); placement relative to the UAT open
   13-1-fine-answers-in-german-when-written-to-in-german: backlog
-  13-2-epic-3-seam-fixes-technical-debt: backlog  # before Epic 8 (Epic 3 retro A1-A4; missed "before Epic 7", Commc 2026-10-26)
+  13-2-epic-3-seam-fixes-technical-debt: done  # 2026-10-27 (Epic 3 retro A1-A4)
   epic-13-retrospective: optional
 action_items:
   - id: "epic-1-retro-item-1-a1-archunit-rules-for-ad-21-ar3-transact"
@@ -248,28 +248,28 @@ action_items:
     action: "A1: Route ruleParameterError to ESCALATE before the routing-off branch
       so level A never releases a figure-less COMPUTE draft; test at level A"
     owner: "Dev (Claude)"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-10-26.md"
   - id: "epic-3-retro-item-16-a2-pair-a-calculated-turn-history-with-t"
     epic: 3
     action: "A2: Pair a calculated turn history with the Calculate answer in releasedTurnsBefore;
       add E2E tests for failed Calculate and Calculate to ESCALATE"
     owner: "Dev (Claude)"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-10-26.md"
   - id: "epic-3-retro-item-17-a3-own-label-for-the-open-or-cancelled-p"
     epic: 3
     action: "A3: Own label for the open or cancelled parameter-proposal card instead
       of Calculated for you"
     owner: "Dev (Claude)"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-10-26.md"
   - id: "epic-3-retro-item-18-a4-keep-the-first-draft-in-the-escalatio"
     epic: 3
     action: "A4: Keep the first draft in the escalation snapshot after a blank regeneration;
       at none source ledger numbers from what the model saw"
     owner: "Dev (Claude)"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-10-26.md"
   - id: "epic-3-retro-item-19-a5-at-epic-4-start-check-turnorchestrato"
     epic: 3
@@ -304,7 +304,7 @@ action_items:
     action: "C1: Run Story 13.2 (Epic 3 seam fixes A1-A4) before Epic 8; A1 also guards
       the subsidy what-if escalation at level A, A3 the 7.1 proposal card"
     owner: "Dev (Claude)"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-6-7-retro-2026-10-26.md"
   - id: "epic-6-retro-item-24-c2-extract-stage-classes-from-turnorches"
     epic: 6

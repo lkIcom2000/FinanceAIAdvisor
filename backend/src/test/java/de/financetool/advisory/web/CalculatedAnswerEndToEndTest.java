@@ -10,11 +10,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import de.financetool.PostgresIntegrationTest;
+import de.financetool.advisory.adapter.ChatRepository;
+import de.financetool.advisory.domain.PromptPayload;
+import de.financetool.shared.PersonaScope;
+import de.financetool.shared.domain.PersonaId;
 import de.financetool.llm.LlmRole;
 import de.financetool.testing.StubLlmConfiguration.StubLlm;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -49,10 +54,13 @@ class CalculatedAnswerEndToEndTest extends PostgresIntegrationTest {
     @Autowired
     JdbcTemplate jdbc;
 
+    @Autowired
+    ChatRepository chats;
+
     @BeforeEach
     void freshChats() {
         jdbc.update("DELETE FROM nlu_cache");
-        for (String table : List.of("dialog_states", "messages", "conversations")) {
+        for (String table : List.of("dialog_states", "messages", "conversations", "escalation_cases")) {
             jdbc.update("DELETE FROM " + table + " WHERE persona_id IN ('p-lena', 'p-jonas')");
         }
         llm.nluAnswer(ITEM_40, ITEM_40_NLU);
@@ -123,6 +131,48 @@ class CalculatedAnswerEndToEndTest extends PostgresIntegrationTest {
         calculate(lena, proposalId, "[]").andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value((String) JsonPath.read(answer, "$.id")));
         assertThat(llm.calls(LlmRole.PHRASING)).as("calculating twice returns the stored answer").hasSize(1);
+
+        String followUp = JsonPath.read(ask(lena, "What is an ETF?"), "$.replyTo");
+        assertThat(chats.releasedTurnsBefore(new PersonaScope(new PersonaId("p-lena")), UUID.fromString(followUp), 3))
+                .as("a later turn's history pairs the question with the calculated answer, not the proposal")
+                .containsExactly(new PromptPayload.HistoryTurn(ITEM_40, ANSWER));
+    }
+
+    @Test
+    void aFailedCalculateKeepsTheProposalOpenAndCanBeRetried() throws Exception {
+        MockHttpSession lena = login(mvc, "p-lena");
+        String proposalId = JsonPath.read(ask(lena, ITEM_40), "$.id");
+
+        llm.fail(new IllegalStateException("Ollama is not reachable"), LlmRole.PHRASING);
+        calculate(lena, proposalId, "[]").andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("TURN_FAILED"));
+        assertThat(dialogState("p-lena")).isEqualTo("PARAMETER_PROPOSAL");
+        String chat = content(mvc.perform(get("/api/chat").session(lena)));
+        assertThat((List<String>) JsonPath.read(chat, "$.messages[?(@.id == '" + proposalId + "')].proposal.status"))
+                .containsExactly("OPEN");
+
+        llm.fail(null);
+        llm.answer(ANSWER);
+        calculate(lena, proposalId, "[]").andExpect(status().isOk())
+                .andExpect(jsonPath("$.outcome").value("COMPUTE"))
+                .andExpect(jsonPath("$.text").value(ANSWER));
+    }
+
+    @Test
+    void aCalculatedAnswerWithWrongFiguresTwiceEscalatesAsTheReplyToTheProposal() throws Exception {
+        MockHttpSession lena = login(mvc, "p-lena");
+        String proposalId = JsonPath.read(ask(lena, ITEM_40), "$.id");
+
+        llm.answer("It lasts 999 full monthly withdrawals. This is a calculation under assumptions, not a promise.");
+        String answer = content(calculate(lena, proposalId, "[]").andExpect(status().isOk())
+                .andExpect(jsonPath("$.outcome").value("ESCALATE"))
+                .andExpect(jsonPath("$.replyTo").value(proposalId)));
+
+        assertThat((List<Object>) JsonPath.read(answer, "$.figures")).isEmpty();
+        assertThat(llm.calls(LlmRole.PHRASING)).as("the draft and its one regeneration").hasSize(2);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM escalation_cases WHERE persona_id = 'p-lena'",
+                Integer.class)).isEqualTo(1);
+        assertThat(dialogState("p-lena")).isEqualTo("NONE");
     }
 
     @Test

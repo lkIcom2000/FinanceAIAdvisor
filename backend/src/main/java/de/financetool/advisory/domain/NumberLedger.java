@@ -58,7 +58,9 @@ public record NumberLedger(List<Entry> entries) {
 
     /**
      * The ledger of a turn: first every number of its Core results ({@code add_core}, label: the {@code provId}), then
-     * the sources of {@link #of(String, PromptPayload, int, int, Map)}.
+     * the sources of {@link #of(String, PromptPayload, int, int, Map)}. The app passes the payload message as
+     * {@code userText} (what the model saw), where {@code pipeline.py} passes the raw message; the label stays the
+     * experiment's (Story 13.2).
      */
     public static NumberLedger of(List<SourcedNumber> coreNumbers, String userText, PromptPayload payload,
             int droppedHistoryTurns, int passagesInPrompt, Map<String, BigDecimal> ruleParameters) {

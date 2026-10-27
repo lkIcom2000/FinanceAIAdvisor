@@ -190,7 +190,8 @@ public record TurnState(
      * @param finalResults the Check Chain on the released text: the shadow results, those of the regenerated text, or
      *     none when block routing released a template
      * @param regeneration the one regeneration of the Rule Engine; {@code null} without one
-     * @param route block routing's decision; {@code null} before block routing or when routing is off (level A)
+     * @param route block routing's decision; {@code null} before block routing or when routing is off (level A),
+     *     except for a Rule Parameter error, which is routed at every level
      * @param routedOn the results block routing decided on when it released a template (the regenerated text's, or
      *     else the enforcing results); empty when the draft was released
      * @param judgeNotImplemented whether the level asked for the Judge, which is not implemented (Story 3.9)
@@ -238,6 +239,11 @@ public record TurnState(
 
         public boolean regenerated() {
             return regeneration != null;
+        }
+
+        /** The draft block routing decides on: the regenerated text, or the first draft if there is none or it is blank. */
+        public String routedDraft() {
+            return regenerated() && !regeneration.text().isBlank() ? regeneration.text() : draftText;
         }
     }
 

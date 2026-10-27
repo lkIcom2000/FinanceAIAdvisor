@@ -15,6 +15,7 @@ import de.financetool.advisory.domain.EntityRegistry;
 import de.financetool.advisory.domain.ExposureFilter;
 import de.financetool.advisory.domain.NoValidSource;
 import de.financetool.advisory.domain.NumberLedger;
+import de.financetool.advisory.domain.NumberParser;
 import de.financetool.advisory.domain.PhrasingPrompt;
 import de.financetool.advisory.domain.Premise;
 import de.financetool.advisory.domain.ProfileCompleteness;
@@ -331,8 +332,12 @@ public class TurnOrchestrator {
                 instruction.fileName(), instruction.hash());
         Map<String, BigDecimal> parameters = new LinkedHashMap<>();
         ruleParameters.allValid(context.asOf()).forEach(p -> parameters.put(p.key(), p.value()));
-        NumberLedger ledger = NumberLedger.of(turn.tools().numbers(), turn.userText(), payload,
-                phrasing.droppedHistoryTurns(), passagesInPrompt(payload, phrasing), parameters);
+        // Deviation from pipeline.py: the user's numbers are those the model saw (the depersonalised question at
+        // none), and the class instruction's numbers (banded premises) are sourced too.
+        NumberLedger ledger = NumberLedger.of(turn.tools().numbers(), payload.message(), payload,
+                phrasing.droppedHistoryTurns(), passagesInPrompt(payload, phrasing), parameters)
+                .with(NumberLedger.Source.EXPOSURE, "numbers in the class instruction",
+                        NumberParser.numbersIn(classInstruction));
         return turn.withPrompt(new TurnState.Prompt(payload, phrasing, new TreeMap<>(hashes), ledger))
                 .ran(TurnStage.EXPOSURE_FILTER);
     }
@@ -457,11 +462,12 @@ public class TurnOrchestrator {
      * Stage 10: with routing on, {@link BlockRouting} decides on the final results: a routed turn releases its
      * template (the no-valid-source one with a related in-scope chip) and keeps no final results; otherwise the
      * (regenerated) draft is released with the class as outcome. With routing off (level {@code A}) the outcome is
-     * the class and the draft is released. A blank text that would be released fails the turn.
+     * the class and the draft is released, except that a Rule Parameter error escalates at every level: its draft has
+     * no figures. A blank text that would be released fails the turn.
      */
     TurnState blockRouting(TurnState turn) {
         TurnState.Checks checks = turn.checks();
-        if (!checks.flags().routing()) {
+        if (!checks.flags().routing() && !turn.tools().ruleParameterError()) {
             ResponseOutcome outcome = ResponseOutcome.of(turn.messageClass());
             return turn.withOutcome(outcome, releasable(checks.draftText()), chips(outcome, turn), false)
                     .passedThrough(TurnStage.BLOCK_ROUTING);
@@ -470,7 +476,7 @@ public class TurnOrchestrator {
                 turn.tools().ruleParameterError(), turn.tools().ruleForLaterYear());
         TurnState routed = turn.withChecks(checks.withRoute(route));
         if (route.released()) {
-            String text = checks.regenerated() ? checks.regeneration().text() : checks.draftText();
+            String text = checks.routedDraft();
             ResponseOutcome outcome = ResponseOutcome.of(turn.messageClass());
             return routed.withOutcome(outcome, releasable(text), chips(outcome, turn), false)
                     .ran(TurnStage.BLOCK_ROUTING);
@@ -623,7 +629,7 @@ public class TurnOrchestrator {
      */
     private static EscalationCases.TurnSnapshot snapshot(UUID turnId, ChatMessage question, TurnState.Checks checks,
             String reasonClass) {
-        String draft = checks.regenerated() ? checks.regeneration().text() : checks.draftText();
+        String draft = checks.routedDraft();
         List<String> reasons = new ArrayList<>();
         reasons.add(checks.route().route());
         checks.routedOn().failed().forEach(r -> reasons.add(r.checkId().name() + ":" + r.reasonCode()));

@@ -258,6 +258,9 @@ class TurnOrchestratorTest {
         assertThat(body.classReasons()).containsExactly("question presupposes unverifiable premise(s)");
         assertThat(sentMessages().get(0).content()).endsWith("CLASS DETECT_TRAP this product "
                 + "The Savings Bonus Act 2026 exists");
+        assertThat(body.numberLedger()).as("a draft echoing the premise's numbers is sourced")
+                .contains(new NumberLedger.Entry(new BigDecimal("2026"), NumberLedger.Source.EXPOSURE,
+                        "numbers in the class instruction"));
     }
 
     @Test
@@ -405,6 +408,22 @@ class TurnOrchestratorTest {
         assertThat(sentMessages().get(1).content())
                 .isEqualTo("<user_message>\nWhat is an exchange-traded fund?\n</user_message>");
         assertThat(auditBody().messageWithheld()).isFalse();
+    }
+
+    @Test
+    void atLevelNoneTheLedgerSourcesOnlyTheUsersNumbersTheModelSaw() {
+        AgentConfiguration a = TestContexts.AGENT;
+        AgentConfiguration none = new AgentConfiguration(a.id(), a.derivedFrom(), a.llm(), a.retrieval(),
+                a.rolePrompt(), a.compliance(), DataExposureLevel.NONE, a.decoding(), a.seeds());
+        RequestContext noneContext = new RequestContext(none, TestContexts.FINGERPRINT, TestContexts.THRESHOLDS,
+                RequestContext.NO_KB_SNAPSHOT, TestContexts.SEEDS, TestContexts.AS_OF, TestContexts.LENA, null);
+        ChatMessage asked = new ChatMessage(UUID.randomUUID(), ChatMessage.Author.USER,
+                "I keep 4,321 EUR in cash. What is an ETF?", null, null);
+        run(asked, "An ETF is a fund.", noneContext, false, new NluExtraction("general_explanation", "generic",
+                "other", List.of(), List.of(), false, false, Map.of(), Map.of(), "What is an exchange-traded fund?"));
+
+        assertThat(auditBody().numberLedger()).extracting(NumberLedger.Entry::value)
+                .doesNotContain(new BigDecimal("4321"));
     }
 
     @Test
@@ -937,6 +956,8 @@ class TurnOrchestratorTest {
         assertThat(routed.checks().regenerated()).isTrue();
         assertThat(routed.checks().route().released()).isFalse();
         assertThat(routed.outcome()).isEqualTo(ResponseOutcome.ESCALATE);
+        assertThat(routed.checks().routedDraft()).as("the case snapshot keeps the first draft")
+                .isEqualTo("You can make 523 full withdrawals.");
     }
 
     @Test
@@ -1178,6 +1199,22 @@ class TurnOrchestratorTest {
         assertThat(body.regenerated()).isFalse();
     }
 
+    @Test
+    void atLevelAAToolWithoutAValidRuleParameterStillEscalatesInsteadOfReleasingAFigureLessDraft() {
+        SimulationSpec spec = item40Spec();
+        RequestContext shadowOnly = with(ComplianceLevel.A, false);
+        when(tools.run(shadowOnly, spec)).thenThrow(new NoValidRuleParameterException("No version"));
+        when(escalations.openForTurn(eq(scope), any())).thenReturn(UUID.randomUUID());
+
+        ChatMessage answer = calculate("It lasts a while.", shadowOnly, spec);
+
+        assertThat(answer.outcome()).isEqualTo(ResponseOutcome.ESCALATE);
+        assertThat(answer.text()).isEqualTo(ResponseTemplates.ESCALATE);
+        assertThat(answer.figures()).isEmpty();
+        verify(escalations).openForTurn(eq(scope), any());
+        assertThat(auditBody().ruleParameterError()).isTrue();
+    }
+
     /**
      * A what-if result whose low end the fixed text shows rounded half up (1,234.57) while the Number Check rounds
      * the sourced 1234.565 half even (1234.56): the only way the fixed range text can fail a check.
@@ -1238,6 +1275,27 @@ class TurnOrchestratorTest {
         assertThat(answer.proposal()).isNull();
         verify(tools, org.mockito.Mockito.never()).netIncome(any());
         assertThat(auditBody().ruleParameterError()).isTrue();
+    }
+
+    @Test
+    void atLevelASubsidyWhatIfWithoutRulesStillEscalatesWithItsCase() {
+        RequestContext shadowOnly = with(ComplianceLevel.A, false);
+        org.mockito.Mockito.doThrow(new NoValidRuleParameterException("No version")).when(tools)
+                .requireSubsidyRules(shadowOnly.asOf());
+        when(escalations.openForTurn(eq(scope), any())).thenReturn(UUID.randomUUID());
+        ChatMessage asked = new ChatMessage(UUID.randomUUID(), ChatMessage.Author.USER,
+                "What if I save 100 EUR a month for 10 years with the Riester subsidy?", null, null);
+
+        ChatMessage answer = run(asked, "unused", shadowOnly, false, new NluExtraction("computation", "self",
+                "savings_projection", List.of(), List.of(), false, false, Map.of(),
+                Map.of("monthly_contribution", 100.0, "years", 10.0), ""));
+
+        assertThat(answer.outcome()).isEqualTo(ResponseOutcome.ESCALATE);
+        assertThat(answer.text()).isEqualTo(ResponseTemplates.ESCALATE);
+        verify(escalations).openForTurn(eq(scope), any());
+        ResponseAuditBody body = auditBody();
+        assertThat(body.shadowMode()).as("level A records shadow mode with the enforced escalation").isTrue();
+        assertThat(body.ruleParameterError()).isTrue();
     }
 
     static final String UJ_5 = "Should I cancel my Riester contract and switch to the new subsidised product next year?";

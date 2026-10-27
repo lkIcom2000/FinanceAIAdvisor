@@ -594,6 +594,7 @@ describe('ChatColumnComponent', () => {
   it('shows a proposal with each value, its unit and its source, and nothing calculated', () => {
     render([item40, proposal]);
 
+    expect(text(element.querySelector('.response .outcome-label'))).toBe('Check these values');
     expect(text(element.querySelector('.proposal-title'))).toBe("Here's what I understood");
     const rows = Array.from(element.querySelectorAll('.proposal-row')).map(text);
     expect(rows).toEqual([
@@ -752,6 +753,7 @@ describe('ChatColumnComponent', () => {
 
     expect(element.querySelector('.proposal')?.classList).toContain('cancelled');
     expect(text(element.querySelector('.proposal-status'))).toBe('Cancelled');
+    expect(text(element.querySelector('.response .outcome-label'))).toBe('Check these values');
     expect(element.querySelector('.calculate')).toBeNull();
     http.expectOne('/api/chat/messages/q2/answer');
   });

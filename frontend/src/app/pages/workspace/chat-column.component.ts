@@ -40,6 +40,9 @@ export const OUTCOME_LABELS: Record<Outcome, { label: string; icon: string }> = 
   ESCALATE: { label: 'Passed to a human advisor', icon: 'support_agent' },
 };
 
+/** Label row of an open or cancelled parameter proposal: nothing is calculated yet (Story 13.2). */
+export const PROPOSAL_LABEL = 'Check these values';
+
 /** Inline Material icon paths (no icon font is bundled): one per outcome, plus the chip icon. */
 export const ICON_PATHS: Record<string, string> = {
   calculate:
@@ -133,6 +136,7 @@ export class ChatColumnComponent {
   protected readonly suggestions = SUGGESTIONS;
   protected readonly steps = signal<readonly string[]>(WAITING_STEPS);
   protected readonly outcomes = OUTCOME_LABELS;
+  protected readonly proposalLabel = PROPOSAL_LABEL;
   protected readonly icons = ICON_PATHS;
 
   protected readonly load = signal<LoadState>('loading');
