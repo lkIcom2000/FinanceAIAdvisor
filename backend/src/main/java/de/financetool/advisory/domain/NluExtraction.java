@@ -103,7 +103,18 @@ public record NluExtraction(
 
     static final Pattern ADVICE = Pattern.compile("\\b(should|can|could|may|shall) (i|we)\\b|\\bi should\\b"
             + "|\\bfor me\\b|\\bmy (wealth|savings|money|portfolio|income|capital)\\b", FLAGS_CI);
-    static final Pattern PERSON = Pattern.compile("\\b(i|i'm|i've|i'd|me|my|mine|we|our|ours)\\b", FLAGS_CI);
+    /** The declined German possessives "mein" and "unser" (not "Meinung"). */
+    private static final String GERMAN_POSSESSIVES = "mein|meine|meinem|meinen|meiner|meines"
+            + "|unser|unsere|unserem|unseren|unserer|unseres";
+    /** Wording about a person; app addition: the German pronouns ({@code nlu.py} knows only English ones). */
+    static final Pattern PERSON = Pattern.compile("\\b(i|i'm|i've|i'd|me|my|mine|we|our|ours"
+            + "|ich|mich|mir|" + GERMAN_POSSESSIVES + "|wir|uns)\\b", FLAGS_CI);
+    /**
+     * App addition: the user speaks of themselves as subject or owner ("should I", "my portfolio", "ich", "mein");
+     * object forms ("tell me", "erklär mir") do not count, they only ask for an explanation.
+     */
+    static final Pattern FIRST_PERSON = Pattern.compile("\\b(i|i'm|i've|i'd|my|mine|we|our|ours|ich|wir|"
+            + GERMAN_POSSESSIVES + ")\\b", FLAGS_CI);
     /** The user's own cover: "my liability insurance", "what cover do I need", "am I insured". */
     static final Pattern OWN_COVER = Pattern.compile("\\b(my|our)\\s+(?:\\w+\\s+){0,2}(insurance|cover|policy|policies"
             + "|contracts?)\\b|\\b(do|should|am|are|must)\\s+(i|we)\\s+(?:\\w+\\s+){0,2}(need|have|get|covered|insured"
@@ -201,7 +212,8 @@ public record NluExtraction(
     /**
      * This extraction with the deterministic grounding rules applied ({@code ground} of {@code nlu.py}): an
      * out-of-scope category needs matching wording, unambiguous wording adds one, advice on an out-of-scope product
-     * is a personal request, a message about nobody is generic, and withdrawal figures are taken from the message.
+     * is a personal request, a message about nobody is generic, a first-person explanation question is about the
+     * user ({@code self}, app addition), and withdrawal figures are taken from the message.
      */
     public Grounded ground(String message) {
         List<String> notes = new ArrayList<>();
@@ -246,6 +258,13 @@ public record NluExtraction(
                 && OWN_COVER.matcher(message).find()) {
             type = "personal_recommendation";
             notes.add("request asks about the user's own insurance cover");
+        }
+        // App addition (Story 13.4, FR-62): the model often returns a first-person explanation question as generic;
+        // it is about the user's own situation. The class stays INFORM; the tool plan adds the user's figures.
+        if (who.equals("generic") && type.equals("general_explanation") && FIRST_PERSON.matcher(message).find()
+                && !CLIENT.matcher(message).find()) {
+            who = "self";
+            notes.add("subject set to self: the message asks about the user's own situation");
         }
 
         Map<String, Double> p = new LinkedHashMap<>(computationParams);

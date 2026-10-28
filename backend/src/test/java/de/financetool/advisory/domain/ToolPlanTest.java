@@ -225,4 +225,39 @@ class ToolPlanTest {
                 "The duration must be a whole number of years from 1 to 60.",
                 "The state subsidy can't be changed here. Please ask a new question instead.");
     }
+
+    @Test
+    void everyTopicWithARuleMapsToItsPersonalFigures() {
+        assertThat(ToolPlan.PersonalFigures.forTopic("liquidity_management"))
+                .contains(ToolPlan.PersonalFigures.EMERGENCY_FUND);
+        assertThat(ToolPlan.PersonalFigures.forTopic("retirement_strategy"))
+                .contains(ToolPlan.PersonalFigures.GOAL_PROJECTION);
+        assertThat(ToolPlan.PersonalFigures.forTopic("protection_needs")).contains(ToolPlan.PersonalFigures.COVERAGE);
+        assertThat(ToolPlan.PersonalFigures.forTopic("protection_duplicate"))
+                .contains(ToolPlan.PersonalFigures.COVERAGE);
+        assertThat(ToolPlan.PersonalFigures.forTopic("diversification")).isEmpty();
+        assertThat(ToolPlan.PersonalFigures.forTopic(null)).isEmpty();
+    }
+
+    static NluExtraction explanation(String subject, String topic) {
+        return new NluExtraction("general_explanation", subject, topic, List.of(), List.of(), false, false, Map.of(),
+                Map.of(), "");
+    }
+
+    @Test
+    void onlyAnInformTurnAboutTheUserRunsPersonalFigures() {
+        assertThat(ToolPlan.personalFigures(MessageClass.INFORM, explanation("self", "liquidity_management")))
+                .contains(ToolPlan.PersonalFigures.EMERGENCY_FUND);
+        assertThat(ToolPlan.personalFigures(MessageClass.INFORM, explanation("generic", "liquidity_management")))
+                .isEmpty();
+        assertThat(ToolPlan.personalFigures(MessageClass.INFORM, explanation("specific_client",
+                "liquidity_management"))).isEmpty();
+        assertThat(ToolPlan.personalFigures(MessageClass.INFORM, explanation("self", "diversification"))).isEmpty();
+        for (MessageClass other : MessageClass.values()) {
+            if (other != MessageClass.INFORM) {
+                assertThat(ToolPlan.personalFigures(other, explanation("self", "liquidity_management"))).as(
+                        other.name()).isEmpty();
+            }
+        }
+    }
 }

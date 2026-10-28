@@ -1332,4 +1332,82 @@ class TurnOrchestratorTest {
         org.mockito.Mockito.verify(tools, org.mockito.Mockito.never()).requireSubsidyRules(any());
         assertThat(answer.outcome()).isNotEqualTo(ResponseOutcome.ESCALATE);
     }
+
+    static final String EMERGENCY_FUND_QUESTION = "How much emergency fund should I aim for?";
+
+    static CoreResult emergencyFundResult() {
+        List<de.financetool.core.domain.Figure> outputs = List.of(
+                new de.financetool.core.domain.Figure("current", "Emergency fund", new BigDecimal("4200.00"),
+                        Unit.EUR),
+                new de.financetool.core.domain.Figure("monthlyExpenses", "Average monthly expenses",
+                        new BigDecimal("1850.00"), Unit.EUR));
+        List<SourcedNumber> numbers = List.of(
+                new SourcedNumber("00000000000000e1", new BigDecimal("4200.00"), Unit.EUR, "Emergency fund"),
+                new SourcedNumber("00000000000000e2", new BigDecimal("1850.00"), Unit.EUR,
+                        "Average monthly expenses"));
+        return new CoreResult("emergencyFundTarget", List.of(), outputs, List.of(), Map.of(), numbers);
+    }
+
+    ChatMessage personalTurn(String text, NluExtraction nlu, String draft) {
+        ChatMessage asked = new ChatMessage(UUID.randomUUID(), ChatMessage.Author.USER, text, null, null);
+        return run(asked, draft, with(ComplianceLevel.A_B_C, false), false, nlu);
+    }
+
+    static NluExtraction explanation(String subject, String topic) {
+        return new NluExtraction("general_explanation", subject, topic, List.of(), List.of(), false, false, Map.of(),
+                Map.of(), "");
+    }
+
+    @Test
+    void aPersonalExplanationOnATopicWithARuleRunsOnTheUsersCoreFiguresWithoutChips() {
+        when(tools.personalFigures(any(), eq(ToolPlan.PersonalFigures.EMERGENCY_FUND)))
+                .thenReturn(List.of(emergencyFundResult()));
+
+        ChatMessage answer = personalTurn(EMERGENCY_FUND_QUESTION, explanation("self", "liquidity_management"),
+                "You hold 4,200.00 EUR against monthly expenses of 1,850.00 EUR.");
+
+        assertThat(answer.outcome()).isEqualTo(ResponseOutcome.INFORM);
+        assertThat(answer.text()).isEqualTo("You hold 4,200.00 EUR against monthly expenses of 1,850.00 EUR.");
+        assertThat(answer.figures()).as("no figure chips on an explanation").isEmpty();
+        assertThat(sentMessages().get(1).content()).contains(RegenerationFix.TOOL_RESULTS_HEADER)
+                .contains("Emergency fund: 4");
+        ResponseAuditBody body = auditBody();
+        assertThat(body.messageClass()).isEqualTo(MessageClass.INFORM);
+        assertThat(body.evidence()).containsExactly("00000000000000e1", "00000000000000e2");
+        assertThat(body.passThroughStages()).doesNotContain(TurnStage.TOOL_PLAN);
+        assertThat(body.ruleParameterError()).isFalse();
+        assertThat(body.finalChecks()).filteredOn(c -> c.checkId() == CheckId.NUMBER_MATCH)
+                .singleElement().matches(CheckResult::passed);
+    }
+
+    @Test
+    void aGenericExplanationOrATopicWithoutARuleOrAnotherClassRunsNoPersonalFigures() {
+        personalTurn("What is an emergency fund?", explanation("generic", "liquidity_management"), "A reserve.");
+        org.mockito.Mockito.reset(audit, llm);
+        personalTurn("What does diversification mean for my portfolio?", explanation("self", "diversification"),
+                "Spreading risk.");
+        org.mockito.Mockito.reset(audit, llm);
+        ChatMessage refused = personalTurn("Should I buy bitcoin?", nlu("product_selection", "liquidity_management",
+                List.of("crypto"), List.of()), "Crypto is outside the service.");
+
+        assertThat(refused.outcome()).isEqualTo(ResponseOutcome.REFUSE_OUT_OF_SCOPE);
+        org.mockito.Mockito.verify(tools, org.mockito.Mockito.never()).personalFigures(any(), any());
+        assertThat(auditBody().passThroughStages()).contains(TurnStage.TOOL_PLAN);
+    }
+
+    @Test
+    void aPersonalRuleWithoutAValidRuleParameterLeavesTheTurnWithoutFiguresAndDoesNotEscalate() {
+        when(tools.personalFigures(any(), any())).thenThrow(new NoValidRuleParameterException("No version"));
+
+        ChatMessage answer = personalTurn(EMERGENCY_FUND_QUESTION, explanation("self", "liquidity_management"),
+                "An emergency fund covers a few months of expenses.");
+
+        assertThat(answer.outcome()).isEqualTo(ResponseOutcome.INFORM);
+        assertThat(sentMessages().get(1).content()).doesNotContain(RegenerationFix.TOOL_RESULTS_HEADER);
+        ResponseAuditBody body = auditBody();
+        assertThat(body.evidence()).isEmpty();
+        assertThat(body.ruleParameterError()).isFalse();
+        assertThat(body.passThroughStages()).contains(TurnStage.TOOL_PLAN);
+        org.mockito.Mockito.verifyNoInteractions(escalations);
+    }
 }

@@ -47,6 +47,36 @@ public final class ToolPlan {
         }
     }
 
+    /**
+     * The Core figures a personal explanation question ({@code INFORM}, subject {@code self}) runs on, one rule per
+     * topic (Story 13.4, FR-62); the registry maps each to its Core call.
+     */
+    public enum PersonalFigures {
+        /** The emergency fund: current reserve, monthly expenses and target range. */
+        EMERGENCY_FUND,
+        /** The goal projection of the persona's investments and its starting totals. */
+        GOAL_PROJECTION,
+        /** The coverage summary: duplicate and missing essential cover. */
+        COVERAGE;
+
+        private static final Map<String, PersonalFigures> BY_TOPIC = Map.of(
+                "liquidity_management", EMERGENCY_FUND,
+                "retirement_strategy", GOAL_PROJECTION,
+                "protection_needs", COVERAGE,
+                "protection_duplicate", COVERAGE);
+
+        /** The rule for {@code topic}, if it has one. */
+        public static Optional<PersonalFigures> forTopic(String topic) {
+            return Optional.ofNullable(topic == null ? null : BY_TOPIC.get(topic));
+        }
+    }
+
+    /** The personal figures the turn runs on: an {@code INFORM} turn about the user on a topic with a rule. */
+    public static Optional<PersonalFigures> personalFigures(MessageClass messageClass, NluExtraction extraction) {
+        return messageClass == MessageClass.INFORM && extraction.subject().equals("self")
+                ? PersonalFigures.forTopic(extraction.topic()) : Optional.empty();
+    }
+
     public static final String PORTFOLIO = "portfolio";
     public static final String MONTHLY_WITHDRAWAL = "monthlyWithdrawal";
     public static final String ANNUAL_RATE = "annualRate";

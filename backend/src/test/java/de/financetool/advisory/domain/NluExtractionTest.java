@@ -155,6 +155,46 @@ class NluExtractionTest {
                 .containsEntry("monthly_expenses", 800).containsEntry("requested_monthly_amount", 800.0);
     }
 
+    /** Story 13.4: recorded live extractions (the model said generic) of first-person explanation questions. */
+    @Test
+    void aFirstPersonExplanationQuestionIsAboutTheUser() {
+        Map<String, Object> recorded = Map.of("request_type", "general_explanation", "subject", "generic",
+                "topic", "liquidity_management");
+        NluExtraction.Grounded english = NluExtraction.normalize(recorded)
+                .ground("How much emergency fund should I aim for?");
+        assertThat(english.extraction().subject()).isEqualTo("self");
+        assertThat(english.extraction().requestType()).isEqualTo("general_explanation");
+        assertThat(english.notes()).containsExactly("subject set to self: the message asks about the user's own "
+                + "situation");
+        assertThat(NluExtraction.normalize(recorded).ground("Wie viel Notgroschen sollte ich haben?").extraction()
+                .subject()).isEqualTo("self");
+        assertThat(NluExtraction.normalize(recorded).ground("Reicht mein Notgroschen?").extraction().subject())
+                .isEqualTo("self");
+
+        for (String generic : List.of("What is an emergency fund?", "Explain to me what an ETF is",
+                "Erklär mir, was ein Notgroschen ist", "Was ist die Meinung zu einem Notgroschen?","How much emergency fund should my client aim for?",
+                "How much emergency fund should she have?")) {
+            NluExtraction.Grounded g = NluExtraction.normalize(recorded).ground(generic);
+            assertThat(g.extraction().subject()).as(generic).isEqualTo("generic");
+            assertThat(g.notes()).as(generic).isEmpty();
+        }
+        // Only explanations: another request type keeps the model's subject.
+        assertThat(NluExtraction.normalize(Map.of("request_type", "personal_recommendation", "subject", "generic",
+                "topic", "liquidity_management")).ground("Should I keep more cash?").extraction().subject())
+                .isEqualTo("generic");
+    }
+
+    /** Story 13.4: German personal questions are no longer downgraded to generic. */
+    @Test
+    void aGermanPersonalQuestionKeepsItsSubject() {
+        for (String german : List.of("Wie viel Notgroschen sollte ich haben?", "Ist mein Depot breit gestreut?",
+                "Erklär mir den Notgroschen", "Wie viel sollten wir sparen?", "Passt unser Sparplan?")) {
+            NluExtraction.Grounded g = proposal("general_explanation", "self", List.of(), Map.of()).ground(german);
+            assertThat(g.extraction().subject()).as(german).isEqualTo("self");
+            assertThat(g.notes()).as(german).isEmpty();
+        }
+    }
+
     /** App addition: the live model returned a question about the user's own cover as a general explanation. */
     @Test
     void aProtectionQuestionAboutTheUsersOwnCoverIsAPersonalRequest() {

@@ -164,7 +164,9 @@ class ChatEndToEndTest extends PostgresIntegrationTest {
             assertThat(call.messages().get(0).content()).doesNotContain(QUESTION).contains("financial advisor")
                     .contains("Rules you must follow:", "7. Tone: plain language")
                     .endsWith("Answer type: general explanation. Explain neutrally; do not give a personal "
-                            + "recommendation.");
+                            + "recommendation. When TOOL RESULTS hold the user's own figures, explain with them. "
+                            + "Never ask for financial data the system holds (accounts, income, expenses, balances, "
+                            + "profile fields).");
             assertThat(call.messages().get(1).content()).endsWith("<user_message>\n" + QUESTION + "\n</user_message>");
         });
 

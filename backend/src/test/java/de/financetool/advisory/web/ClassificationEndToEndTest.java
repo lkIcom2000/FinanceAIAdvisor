@@ -151,7 +151,8 @@ class ClassificationEndToEndTest extends PostgresIntegrationTest {
                 .containsEntry("firstDraft", StubLlm.DEFAULT_TEXT).containsEntry("finalText", NoValidSource.TEXT)
                 .containsEntry("classReasons", List.of("general explanation"));
         assertThat(lastSystemPart()).endsWith("Answer type: general explanation. Explain neutrally; do not give a "
-                + "personal recommendation.");
+                + "personal recommendation. When TOOL RESULTS hold the user's own figures, explain with them. Never "
+                + "ask for financial data the system holds (accounts, income, expenses, balances, profile fields).");
 
         // The chip is stored with the answer: the conversation shows it again.
         String chat = ChatEndToEndTest.content(mvc.perform(get("/api/chat").session(login(mvc, "p-lena"))));

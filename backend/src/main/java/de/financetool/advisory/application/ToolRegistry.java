@@ -5,6 +5,8 @@ import de.financetool.advisory.domain.ToolPlan;
 import de.financetool.audit.EvidenceOrigin;
 import de.financetool.core.CoreGateway;
 import de.financetool.core.domain.CoreResult;
+import de.financetool.core.domain.InsuranceFigures;
+import de.financetool.core.domain.WealthFigures;
 import de.financetool.core.domain.WhatIfFigures;
 import de.financetool.core.domain.WhatIfProjection;
 import de.financetool.shared.RequestContext;
@@ -61,6 +63,29 @@ public class ToolRegistry {
     /** Account data read: the persona's average monthly net income, on which subsidy eligibility rests. */
     public SourcedNumber netIncome(RequestContext context) {
         return core.netIncome(context, EvidenceOrigin.TURN).number(CoreGateway.NET_INCOME);
+    }
+
+    /**
+     * Account data read for a personal explanation question (Story 13.4): the persona's Core figures of the topic's
+     * rule. The emergency fund gives its current reserve, monthly expenses and target range; the goal projection its
+     * projection and starting totals, nothing without one; the coverage summary its duplicate and missing cover.
+     *
+     * @return the Core results in call order, possibly empty
+     * @throws de.financetool.knowledge.NoValidRuleParameterException if a figure needs a Rule Parameter without a
+     *     version valid at the as-of date
+     */
+    public List<CoreResult> personalFigures(RequestContext context, ToolPlan.PersonalFigures rule) {
+        return switch (rule) {
+            case EMERGENCY_FUND -> List.of(core.profileFigures(context, EvidenceOrigin.TURN).emergencyFund());
+            case GOAL_PROJECTION -> {
+                WealthFigures wealth = core.wealth(context, EvidenceOrigin.TURN);
+                yield wealth.projection() == null ? List.of() : List.of(wealth.totals(), wealth.projection());
+            }
+            case COVERAGE -> {
+                InsuranceFigures insurance = core.insurance(context, EvidenceOrigin.TURN);
+                yield List.of(insurance.duplicates(), insurance.missing());
+            }
+        };
     }
 
     /**

@@ -42,7 +42,10 @@ class ToolPlanStage {
      * traps, a subsidy question about a later year needs the Core's subsidy rules for that year (UJ-5); without them
      * the turn escalates too. A {@code RECOMMEND_CATEGORY} turn runs the Core's category selection and cost
      * calculation on the effective profile ({@link Recommendations}); on a protection topic the Core's
-     * demands-and-needs statement instead ({@link NeedsStatements}).
+     * demands-and-needs statement instead ({@link NeedsStatements}). An {@code INFORM} turn about the user on a topic
+     * with a rule ({@link ToolPlan#personalFigures}) runs on the persona's Core figures for that topic (FR-62); they
+     * reach the prompt as {@code TOOL RESULTS}, the Number Check and the Audit Record, but no figure chips. Missing a
+     * valid Rule Parameter there leaves the turn without figures.
      */
     TurnState toolPlan(RequestContext context, PersonaScope scope, TurnState turn) {
         TurnState.Tools planned = turn.tools();
@@ -66,6 +69,16 @@ class ToolPlanStage {
             return turn.withTools(recommendations.run(context, profiles.stored(scope),
                     turn.nlu().extraction().statedProfile(), turn.nlu().extraction().topic()))
                     .ran(TurnStage.TOOL_PLAN);
+        }
+        Optional<ToolPlan.PersonalFigures> personal = ToolPlan.personalFigures(messageClass, turn.nlu().extraction());
+        if (personal.isPresent()) {
+            try {
+                return turn.withTools(new TurnState.Tools(null, null, null, false,
+                        tools.personalFigures(context, personal.get()), false)).ran(TurnStage.TOOL_PLAN);
+            } catch (NoValidRuleParameterException e) {
+                // Without the rule's figures the explanation stays general, as without a rule; no escalation.
+                return turn.passedThrough(TurnStage.TOOL_PLAN);
+            }
         }
         if (turn.messageClass() != MessageClass.COMPUTE) {
             return turn.passedThrough(TurnStage.TOOL_PLAN);
