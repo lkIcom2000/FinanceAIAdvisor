@@ -15,9 +15,9 @@ import de.financetool.actions.NotAwaitingConfirmationException;
 import de.financetool.actions.NotUndoableException;
 import de.financetool.actions.ProposedAction;
 import de.financetool.actions.Rule;
+import de.financetool.actions.Rules;
 import de.financetool.actions.RuleAlreadyStoppedException;
 import de.financetool.actions.adapter.ActionRepository;
-import de.financetool.actions.adapter.MandateRepository;
 import de.financetool.actions.domain.ActionState;
 import de.financetool.actions.domain.ActionType;
 import de.financetool.actions.domain.AutonomyGate;
@@ -66,6 +66,9 @@ class ActionServiceTest extends PostgresIntegrationTest {
     Actions actions;
 
     @Autowired
+    Rules rules;
+
+    @Autowired
     RequestContextFactory contexts;
 
     @Autowired
@@ -94,9 +97,6 @@ class ActionServiceTest extends PostgresIntegrationTest {
 
     @Autowired
     ActionRepository repository;
-
-    @Autowired
-    MandateRepository mandateRows;
 
     @Autowired
     AuditWriter audit;
@@ -233,7 +233,7 @@ class ActionServiceTest extends PostgresIntegrationTest {
                 new BigDecimal("5000.00"), true, BigDecimal.ONE, 1, new BigDecimal("2700.00"),
                 new BigDecimal("2700.00"), null));
         ActionService service = new ActionService(bank, bookings, missingRule, profiles, completeness, mandates, repository,
-                mandateRows, audit);
+                audit);
 
         ActionProposal proposal = propose(service, new ProposedAction(ActionType.SHORTFALL_TRANSFER,
                 RegulatoryClass.PAYMENT, new BigDecimal("300.00"), overnight, current, null));
@@ -257,7 +257,7 @@ class ActionServiceTest extends PostgresIntegrationTest {
         when(core.transferBalances(any(), any(), any(), any(), any())).thenReturn(new TransferBalances(
                 new BigDecimal("1850.00"), new BigDecimal("1750.00"), new BigDecimal("2700.00"),
                 new BigDecimal("2800.00")));
-        return new ActionService(bank, bookings, core, profiles, completeness, mandates, repository, mandateRows, audit);
+        return new ActionService(bank, bookings, core, profiles, completeness, mandates, repository, audit);
     }
 
     @Test
@@ -377,7 +377,7 @@ class ActionServiceTest extends PostgresIntegrationTest {
     // Story 9.2: a rule lets Fine act on its own within its bounds.
 
     UUID rule(RuleTemplate template, String maxPerAction, String maxPerMonth, String floor) {
-        return transaction.execute(tx -> actions.createRule(context, scope, FIXTURE, template,
+        return transaction.execute(tx -> rules.createRule(context, scope, FIXTURE, template,
                 new RuleBounds(new BigDecimal(maxPerAction), new BigDecimal(maxPerMonth), new BigDecimal(floor))))
                 .id();
     }
@@ -590,7 +590,7 @@ class ActionServiceTest extends PostgresIntegrationTest {
     // Story 9.4: stop a rule at any time.
 
     Optional<Rule> revoke(LocalDate date, UUID ruleId) {
-        return transaction.execute(tx -> actions.revokeRule(on(date), scope, FIXTURE, ruleId));
+        return transaction.execute(tx -> rules.revokeRule(on(date), scope, FIXTURE, ruleId));
     }
 
     @Test
@@ -626,8 +626,8 @@ class ActionServiceTest extends PostgresIntegrationTest {
         revoke(OCT_15, cushion);
         UUID again = rule(RuleTemplate.SAFETY_CUSHION, "300.00", "600.00", "2000.00");
 
-        List<Rule> onDeadline = transaction.execute(tx -> actions.rules(on(OCT_15.plusDays(1)), scope));
-        List<Rule> afterDeadline = transaction.execute(tx -> actions.rules(on(OCT_15.plusDays(2)), scope));
+        List<Rule> onDeadline = transaction.execute(tx -> rules.rules(on(OCT_15.plusDays(1)), scope));
+        List<Rule> afterDeadline = transaction.execute(tx -> rules.rules(on(OCT_15.plusDays(2)), scope));
 
         assertThat(onDeadline).extracting(Rule::id).containsExactly(again, cushion);
         assertThat(onDeadline.get(1).undoUntil()).isEqualTo(OCT_15.plusDays(1));

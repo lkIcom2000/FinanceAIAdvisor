@@ -57,3 +57,8 @@
 ## Next (after Epic 13)
 
 - Open Epic 9 retro item A3 (split rule lifecycle out of `ActionService`) before Epic 10; Epic 10 and 12 are the critical path to the UAT.
+
+## Epic 9 retro A3 (2026-10-28)
+
+- Spec `spec-epic-9-a3-split-rule-lifecycle-out-of-actionservice.md` (oneshot, done). New module API `actions.Rules` (rules, ruleSetup, checkRule, createRule, revokeRule, activeRules) implemented by `RuleService`; `Actions`/`ActionService` keep only the Action lifecycle and the gate. Callers `RulesUseCase`, `PrepareStudyUseCase` use `Rules`. verify green (995 tests, 0 skipped). No review (pure move).
+- Next: Epic 10 (critical path to the UAT with Epic 12). Retro A1, A2, A4 still open.

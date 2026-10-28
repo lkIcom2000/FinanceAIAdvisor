@@ -1,6 +1,6 @@
 package de.financetool.research.application;
 
-import de.financetool.actions.Actions;
+import de.financetool.actions.Rules;
 import de.financetool.monitoring.Monitoring;
 import de.financetool.personas.PersonaClock;
 import de.financetool.personas.PersonaDirectory;
@@ -40,17 +40,17 @@ public class PrepareStudyUseCase {
     private final PersonaClock personas;
     private final RequestContextFactory contexts;
     private final Monitoring monitoring;
-    private final Actions actions;
+    private final Rules rules;
     private final PersonaDirectory directory;
 
     PrepareStudyUseCase(StudyPresets presets, PersonaFixtureLoader loader, PersonaClock personas,
-            RequestContextFactory contexts, Monitoring monitoring, Actions actions, PersonaDirectory directory) {
+            RequestContextFactory contexts, Monitoring monitoring, Rules rules, PersonaDirectory directory) {
         this.presets = presets;
         this.loader = loader;
         this.personas = personas;
         this.contexts = contexts;
         this.monitoring = monitoring;
-        this.actions = actions;
+        this.rules = rules;
         this.directory = directory;
     }
 
@@ -67,11 +67,11 @@ public class PrepareStudyUseCase {
         PersonaScope scope = PersonaScopeResolver.forResearcher(preset.persona());
         // Setup steps run at the simulated date, before monitoring, so a rule can cover the run's Actions.
         for (StudyPresets.MandateStep step : preset.mandates()) {
-            actions.createRule(contexts.forPersona(scope, null), scope, directory.fixtureVersion(scope),
+            this.rules.createRule(contexts.forPersona(scope, null), scope, directory.fixtureVersion(scope),
                     step.template(), step.bounds());
         }
         Monitoring.Run run = monitoring.run(contexts.forPersona(scope, null), scope);
-        int rules = actions.activeRules(scope);
+        int rules = this.rules.activeRules(scope);
         return Optional.of(new Prepared(preset.id(), preset.title(), preset.personaId(), preset.simulatedDate(),
                 run.notifications(), rules, summary(run.notifications(), rules)));
     }

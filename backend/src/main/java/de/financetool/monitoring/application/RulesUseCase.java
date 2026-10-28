@@ -1,9 +1,9 @@
 package de.financetool.monitoring.application;
 
-import de.financetool.actions.Actions;
 import de.financetool.actions.Rule;
 import de.financetool.actions.RuleCheck;
 import de.financetool.actions.RuleSetup;
+import de.financetool.actions.Rules;
 import de.financetool.actions.domain.RuleBounds;
 import de.financetool.actions.domain.RuleTemplate;
 import de.financetool.personas.PersonaDirectory;
@@ -24,28 +24,28 @@ public class RulesUseCase {
 
     private final RequestContextFactory contexts;
     private final PersonaDirectory personas;
-    private final Actions actions;
+    private final Rules rules;
 
-    RulesUseCase(RequestContextFactory contexts, PersonaDirectory personas, Actions actions) {
+    RulesUseCase(RequestContextFactory contexts, PersonaDirectory personas, Rules rules) {
         this.contexts = contexts;
         this.personas = personas;
-        this.actions = actions;
+        this.rules = rules;
     }
 
     @Transactional(readOnly = true)
     public List<Rule> rules(PersonaScope scope) {
-        return actions.rules(contexts.forPersona(scope, null), scope);
+        return rules.rules(contexts.forPersona(scope, null), scope);
     }
 
     /** The templates with the Core's suggested limits; the suggestions are stored as evidence for "Why?". */
     @Transactional
     public List<RuleSetup> setup(PersonaScope scope) {
-        return actions.ruleSetup(contexts.forPersona(scope, null), scope);
+        return rules.ruleSetup(contexts.forPersona(scope, null), scope);
     }
 
     /** @throws de.financetool.actions.InvalidRuleException if the limits can't be used */
     public RuleCheck check(RuleTemplate template, RuleBounds bounds) {
-        return actions.checkRule(template, bounds);
+        return rules.checkRule(template, bounds);
     }
 
     /**
@@ -54,7 +54,7 @@ public class RulesUseCase {
      */
     @Transactional
     public Rule start(PersonaScope scope, RuleTemplate template, RuleBounds bounds) {
-        return actions.createRule(contexts.forPersona(scope, null), scope, personas.fixtureVersion(scope), template,
+        return rules.createRule(contexts.forPersona(scope, null), scope, personas.fixtureVersion(scope), template,
                 bounds);
     }
 
@@ -66,6 +66,6 @@ public class RulesUseCase {
      */
     @Transactional
     public Optional<Rule> revoke(PersonaScope scope, UUID ruleId) {
-        return actions.revokeRule(contexts.forPersona(scope, null), scope, personas.fixtureVersion(scope), ruleId);
+        return rules.revokeRule(contexts.forPersona(scope, null), scope, personas.fixtureVersion(scope), ruleId);
     }
 }

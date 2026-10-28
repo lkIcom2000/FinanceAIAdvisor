@@ -8,7 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import de.financetool.PostgresIntegrationTest;
-import de.financetool.actions.Actions;
+import de.financetool.actions.Rules;
 import de.financetool.research.application.ResetPersonaUseCase;
 import de.financetool.shared.PersonaScope;
 import de.financetool.shared.RequestContextFactory;
@@ -45,7 +45,7 @@ class RuleControllerTest extends PostgresIntegrationTest {
     ResetPersonaUseCase resetPersona;
 
     @Autowired
-    Actions actions;
+    Rules rules;
 
     @Autowired
     TransactionTemplate transaction;
@@ -125,7 +125,7 @@ class RuleControllerTest extends PostgresIntegrationTest {
         assertThat(jdbc.queryForObject("SELECT payload->'body'->>'event' FROM audit_records"
                 + " WHERE action_id = ?::uuid AND kind = 'ACTION'", String.class, started.get("id")))
                 .isEqualTo("rule_created");
-        Integer active = transaction.execute(tx -> actions.activeRules(new PersonaScope(LENA)));
+        Integer active = transaction.execute(tx -> this.rules.activeRules(new PersonaScope(LENA)));
         assertThat(active).isEqualTo(1);
 
         List<Map<String, Object>> templates = json(call("GET", "/api/rules/setup", null, lena, status().isOk()),
@@ -184,7 +184,7 @@ class RuleControllerTest extends PostgresIntegrationTest {
         assertThat(jdbc.queryForObject("SELECT payload->'body'->>'event' FROM audit_records WHERE action_id = ?::uuid"
                 + " AND kind = 'ACTION' AND payload->'body'->>'event' = 'rule_revoked'", String.class,
                 started.get("id"))).isEqualTo("rule_revoked");
-        Integer active = transaction.execute(tx -> actions.activeRules(new PersonaScope(LENA)));
+        Integer active = transaction.execute(tx -> this.rules.activeRules(new PersonaScope(LENA)));
         assertThat(active).isZero();
 
         call("POST", "/api/rules", CUSHION, lena, status().isCreated());
