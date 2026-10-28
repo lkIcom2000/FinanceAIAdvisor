@@ -1478,6 +1478,25 @@ class TurnOrchestratorTest {
     }
 
     @Test
+    void aFollowUpAboutNobodyOnAnAnswerWithCoreFiguresRunsTheUsersFiguresAndCarriesThemOn() {
+        when(chats.releasedTurnsBefore(eq(scope), any(), eq(1))).thenReturn(List.of(new ExposureFilter.StoredTurn(
+                "Why?", "Because three months cover a gap in income.",
+                new ChatMessage.FollowUp("Why?", true, List.of(FUND_TARGET.provId())))));
+        when(evidence.figures(scope, List.of(FUND_TARGET.provId()))).thenReturn(List.of(FUND_TARGET));
+        when(tools.personalFigures(any(), eq(ToolPlan.PersonalFigures.EMERGENCY_FUND)))
+                .thenReturn(List.of(emergencyFundResult()));
+
+        ChatMessage answer = personalTurn("150 EUR?", explanation("generic", "liquidity_management"),
+                "You hold 4,200.00 EUR against monthly expenses of 1,850.00 EUR.");
+
+        assertThat(answer.outcome()).isEqualTo(ResponseOutcome.INFORM);
+        assertThat(sentMessages().get(1).content()).contains(RegenerationFix.TOOL_RESULTS_HEADER);
+        assertThat(answer.followUp().provIds()).as("the next follow-up sees them too")
+                .containsExactly("00000000000000e1", "00000000000000e2");
+        assertThat(auditBody().passThroughStages()).doesNotContain(TurnStage.TOOL_PLAN);
+    }
+
+    @Test
     void aPersonalRuleWithoutAValidRuleParameterLeavesTheTurnWithoutFiguresAndDoesNotEscalate() {
         when(tools.personalFigures(any(), any())).thenThrow(new NoValidRuleParameterException("No version"));
 

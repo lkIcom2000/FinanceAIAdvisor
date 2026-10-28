@@ -153,6 +153,31 @@ class CheckChainTest {
     }
 
     @Test
+    void aRefusalThatRecommendsItsAlternativeFailsScope() {
+        CheckChain.Facts refuse = new CheckChain.Facts(MessageClass.REFUSE_OUT_OF_SCOPE, "", false, null, "other",
+                List.of("derivative_or_certificate"), false, 0, List.of());
+        String refusal = "Ich kann Ihnen leider keine Empfehlung zu Bitcoin-Zertifikaten geben, da diese außerhalb "
+                + "unseres Dienstleistungsangebots liegen. ";
+        for (String recommends : List.of(
+                refusal + "Wir könnten Ihnen beispielsweise empfehlen, in ein ETF-Sparplan zu investieren.",
+                refusal + "Ich empfehle Ihnen stattdessen einen Sparplan.",
+                refusal + "Sie sollten stattdessen in einen breit gestreuten Fonds investieren.",
+                "Crypto is outside the service. Instead, I recommend investing in a savings plan.",
+                "Crypto is outside the service. Instead, you should invest in a diversified fund.")) {
+            assertThat(CheckChain.run(recommends, refuse).get(CheckId.SCOPE).reasonCode()).as(recommends)
+                    .isEqualTo("refusal_recommends");
+        }
+        for (String offers : List.of(
+                refusal + "Gerne schaue ich mit Ihnen stattdessen auf Ihren Notgroschen.",
+                refusal + "Das kann ich Ihnen nicht empfehlen; was ich stattdessen tun kann: Ihren Sparplan erklären.",
+                "Ich empfehle Ihnen nicht, Zertifikate zu kaufen; das ist außerhalb des Service. Stattdessen: Ihr "
+                        + "Notgroschen.",
+                "Crypto is outside the service, so I can't recommend it. Instead, I can help with your emergency fund.")) {
+            assertThat(CheckChain.run(offers, refuse).get(CheckId.SCOPE).passed()).as(offers).isTrue();
+        }
+    }
+
+    @Test
     void theNumberCheckAppliesToEveryTextAgainstTheSourcedValues() {
         CheckChain.Facts facts = new CheckChain.Facts(MessageClass.INFORM, "", false, null, "other", List.of(), false,
                 0, List.of(new java.math.BigDecimal("522")));

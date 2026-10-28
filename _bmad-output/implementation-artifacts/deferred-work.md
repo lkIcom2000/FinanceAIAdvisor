@@ -35,3 +35,10 @@
 - source_spec: `spec-13-1-fine-answers-in-german-when-written-to-in-german.md`
   summary: `NumberParser` does not know the turn language, so a single-separator group like German "1,234" (= 1.234) is always read as 1234.
   evidence: `NumberParser.toDecimal` resolves "1,234" and "1.234" as thousands groups on every turn; a German draft with three decimals would be misread (rare in finance text, unverified in live drafts). Settle by passing the turn language into `parse` once Retro A6 consolidates the parsers.
+
+- source_spec: `spec-epic-13-live-check-fixes.md`
+  summary: `CitationMarkers` removes a cited "[S1]" used as a sentence subject and leaves a broken sentence ("… abgesichert sind. empfiehlt, drei bis sechs Monate …").
+  evidence: live re-check 2026-10-28, p-lena "Warum?" (audit firstDraft "… [S1] empfiehlt, …"); retrieval is off, so the marker is removed but the sentence is not repaired. Settle by regenerating or dropping the orphaned sentence when a removed marker starts it.
+- source_spec: `spec-epic-13-live-check-fixes.md`
+  summary: A generic follow-up whose NLU topic has no personal-figures rule (live: "Warum?" → `regulation_or_concept`) gets no figures, so the chain of personal figures still breaks after it.
+  evidence: live re-check 2026-10-28: "Warum?" ran no TOOL_PLAN, "150 EUR?" then became a COMPUTE proposal (no held-data claim this time). Settle by carrying the previous turn's evidence figures forward for a generic follow-up regardless of topic, if wanted.

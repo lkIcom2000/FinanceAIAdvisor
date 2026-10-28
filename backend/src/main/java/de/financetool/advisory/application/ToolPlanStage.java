@@ -70,7 +70,8 @@ class ToolPlanStage {
                     turn.nlu().extraction().statedProfile(), turn.nlu().extraction().topic()))
                     .ran(TurnStage.TOOL_PLAN);
         }
-        Optional<ToolPlan.PersonalFigures> personal = ToolPlan.personalFigures(messageClass, turn.nlu().extraction());
+        Optional<ToolPlan.PersonalFigures> personal = ToolPlan.personalFigures(messageClass, turn.nlu().extraction(),
+                turn.previous() != null && !turn.previous().coreFigures().isEmpty());
         if (personal.isPresent()) {
             try {
                 return turn.withTools(new TurnState.Tools(null, null, null, false,

@@ -253,6 +253,15 @@ class ToolPlanTest {
         assertThat(ToolPlan.personalFigures(MessageClass.INFORM, explanation("specific_client",
                 "liquidity_management"))).isEmpty();
         assertThat(ToolPlan.personalFigures(MessageClass.INFORM, explanation("self", "diversification"))).isEmpty();
+        // a follow-up about nobody on an answer with Core figures; never about another person
+        assertThat(ToolPlan.personalFigures(MessageClass.INFORM, explanation("generic", "liquidity_management"), true))
+                .contains(ToolPlan.PersonalFigures.EMERGENCY_FUND);
+        assertThat(ToolPlan.personalFigures(MessageClass.INFORM, explanation("specific_client",
+                "liquidity_management"), true)).isEmpty();
+        assertThat(ToolPlan.personalFigures(MessageClass.INFORM, explanation("generic", "diversification"), true))
+                .isEmpty();
+        assertThat(ToolPlan.personalFigures(MessageClass.COMPUTE, explanation("generic", "liquidity_management"),
+                true)).isEmpty();
         for (MessageClass other : MessageClass.values()) {
             if (other != MessageClass.INFORM) {
                 assertThat(ToolPlan.personalFigures(other, explanation("self", "liquidity_management"))).as(

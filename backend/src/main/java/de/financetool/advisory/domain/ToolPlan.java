@@ -73,7 +73,19 @@ public final class ToolPlan {
 
     /** The personal figures the turn runs on: an {@code INFORM} turn about the user on a topic with a rule. */
     public static Optional<PersonalFigures> personalFigures(MessageClass messageClass, NluExtraction extraction) {
-        return messageClass == MessageClass.INFORM && extraction.subject().equals("self")
+        return personalFigures(messageClass, extraction, false);
+    }
+
+    /**
+     * As {@link #personalFigures(MessageClass, NluExtraction)}; a follow-up about nobody ({@code generic}, e.g.
+     * "150 EUR?") on an answer that carried Core figures is about the user too (live check 2026-10-28). Its own
+     * figures then carry the chain to the next follow-up.
+     */
+    public static Optional<PersonalFigures> personalFigures(MessageClass messageClass, NluExtraction extraction,
+            boolean previousHadFigures) {
+        boolean aboutUser = extraction.subject().equals("self")
+                || previousHadFigures && extraction.subject().equals("generic");
+        return messageClass == MessageClass.INFORM && aboutUser
                 ? PersonalFigures.forTopic(extraction.topic()) : Optional.empty();
     }
 

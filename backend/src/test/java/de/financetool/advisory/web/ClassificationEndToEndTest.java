@@ -178,7 +178,8 @@ class ClassificationEndToEndTest extends PostgresIntegrationTest {
                         List.of("personal request on out-of-scope product(s): derivative_or_certificate"));
         assertThat(lastSystemPart()).endsWith("Answer type: transparent refusal. The request concerns derivative or "
                 + "certificate, which is outside the service. Say so plainly, give the reason, and offer the nearest "
-                + "in-scope alternative.");
+                + "in-scope alternative as something you can look at or explain together; never recommend investing "
+                + "in, buying or choosing it.");
     }
 
     @Test
