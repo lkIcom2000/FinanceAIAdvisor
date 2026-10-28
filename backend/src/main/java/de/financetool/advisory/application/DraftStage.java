@@ -1,6 +1,7 @@
 package de.financetool.advisory.application;
 
 import de.financetool.advisory.domain.ChatMessage;
+import de.financetool.advisory.domain.Language;
 import de.financetool.advisory.domain.PhrasingPrompt;
 import de.financetool.advisory.domain.ResponseTemplates;
 import de.financetool.advisory.domain.TurnStage;
@@ -36,11 +37,13 @@ class DraftStage {
      */
     TurnState llmDraft(RequestContext context, TurnState turn) {
         if (turn.tools().proposal()) {
-            return turn.withDraft(new TurnState.Draft(ResponseTemplates.PARAMETER_PROPOSAL, null, null, false))
+            return turn.withDraft(new TurnState.Draft(ResponseTemplates.parameterProposal(turn.language()), null,
+                    null, false))
                     .passedThrough(TurnStage.LLM_DRAFT);
         }
         if (turn.tools().range() != null) {
-            return turn.withDraft(new TurnState.Draft(rangeText(turn.tools().results()), null, null, false))
+            return turn.withDraft(new TurnState.Draft(rangeText(turn.tools().results(), turn.language()), null,
+                    null, false))
                     .passedThrough(TurnStage.LLM_DRAFT);
         }
         PhrasingPrompt phrasing = turn.prompt().phrasing();
@@ -52,12 +55,15 @@ class DraftStage {
                 .ran(TurnStage.LLM_DRAFT);
     }
 
-    /** The fixed answer of a calculated what-if, from the what-if projection's outputs (the last result). */
-    static String rangeText(List<CoreResult> results) {
+    /**
+     * The fixed answer of a calculated what-if in the turn's language, from the what-if projection's outputs (the
+     * last result).
+     */
+    static String rangeText(List<CoreResult> results, Language language) {
         CoreResult whatIf = results.getLast();
         return ResponseTemplates.range(whatIf.number(WhatIfProjection.OUTPUT_P10).value(),
                 whatIf.number(WhatIfProjection.OUTPUT_P90).value(), whatIf.number(WhatIfProjection.OUTPUT_P50).value(),
-                whatIf.number(WhatIfProjection.OUTPUT_YEARS).value().intValueExact());
+                whatIf.number(WhatIfProjection.OUTPUT_YEARS).value().intValueExact(), language);
     }
 
     /** The class's fixed sentences around a model text (first draft and regeneration alike); blank stays blank. */
@@ -66,14 +72,15 @@ class DraftStage {
             return text;
         }
         return switch (turn.messageClass()) {
-            case ASK_PROFILE -> ResponseTemplates.withProfileReason(text);
+            case ASK_PROFILE -> ResponseTemplates.withProfileReason(text, turn.language());
             case RECOMMEND_CATEGORY -> {
                 ChatMessage.Recommendation statement = turn.tools().statement();
                 String led = turn.tools().needsStatement() != null
-                        ? ResponseTemplates.withRecommendationLead(text, ResponseTemplates.NEEDS_LEAD)
+                        ? ResponseTemplates.withRecommendationLead(text, ResponseTemplates.needsLead(turn.language()))
                         : statement == null ? text : ResponseTemplates.withRecommendationLead(text,
-                        ResponseTemplates.recommendationLead(statement.label(), statement.conflicts()));
-                yield ResponseTemplates.withLimitations(led, turn.classification().limitations());
+                        ResponseTemplates.recommendationLead(statement.category(), statement.label(),
+                        statement.conflicts(), turn.language()));
+                yield ResponseTemplates.withLimitations(led, turn.classification().limitations(), turn.language());
             }
             default -> text;
         };

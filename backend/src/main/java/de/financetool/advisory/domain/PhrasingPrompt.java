@@ -65,7 +65,20 @@ public record PhrasingPrompt(String system, String user, int droppedHistoryTurns
      */
     public static PhrasingPrompt build(String rolePrompt, String complianceRules, String classInstruction,
             PromptPayload payload, int numCtx, int numPredict) {
-        String system = rolePrompt.strip() + "\n\n" + complianceRules.strip()
+        return build(rolePrompt.replace(Language.PLACEHOLDER, Language.EN.englishName()), complianceRules,
+                classInstruction, payload, numCtx, numPredict, null);
+    }
+
+    /**
+     * Like {@link #build(String, String, String, PromptPayload, int, int)}, with the turn's answer language filled
+     * into the role prompt (Story 13.1); a role prompt without the placeholder gets the instruction as its last line.
+     *
+     * @param language the turn's answer language; {@code null} leaves the role prompt as it is
+     */
+    public static PhrasingPrompt build(String rolePrompt, String complianceRules, String classInstruction,
+            PromptPayload payload, int numCtx, int numPredict, Language language) {
+        String role = language == null ? rolePrompt : language.fill(rolePrompt);
+        String system = role.strip() + "\n\n" + complianceRules.strip()
                 + (classInstruction.isBlank() ? "" : "\n\n" + classInstruction.strip());
         double budget = numCtx - numPredict - RESERVE_TOKENS;
         if (budget <= 0) {

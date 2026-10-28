@@ -367,5 +367,168 @@
   "passed": true,
   "checked": 0,
   "mismatches": []
+ },
+ {
+  "name": "de: German thousands and decimals with EUR",
+  "text": "Ihr Notgroschen liegt bei 1.234,56 EUR.",
+  "sourced": [
+   "1234.56"
+  ],
+  "passed": true,
+  "checked": 1,
+  "mismatches": []
+ },
+ {
+  "name": "de: German percent with a space",
+  "text": "Die Annahme ist 4 % pro Jahr.",
+  "sourced": [
+   "0.04"
+  ],
+  "passed": true,
+  "checked": 1,
+  "mismatches": []
+ },
+ {
+  "name": "de: German percent as the word Prozent",
+  "text": "Die Rendite liegt bei 2,5 Prozent.",
+  "sourced": [
+   "0.025"
+  ],
+  "passed": true,
+  "checked": 1,
+  "mismatches": []
+ },
+ {
+  "name": "de: German Mio. suffix",
+  "text": "Das Fondsvolumen liegt bei 1,2 Mio. EUR.",
+  "sourced": [
+   "1200000"
+  ],
+  "passed": true,
+  "checked": 1,
+  "mismatches": []
+ },
+ {
+  "name": "de: German Millionen and Tsd. suffixes",
+  "text": "Das sind 1,2 Millionen EUR oder 3 Tsd. im Jahr.",
+  "sourced": [
+   "1200000",
+   "3000"
+  ],
+  "passed": true,
+  "checked": 2,
+  "mismatches": []
+ },
+ {
+  "name": "de: German Mrd. suffix",
+  "text": "Der Fonds verwaltet 2 Mrd. EUR.",
+  "sourced": [
+   "2000000000"
+  ],
+  "passed": true,
+  "checked": 1,
+  "mismatches": []
+ },
+ {
+  "name": "de: German rund within 5 percent",
+  "text": "Das reicht rund 530 Monate.",
+  "sourced": [
+   "522"
+  ],
+  "passed": true,
+  "checked": 1,
+  "mismatches": []
+ },
+ {
+  "name": "de: German etwa beyond 5 percent",
+  "text": "Das reicht etwa 560 Monate.",
+  "sourced": [
+   "522"
+  ],
+  "passed": false,
+  "checked": 1,
+  "mismatches": [
+   {
+    "text": "560",
+    "value": "560",
+    "approximate": true
+   }
+  ]
+ },
+ {
+  "name": "de: German amount not in the ledger",
+  "text": "Ihr Notgroschen liegt bei 1.250,00 EUR.",
+  "sourced": [
+   "1234.56"
+  ],
+  "passed": false,
+  "checked": 1,
+  "mismatches": [
+   {
+    "text": "1.250,00",
+    "value": "1250.00",
+    "approximate": false
+   }
+  ]
+ },
+ {
+  "name": "de: German Absatz reference excluded",
+  "text": "Nach Absatz 3 gilt das auch für Sie.",
+  "sourced": [],
+  "passed": true,
+  "checked": 0,
+  "mismatches": []
+ },
+ {
+  "name": "de: German date excluded",
+  "text": "Stand 3. März 2026 und 10. Okt. 2026: kein Betrag.",
+  "sourced": [],
+  "passed": true,
+  "checked": 0,
+  "mismatches": []
+ },
+ {
+  "name": "de: Prozentpunkte is no percentage",
+  "text": "Der Zins steigt um 5 Prozentpunkte.",
+  "sourced": [
+   "5"
+  ],
+  "passed": true,
+  "checked": 1,
+  "mismatches": []
+ },
+ {
+  "name": "de: Prozentpunkte keeps its suffix out of the number",
+  "text": "Der Zins steigt um 5 Prozentpunkte.",
+  "sourced": [],
+  "passed": false,
+  "checked": 1,
+  "mismatches": [
+   {
+    "text": "5",
+    "value": "5",
+    "approximate": false
+   }
+  ]
+ },
+ {
+  "name": "de: tausendmal is no multiplier",
+  "text": "Das habe ich 3 tausendmal gesagt.",
+  "sourced": [
+   "3"
+  ],
+  "passed": true,
+  "checked": 1,
+  "mismatches": []
+ },
+ {
+  "name": "de: 2,5 Prozent still reads as a fraction",
+  "text": "Die Annahme ist 2,5 Prozent im Jahr.",
+  "sourced": [
+   "0.025"
+  ],
+  "passed": true,
+  "checked": 1,
+  "mismatches": []
  }
 ]

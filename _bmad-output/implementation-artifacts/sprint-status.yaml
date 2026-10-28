@@ -42,7 +42,7 @@
 #   configuration with a derivedFrom block (AD-25). Check E3 before 3.9, E1 before 4.2/4.3.
 
 generated: 10-21-2026 13:52
-last_updated: 10-28-2026 14:00
+last_updated: 10-28-2026 16:00
 project: FinanceTool
 project_key: NOKEY
 tracking_system: file-system
@@ -140,7 +140,7 @@ development_status:
   epic-12-retrospective: optional
 
   epic-13: in-progress  # Follow-up fixes (Commc 2026-10-26); placement relative to the UAT open
-  13-1-fine-answers-in-german-when-written-to-in-german: backlog
+  13-1-fine-answers-in-german-when-written-to-in-german: review  # 2026-10-28, spec spec-13-1-fine-answers-in-german-when-written-to-in-german.md
   13-2-epic-3-seam-fixes-technical-debt: done  # 2026-10-27 (Epic 3 retro A1-A4)
   13-3-split-turnorchestrator-into-stage-classes: done  # 2026-10-28, spec spec-13-3-split-turnorchestrator-into-stage-classes.md; retro 6/7 C2; before 13.4, 13.5 (SCP 2026-10-27)
   13-4-fine-answers-questions-about-my-situation-with-my-data: done  # 2026-10-28, spec spec-13-4-fine-answers-questions-about-my-situation-with-my-data.md; before Epic 12

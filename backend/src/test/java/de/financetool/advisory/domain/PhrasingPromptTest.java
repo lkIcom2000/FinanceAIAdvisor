@@ -71,6 +71,20 @@ class PhrasingPromptTest {
     }
 
     @Test
+    void theRolePromptNamesTheTurnsAnswerLanguage() {
+        PromptPayload payload = new PromptPayload(MESSAGE, List.of(), Map.of(), "", List.of());
+        String role = "You are an advisor.\nAnswer in {answer_language}, the language of the customer's message.";
+        assertThat(PhrasingPrompt.build(role, RULES, "", payload, 1_000_000, 700, Language.DE).system())
+                .startsWith("You are an advisor.\nAnswer in German, the language of the customer's message.\n\n")
+                .doesNotContain(Language.PLACEHOLDER);
+        assertThat(PhrasingPrompt.build(role, RULES, "", payload, 1_000_000, 700, Language.EN).system())
+                .contains("Answer in English,");
+        assertThat(PhrasingPrompt.build(role, RULES, payload, 1_000_000, 700).system()).contains("Answer in English,");
+        assertThat(PhrasingPrompt.build(ROLE, RULES, "", payload, 1_000_000, 700, Language.DE).system())
+                .as("a role prompt without the placeholder gets the instruction").contains("Answer in German.");
+    }
+
+    @Test
     void emptyBlocksAreLeftOut() {
         PhrasingPrompt prompt = unbounded(new PromptPayload(MESSAGE, List.of(), Map.of(), "", List.of()));
         assertThat(prompt.user()).isEqualTo("<user_message>\n" + MESSAGE + "\n</user_message>");

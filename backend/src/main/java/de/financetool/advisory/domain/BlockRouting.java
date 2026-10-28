@@ -54,11 +54,19 @@ public final class BlockRouting {
      */
     public static Route route(List<CheckResult> failed, Classification classification, boolean ruleParameterError,
             boolean ruleForLaterYear) {
+        return route(failed, classification, ruleParameterError, ruleForLaterYear, Language.EN);
+    }
+
+    /**
+     * @param language the turn's answer language: the template released is in it (Story 13.1)
+     */
+    public static Route route(List<CheckResult> failed, Classification classification, boolean ruleParameterError,
+            boolean ruleForLaterYear, Language language) {
         List<CheckId> fired = failed.stream().map(CheckResult::checkId).distinct().sorted().toList();
         if (ruleParameterError) {
             return new Route(ResponseOutcome.ESCALATE,
                     ruleForLaterYear ? "rule_not_confirmed_next_year" : "invalid_rule_parameter",
-                    ResponseTemplates.ESCALATE, fired, false);
+                    ResponseTemplates.escalate(language), fired, false);
         }
         if (failed.isEmpty()) {
             return new Route(null, RELEASED, null, List.of(), false);
@@ -66,23 +74,23 @@ public final class BlockRouting {
         Set<CheckId> ids = new LinkedHashSet<>(fired);
         if (classification.messageClass() == MessageClass.REFUSE_OUT_OF_SCOPE && ids.contains(CheckId.SCOPE)) {
             return new Route(ResponseOutcome.REFUSE_OUT_OF_SCOPE, "block_scope",
-                    ResponseTemplates.refuseOutOfScope(classification.outOfScope()), fired, false);
+                    ResponseTemplates.refuseOutOfScope(classification.outOfScope(), language), fired, false);
         }
         if (ids.contains(CheckId.PROFILE_COMPLETE)) {
             return new Route(ResponseOutcome.ASK_PROFILE, "block_profile",
-                    ResponseTemplates.askProfile(classification.missingFields()), fired, false);
+                    ResponseTemplates.askProfile(classification.missingFields(), language), fired, false);
         }
         if (ids.equals(Set.of(CheckId.SOURCE_VALIDITY)) && failed.getFirst().reasonCode().equals("no_valid_source")) {
-            return new Route(ResponseOutcome.INFORM, "no_valid_source", ResponseTemplates.NO_VALID_SOURCE, fired,
+            return new Route(ResponseOutcome.INFORM, "no_valid_source", ResponseTemplates.noValidSource(language), fired,
                     true);
         }
         if (ids.contains(CheckId.NUMBER_MATCH)) {
             return new Route(ResponseOutcome.ESCALATE, "number_mismatch_after_regeneration",
-                    ResponseTemplates.ESCALATE, fired, false);
+                    ResponseTemplates.escalate(language), fired, false);
         }
         // sorted by name, as Python's sorted() over the id strings
         String names = fired.stream().map(CheckId::name).sorted().map(n -> n.toLowerCase(java.util.Locale.ROOT))
                 .collect(Collectors.joining("_"));
-        return new Route(ResponseOutcome.ESCALATE, "block_" + names, ResponseTemplates.ESCALATE, fired, false);
+        return new Route(ResponseOutcome.ESCALATE, "block_" + names, ResponseTemplates.escalate(language), fired, false);
     }
 }

@@ -68,6 +68,7 @@ import java.util.UUID;
  *     inputs ({@link #categorySelection}); {@code null} otherwise
  * @param needsStatement the demands-and-needs statement of a protection turn: its areas and the Needs Profile fields
  *     used (FR-18); {@code null} otherwise
+ * @param language the turn's answer language, {@code de} or {@code en} (Story 13.1; additive, schema version 1)
  */
 record ResponseAuditBody(
         @JsonProperty("class") MessageClass messageClass,
@@ -117,7 +118,8 @@ record ResponseAuditBody(
         boolean parameterProposal,
         boolean ruleParameterError,
         Map<String, Object> categorySelection,
-        Map<String, Object> needsStatement) {
+        Map<String, Object> needsStatement,
+        String language) {
 
     /**
      * The audit view of a Category Recommendation (FR-27): the category, its reasons and conflicts, and the selection

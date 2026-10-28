@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import de.financetool.PostgresIntegrationTest;
+import de.financetool.advisory.domain.Language;
 import de.financetool.advisory.domain.ResponseTemplates;
 import de.financetool.llm.LlmMessage;
 import de.financetool.llm.LlmRole;
@@ -155,7 +156,7 @@ class ChatEndToEndTest extends PostgresIntegrationTest {
                         "nlu-system.txt", fingerprint.fileHashes().get("config/prompts/nlu-system.txt"),
                         "nlu-few-shot.json", fingerprint.fileHashes().get("config/prompts/nlu-few-shot.json")))
                 .containsEntry("nluCacheHit", false).containsEntry("nluParseOk", true)
-                .containsEntry("instructionOverrideAttempt", false)
+                .containsEntry("instructionOverrideAttempt", false).containsEntry("language", "en")
                 .doesNotContainKeys("judgeVerdict", "judgeParseStatus");
         assertThat(JsonPath.<String>read((String) record.get("payload"), "$.body.nlu.request_type")).isEqualTo("other");
 
@@ -275,6 +276,61 @@ class ChatEndToEndTest extends PostgresIntegrationTest {
                 + "Customer: question 5\nAssistant: answer e\n\n"
                 + "<user_message>\ncurrent question\n</user_message>")
                 .doesNotContain("question 4").doesNotContain("unanswered");
+    }
+
+    /** The {@code RESPONSE} record's body of the released answer {@code answer} (JSON). */
+    Map<String, Object> auditBody(String answer) {
+        String payload = jdbc.queryForObject("SELECT payload::text FROM audit_records WHERE kind = 'RESPONSE' "
+                + "AND turn_id = ?::uuid", String.class, (String) JsonPath.read(answer, "$.id"));
+        return JsonPath.read(payload, "$.body");
+    }
+
+    static final String GERMAN_OUT_OF_SCOPE = "Soll ich einen Bausparvertrag abschließen?";
+
+    @Test
+    void aGermanQuestionGetsTheGermanRefusalAndChipsAndAnAmbiguousFollowUpStaysGerman() throws Exception {
+        MockHttpSession lena = login(mvc, "p-lena");
+        llm.nluAnswer(GERMAN_OUT_OF_SCOPE, ClassificationEndToEndTest.KNOCK_OUT_NLU.formatted("false")
+                .replace("derivative_or_certificate", "building_society_savings"));
+        llm.answer("Bausparverträge sind nicht Teil dieses Service.");
+        String answer = content(answer(lena, ask(lena, GERMAN_OUT_OF_SCOPE)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.outcome").value("REFUSE_OUT_OF_SCOPE")));
+
+        assertThat(JsonPath.<String>read(answer, "$.text")).isEqualTo(
+                ResponseTemplates.refuseOutOfScope(List.of("building_society_savings"), Language.DE))
+                .startsWith("Dazu kann ich nicht beraten. Nicht Teil dieses Service: Bausparverträge.");
+        assertThat(JsonPath.<List<String>>read(answer, "$.suggestions"))
+                .isEqualTo(ResponseTemplates.refusalSuggestions(Language.DE));
+        assertThat(auditBody(answer)).containsEntry("language", "de").containsEntry("route", "block_scope")
+                .containsEntry("promptHashes", promptHashes("REFUSE_OUT_OF_SCOPE"));
+        assertThat(llm.calls(LlmRole.PHRASING).getLast().messages().get(0).content())
+                .contains("Answer in German, the language of the customer's message")
+                .doesNotContain(Language.PLACEHOLDER);
+
+        // "150 EUR?" has no language cues: it keeps the previous released turn's language
+        llm.answer("Ein ETF ist ein Fonds, der an der Börse gehandelt wird.");
+        String followUp = content(answer(lena, ask(lena, "150 EUR?")).andExpect(status().isOk()));
+        assertThat(auditBody(followUp)).containsEntry("language", "de");
+        assertThat(llm.calls(LlmRole.PHRASING).getLast().messages().get(0).content()).contains("Answer in German");
+    }
+
+    @Test
+    void aGermanDraftWithAnUnsourcedNumberIsRegeneratedInGermanAndEscalatesWithTheGermanNotice() throws Exception {
+        MockHttpSession lena = login(mvc, "p-lena");
+        llm.answer("Ein ETF kostet Sie etwa 9.999 EUR im Jahr.");
+        String answer = content(answer(lena, ask(lena, "Was kostet ein ETF?")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.outcome").value("ESCALATE")));
+
+        Map<String, Object> body = auditBody(answer);
+        assertThat(body).containsEntry("language", "de").containsEntry("regenerated", true)
+                .containsEntry("route", "number_mismatch_after_regeneration");
+        assertThat(JsonPath.<String>read(answer, "$.text")).isEqualTo(ResponseTemplates.escalate(Language.DE));
+        assertThat((String) body.get("regenerationFix")).contains("9.999")
+                .endsWith("Rewrite the whole answer. Answer in German.");
+        List<StubLlmConfiguration.Call> phrasing = llm.calls(LlmRole.PHRASING);
+        assertThat(phrasing).hasSize(2);
+        assertThat(phrasing.getLast().messages().getLast().content()).endsWith("Answer in German.");
+        assertThat(phrasing.getLast().messages().getFirst().content()).contains("Answer in German");
     }
 
     @Test

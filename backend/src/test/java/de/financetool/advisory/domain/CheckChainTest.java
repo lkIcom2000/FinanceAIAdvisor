@@ -32,9 +32,10 @@ class CheckChainTest {
             boolean retrieval, int retrieved, Map<String, Object> category) {
     }
 
+    /** The English cases of the golden comparison; the German ones (Story 13.1) are {@link #germanCases()}. */
     static List<Case> cases() {
         List<Map<String, Object>> raw = read("/checks/cases.json");
-        return raw.stream().map(c -> new Case((String) c.get("name"), (String) c.get("text"),
+        return raw.stream().filter(c -> !c.containsKey("language")).map(c -> new Case((String) c.get("name"), (String) c.get("text"),
                 MessageClass.valueOf((String) c.get("class")), (String) c.getOrDefault("user", ""),
                 (String) c.getOrDefault("topic", "other"), list(c.get("oos")),
                 (Boolean) c.getOrDefault("retrieval", true),
@@ -93,6 +94,49 @@ class CheckChainTest {
                     new TypeReference<>() {
                     });
             assertThat(details).as(id + " details").isEqualTo(expected.get("details"));
+        }
+    }
+
+    /**
+     * Story 13.1: the German cases of {@code checks/cases.json} ({@code "language": "de"}), which the experiment never
+     * ran, so {@code golden.json} has no entry for them; each names the expected reason code of the checks it is
+     * about ({@code ""} = passed), with its own sourced values for the Number Check.
+     */
+    static Stream<Arguments> germanCases() {
+        List<Map<String, Object>> raw = read("/checks/cases.json");
+        return raw.stream().filter(c -> "de".equals(c.get("language"))).map(c -> Arguments.of(c.get("name"), c));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("germanCases")
+    @SuppressWarnings("unchecked")
+    void germanDraftsAreCheckedLikeEnglishOnes(String name, Map<String, Object> c) {
+        MessageClass cls = MessageClass.valueOf((String) c.get("class"));
+        List<java.math.BigDecimal> sourced = list(c.get("sourced")).stream().map(java.math.BigDecimal::new).toList();
+        ChainResult result = CheckChain.run((String) c.get("text"), new CheckChain.Facts(cls,
+                (String) c.getOrDefault("user", ""), cls == MessageClass.RECOMMEND_CATEGORY, map(c.get("category")),
+                (String) c.getOrDefault("topic", "other"), list(c.get("oos")),
+                (Boolean) c.getOrDefault("retrieval", true), ((Number) c.getOrDefault("retrieved", 0)).intValue(),
+                sourced));
+        ((Map<String, String>) c.get("expect")).forEach((id, reason) -> {
+            CheckResult actual = result.get(CheckId.valueOf(id));
+            assertThat(actual.applicable()).as(id + " applicable").isTrue();
+            assertThat(actual.reasonCode()).as(id + " reason").isEqualTo(reason);
+            assertThat(actual.passed()).as(id + " passed").isEqualTo(reason.isEmpty());
+        });
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void everyCheckThatCanFailOnWordingHasAFailingAndAPassingGermanCase() {
+        List<Map<String, String>> expectations = germanCases()
+                .map(a -> (Map<String, String>) ((Map<String, Object>) a.get()[1]).get("expect")).toList();
+        for (CheckId id : IMPLEMENTED) {
+            if (id == CheckId.DOCUMENTATION) { // structural: the Core selection, not the wording
+                continue;
+            }
+            assertThat(expectations).as(id + " fails in German").anyMatch(e -> !e.getOrDefault(id.name(), "").isEmpty());
+            assertThat(expectations).as(id + " passes in German").anyMatch(e -> "".equals(e.get(id.name())));
         }
     }
 

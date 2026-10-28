@@ -61,7 +61,7 @@ class CheckStages {
         }
         Optional<String> fix = RegenerationFix.of(checks.shadow().failed(), PromptStage.passagesInPrompt(turn),
                 turn.prompt().payload().toolResults(), CheckChain.investTopic(turn.nlu().extraction().topic()),
-                CheckChain.protectionTopic(turn.nlu().extraction().topic()));
+                CheckChain.protectionTopic(turn.nlu().extraction().topic()), turn.language());
         if (fix.isEmpty()) {
             return turn.ran(TurnStage.RULE_ENGINE);
         }

@@ -68,6 +68,16 @@ public final class RegenerationFix {
      */
     public static Optional<String> of(List<CheckResult> failed, int passagesInPrompt, String toolResults,
             boolean costsApply, boolean needs) {
+        return of(failed, passagesInPrompt, toolResults, costsApply, needs, null);
+    }
+
+    /**
+     * @param language the turn's answer language (Story 13.1): the fix sentences stay English (model-facing) and end
+     *     with the answer-language instruction, so the rewrite keeps the language; {@code null} for none
+     */
+    public static Optional<String> of(List<CheckResult> failed, int passagesInPrompt, String toolResults,
+            boolean costsApply, boolean needs, Language language) {
+        String ending = " Rewrite the whole answer." + (language == null ? "" : " " + language.instruction());
         List<String> fixes = new ArrayList<>();
         boolean restated = false;
         boolean statement = false;
@@ -102,7 +112,7 @@ public final class RegenerationFix {
                         + passagesInPrompt + "]. If the SOURCES do not cover the question, say so.");
             }
         }
-        return fixes.isEmpty() ? Optional.empty() : Optional.of(String.join(" ", fixes) + " Rewrite the whole answer.");
+        return fixes.isEmpty() ? Optional.empty() : Optional.of(String.join(" ", fixes) + ending);
     }
 
     /** Adds the Core results after the fix that refers to them, once per fix message. */

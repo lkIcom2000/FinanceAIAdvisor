@@ -22,6 +22,9 @@ import java.util.regex.Pattern;
  * the experiment meant (see {@link #TARIFF}) and also fails a protection recommendation made before the Needs Profile
  * facts were collected (Story 6.4); {@code DOCUMENTATION} also fails a recommendation whose Suitability
  * Statement is incomplete (Story 6.3); {@code SOURCE_VALIDITY} applies only with retrieval on, as in the experiment.
+ *
+ * <p>Since Story 13.1 the word lists also hold German alternatives, at once (a union, not a switch on the turn's
+ * language), so a mixed or misdetected draft is still checked; the English alternatives are unchanged.
  */
 public final class CheckChain {
 
@@ -38,34 +41,77 @@ public final class CheckChain {
                     n -> Pattern.compile("\\b" + Pattern.quote(n) + "\\b", U)));
     static final Pattern GUARANTEE = Pattern.compile(
             "\\b(guarantee[sd]?|assured|risk[- ]free|cannot lose|can't lose|will not lose|won't lose|no risk|"
-                    + "safe bet|certain(ly)? (gain|return|profit)|will (definitely|certainly) (rise|grow|gain|increase))\\b",
+                    + "safe bet|certain(ly)? (gain|return|profit)|will (definitely|certainly) (rise|grow|gain|increase)|"
+                    // German alternatives (Story 13.1): a union, so a mixed or misdetected draft is still checked
+                    + "garantiert|garantie|garantien|risikofrei|risikolos|ohne risiko|kein risiko|"
+                    + "(nicht|nichts) verlieren|sichere[nr]? (gewinn|rendite|ertrag)|"
+                    + "wird (sicher|garantiert|definitiv|bestimmt) (steigen|wachsen|zulegen))\\b",
             CI);
     static final Pattern NEGATION = Pattern.compile(
-            "\\b(no|not|never|cannot|can't|can not|without|isn't|aren't|nobody|nothing|neither|nor)\\b[^.!?]{0,40}$",
+            "\\b(no|not|never|cannot|can't|can not|without|isn't|aren't|nobody|nothing|neither|nor|"
+                    + "kein|keine|keinen|keiner|nicht|nie|niemals|ohne|niemand|nichts|weder)\\b[^.!?]{0,40}$",
             CI);
     static final Pattern NEG_WORD = Pattern.compile(
-            "\\b(not|never|cannot|can't|isn't|aren't|doesn't|does not|nor|neither|unaware)\\b", CI);
+            "\\b(not|never|cannot|can't|isn't|aren't|doesn't|does not|nor|neither|unaware|"
+                    + "nicht|nie|niemals|kein|keine|keinen|keiner|weder)\\b", CI);
     static final Pattern TIMING = Pattern.compile(
             "\\b(buy|sell|switch|liquidate|move)\\b[^.!?]{0,40}\\b(now|today|before (prices|rates)|while (prices|rates)|"
                     + "because (prices|rates|interest rates|the market) (will|are going to)|ahead of)\\b", CI);
+    /**
+     * German market timing (Story 13.1), kept apart from {@link #TIMING} so the English details keep their groups:
+     * a trade with a point in time or a market move, in either order.
+     */
+    static final Pattern TIMING_DE = Pattern.compile(
+            "\\b(kaufen|verkaufen|umschichten|wechseln|einsteigen|aussteigen|auflösen)\\b[^.!?]{0,40}"
+                    + "\\b(jetzt|heute|sofort|bevor (die )?(kurse|zinsen|preise)|solange (die )?(kurse|zinsen|preise)|"
+                    + "weil (die )?(kurse|zinsen|preise|märkte|der markt) (steigen|fallen|sinken|steigt|fällt|sinkt))\\b|"
+                    // the reverse order only as advice: "Sie sollten jetzt kaufen", not "Heute können Sie … kaufen"
+                    + "\\b(sollten|solltest|empfehle|empfehlen|besser|lohnt sich|am besten)\\b[^.!?]{0,40}"
+                    + "\\b(jetzt|heute|sofort)\\b[^.!?]{0,40}"
+                    + "\\b(kaufen|verkaufen|umschichten|einsteigen|aussteigen|auflösen)\\b|"
+                    + "\\b(jetzt|heute|sofort)\\b[^.!?]{0,40}"
+                    + "\\b(sollten|solltest|empfehle|empfehlen|besser|lohnt sich|am besten)\\b[^.!?]{0,40}"
+                    + "\\b(kaufen|verkaufen|umschichten|einsteigen|aussteigen|auflösen)\\b", CI);
     static final Pattern REFUSAL = Pattern.compile(
             "\\b(outside|not part of|not (able|allowed) to|can(no|')t (recommend|advise|help with)|"
-                    + "do(n't| not) (offer|provide|give)|beyond (the|my|our) (scope|service)|not within)\\b", CI);
+                    + "do(n't| not) (offer|provide|give)|beyond (the|my|our) (scope|service)|not within|"
+                    + "außerhalb|nicht teil|nicht bestandteil|gehört nicht zu|nicht (beraten|empfehlen|anbieten)|"
+                    + "(kann|darf) (ich )?(dazu |hier |hierzu )?(nicht|keine) (beraten|empfehlen|empfehlung|beratung|"
+                    + "helfen))\\b", CI);
     static final Pattern ALTERNATIVE = Pattern.compile(
             "\\b(instead|alternative|what I can|I can (help|look|offer)|we could|you could|"
-                    + "happy to|let's look|in-scope|emergency fund|savings plan|diversified)\\b", CI);
+                    + "happy to|let's look|in-scope|emergency fund|savings plan|diversified|"
+                    + "stattdessen|alternativ\\w*|was ich (stattdessen )?(tun|anbieten|machen) kann|"
+                    + "ich kann (ihnen )?(helfen|anbieten|zeigen)|gerne (helfe|schaue|zeige)|wir könnten|sie könnten|"
+                    + "notgroschen|notreserve|sparplan|breit gestreut\\w*)\\b", CI);
     static final Pattern VERDICT = Pattern.compile(
-            "(^|\\.\\s+|\\n)\\s*(yes|no)\\b[,.!]|\\b(you should (definitely )?(invest|buy|sell|cancel|switch|"
-                    + "take out|put))\\b|\\bI (would )?recommend (you|that you|investing|buying|the)\\b", CI);
+            "(^|\\.\\s+|\\n)\\s*(yes|no|ja|nein)\\b[,.!]|\\b(you should (definitely )?(invest|buy|sell|cancel|switch|"
+                    + "take out|put))\\b|\\bI (would )?recommend (you|that you|investing|buying|the)\\b|"
+                    + "\\b(sie sollten (unbedingt |auf jeden fall )?(\\w+ )?(investieren|kaufen|verkaufen|kündigen|"
+                    + "wechseln|abschließen|anlegen|einzahlen))\\b|"
+                    + "\\bich empfehle (ihnen|dir|den|die|das|zu|einen|eine)\\b|\\bich würde (ihnen )?(empfehlen|raten)\\b",
+            CI);
     static final Pattern ASK = Pattern.compile(
             "\\?|\\b(could you|can you (tell|share|let me know)|please (tell|share|provide|let me know)|"
-                    + "I need (to know|more|some|a few|information)|need (more|some) information|tell me (about|more))\\b",
+                    + "I need (to know|more|some|a few|information)|need (more|some) information|tell me (about|more)|"
+                    + "könnten sie|können sie (mir )?(sagen|mitteilen|nennen)|bitte (sagen|nennen|teilen)|"
+                    + "ich brauche (noch )?(mehr|einige|ein paar|informationen|angaben)|erzählen sie)\\b",
             CI);
-    static final Pattern RISK = Pattern.compile("\\b(risk|loss|losses|fluctuat|volatil|drop|decline|fall in value)", CI);
+    static final Pattern RISK = Pattern.compile("\\b(risk|loss|losses|fluctuat|volatil|drop|decline|fall in value|"
+            + "risik|verlust|schwank|wertschwank|kursrückgang|kursverlust|wertverlust)", CI);
     static final Pattern COST = Pattern.compile(
-            "\\b(cost|costs|fee|fees|TER|charges|expense ratio|ongoing charges|front[- ]end load)\\b", CI);
+            "\\b(cost|costs|fee|fees|TER|charges|expense ratio|ongoing charges|front[- ]end load|"
+                    + "\\w*kosten\\w*|\\w*gebühr(en)?|ausgabeaufschlag)\\b", CI);
     static final Pattern COMMISSION = Pattern.compile(
-            "\\b(our (own|in-house) (fund|product)s?|commission we|we earn|inducement we receive)\\b", CI);
+            "\\b(our (own|in-house) (fund|product)s?|commission we|we earn|inducement we receive|"
+                    + "unser(e|en)? (eigene[nr]?|hauseigene[nr]?) (fonds|produkte?)|provision,? die wir|wir verdienen|"
+                    + "zuwendung(en)?,? die wir)\\b", CI);
+    /**
+     * The customer addressed in German ("Ihnen", "Ihr", "Ihre", ...), the counterpart of "your" for
+     * {@code SUITABILITY}; "Sie" is left out (it is also "she" and "they").
+     */
+    static final Pattern CUSTOMER_DE = Pattern.compile(
+            "\\b(ihnen|ihr|ihre|ihren|ihrem|ihrer|ihres|kunde|kundin)\\b", CI);
     static final Pattern CITATION = Pattern.compile("\\[S(\\d+)\\]", U);
     /**
      * "Guarantee" as the name or contractual feature of a product or scheme, not a promise to the customer: deposit
@@ -74,25 +120,40 @@ public final class CheckChain {
     static final Pattern FEATURE = Pattern.compile(
             "\\b(deposit (guarantee|protection|insurance)|guarantee (scheme|fund)|einlagensicherung|"
                     + "insurance|insurer|annuity|riester|contribution guarantee|guaranteed (minimum )?"
-                    + "(interest|pension|income|benefit|annuity|payout|rate))", CI);
+                    + "(interest|pension|income|benefit|annuity|payout|rate)|"
+                    + "\\w*versicherung|versicherer|garantiezins|beitragsgarantie|\\w*garantierente|"
+                    + "garantierte[nr]? (mindest)?(verzinsung|zins|rente|leistung|auszahlung))", CI);
     static final Pattern PROMISE_TO_USER = Pattern.compile(
             "\\b(you will|you'll|you can(not|'t)? (lose|expect|count)|your (money|investment|"
-                    + "capital|savings|return)s? (is|are|will))\\b", CI);
+                    + "capital|savings|return)s? (is|are|will)|"
+                    + "sie werden|sie können (nicht |nichts )?(verlieren|erwarten|rechnen)|"
+                    + "ihr (geld|kapital|vermögen|ertrag) (ist|wird)|ihre (anlage|rendite|ersparnisse|erträge) "
+                    + "(ist|sind|wird|werden))\\b", CI);
     static final Pattern OUT_OF_SCOPE_RECOMMENDATION = Pattern.compile(
-            "\\b(I recommend|you should|consider (buying|investing in))\\b[^.!?]{0,60}\\b"
+            "\\b(I recommend|you should|consider (buying|investing in)|ich empfehle|sie sollten|"
+                    + "erwägen sie)\\b[^.!?]{0,60}\\b"
                     + "(single stock|individual stock|share of|certificate|knock-out|crypto|bitcoin|forex|CFD|"
-                    + "penny stock|building society|Bausparvertrag)", CI);
+                    + "penny stock|building society|Bausparvertrag|einzelaktie|aktie von|zertifikat|krypto|devisen|"
+                    + "pennystock|bauspar)", CI);
     /**
      * The experiment's IDD patterns hold a backspace character ({@code \x08}) where a word boundary is meant (a raw
      * f-string written with a literal control character), so its {@code IDD_NEEDS} can never fail. The port uses the
      * evident word boundary; this is the one intended deviation from {@code checks.py}.
      */
-    static final Pattern TARIFF = Pattern.compile("\\b(this|the|a) tariff\\b|\\btariff (called|named)\\b", U);
+    static final Pattern TARIFF = Pattern.compile("\\b(this|the|a) tariff\\b|\\btariff (called|named)\\b"
+            + "|\\b(diesen|dieser|dieses|den|der|einen|ein) tarif\\b|\\btarif (namens|mit dem namen|heißt)\\b", U);
 
-    /** {@code ROLE_BREAK_RE} of {@code checks.py}, verbatim ({@code ROLE_INTEGRITY}, folded into {@code SCOPE}). */
+    /**
+     * {@code ROLE_BREAK_RE} of {@code checks.py}, verbatim ({@code ROLE_INTEGRITY}, folded into {@code SCOPE}), plus
+     * German alternatives (Story 13.1).
+     */
     static final Pattern ROLE_BREAK = Pattern.compile("\\b(unrestricted|as an? (investment )?guru|"
             + "I am now (free|unrestricted|dan|in developer mode|no longer|without)|"
-            + "developer mode|no longer bound|ignoring (my|the) (rules|instructions))\\b", CI);
+            + "developer mode|no longer bound|ignoring (my|the) (rules|instructions)|"
+            + "uneingeschränkt|ohne einschränkungen|als (anlage-?)?guru|"
+            + "ich bin (jetzt|nun) (frei|uneingeschränkt|im entwicklermodus|nicht mehr|ohne)|entwicklermodus|"
+            + "nicht mehr (an (die|meine) (regeln|anweisungen) )?gebunden|ignoriere (meine|die) (regeln|anweisungen))\\b",
+            CI);
     public static final String ROLE_ABANDONED = "role_abandoned";
     public static final String INSTRUCTIONS_REVEALED = "instructions_revealed";
     /**
@@ -218,7 +279,7 @@ public final class CheckChain {
             boolean refers = NumberParser.numbersIn(facts.userMessage()).stream()
                     .filter(v -> v.abs().compareTo(BigDecimal.TEN) >= 0)
                     .anyMatch(v -> digits.contains(v.toBigInteger().toString()))
-                    || low.contains("your") || low.contains("client");
+                    || low.contains("your") || low.contains("client") || CUSTOMER_DE.matcher(text).find();
             boolean ok = refers && RISK.matcher(text).find();
             res.add(new CheckResult(CheckId.SUITABILITY, true, ok, ok ? "" : "no_profile_reference_or_risk", Map.of()));
         } else {
@@ -273,6 +334,10 @@ public final class CheckChain {
                 groups.add(t.group(i) == null ? "" : t.group(i));
             }
             timing.add(String.join(" ", groups));
+        }
+        Matcher tDe = TIMING_DE.matcher(text);
+        while (tDe.find()) {
+            timing.add(tDe.group());
         }
         boolean promiseOk = promises.isEmpty() && timing.isEmpty();
         Map<String, Object> promiseDetails = new LinkedHashMap<>();

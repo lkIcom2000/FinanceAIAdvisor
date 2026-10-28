@@ -85,7 +85,7 @@ class ReleaseStage {
                 proposal ? new ChatMessage.Proposal(turnTools.spec(), ChatMessage.Proposal.Status.OPEN) : null,
                 figures, released.outcome() == ResponseOutcome.DETECT_TRAP
                         ? ResponseTemplates.premiseCallout(released.classification().unverifiedPremises(),
-                                released.userText()) : null, assessment,
+                                released.userText(), released.language()) : null, assessment,
                 recommended ? turnTools.statement() : null, needsStated ? turnTools.needsStatement() : null,
                 draftReleased ? turnTools.range() : null,
                 followUp(released, draftReleased, proposal, context.agentConfig().dataExposure()));
@@ -133,7 +133,7 @@ class ReleaseStage {
                         turnTools.spec(), proposal, turnTools.ruleParameterError(),
                         ResponseAuditBody.categorySelection(turnTools.recommendation() == null ? null
                                 : turnTools.recommendation().details()),
-                        NeedsStatements.audit(turnTools.needs()))));
+                        NeedsStatements.audit(turnTools.needs()), released.language().code())));
         return answer;
     }
 

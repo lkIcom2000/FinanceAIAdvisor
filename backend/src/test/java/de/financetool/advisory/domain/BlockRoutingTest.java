@@ -137,6 +137,19 @@ class BlockRoutingTest {
     }
 
     @Test
+    void theRegenerationFixEndsWithTheAnswerLanguageAndTheTemplatesAreInIt() {
+        assertThat(RegenerationFix.of(List.of(failed(CheckId.NUMBER_MATCH, "number_mismatch")), 0, "", true, false,
+                Language.DE)).hasValueSatisfying(fix -> assertThat(fix).endsWith(
+                        "Rewrite the whole answer. Answer in German."));
+        Classification refuse = new Classification(MessageClass.REFUSE_OUT_OF_SCOPE, List.of(), List.of(), List.of(),
+                List.of("crypto"), "investment_decision");
+        assertThat(BlockRouting.route(List.of(failed(CheckId.SCOPE, "refusal_or_alternative_missing")), refuse, false,
+                false, Language.DE).text()).startsWith("Dazu kann ich nicht beraten. Nicht Teil dieses Service: Kryptowerte.");
+        assertThat(BlockRouting.route(List.of(failed(CheckId.NUMBER_MATCH, "number_mismatch")), refuse, false, false,
+                Language.DE).text()).isEqualTo(ResponseTemplates.ESCALATE_DE);
+    }
+
+    @Test
     void theRegenerationFixIsTheExperimentsTargetedText() {
         assertThat(RegenerationFix.of(List.of(failed(CheckId.SOURCE_VALIDITY, "invalid_citation")), 2)).contains(
                 "Base the explanation on the SOURCES and cite each source you use as [S1] to [S2]. If the SOURCES "

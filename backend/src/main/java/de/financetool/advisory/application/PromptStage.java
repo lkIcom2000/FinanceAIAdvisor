@@ -5,6 +5,7 @@ import de.financetool.advisory.adapter.PromptFiles;
 import de.financetool.advisory.domain.ChatMessage;
 import de.financetool.advisory.domain.ClassInstruction;
 import de.financetool.advisory.domain.ExposureFilter;
+import de.financetool.advisory.domain.Language;
 import de.financetool.advisory.domain.NumberLedger;
 import de.financetool.advisory.domain.NumberParser;
 import de.financetool.advisory.domain.PhrasingPrompt;
@@ -52,15 +53,22 @@ class PromptStage {
     /**
      * The one previous released turn before {@code question} as the exposure filter lets it through at the
      * configured level (FR-63), with its Core figures read back from the evidence store (AD-2), never recomputed.
-     * The NLU stage builds it once; the NLU and the phrasing prompt get the same turn.
+     * The NLU stage builds it once; the NLU and the phrasing prompt get the same turn. Its language is read from the
+     * stored (unfiltered) turn: the fallback of a message without language cues (Story 13.1).
+     *
+     * @param turn the filtered previous turn, empty without one or when the level lets none through
+     * @param language the previous turn's language; {@code null} without a previous turn
      */
-    Optional<PromptPayload.HistoryTurn> previousTurn(RequestContext context, PersonaScope scope,
-            ChatMessage question) {
+    record Earlier(Optional<PromptPayload.HistoryTurn> turn, Language language) {
+    }
+
+    Earlier earlier(RequestContext context, PersonaScope scope, ChatMessage question) {
         ExposureFilter.Level level = level(context.agentConfig().dataExposure());
-        return chats.releasedTurnsBefore(scope, question.id(), ExposureFilter.HISTORY_TURNS).stream()
-                .reduce((first, second) -> second)
-                .flatMap(stored -> ExposureFilter.previousTurn(level, stored,
-                        stored.provIds().isEmpty() ? List.of() : evidence.figures(scope, stored.provIds())));
+        Optional<ExposureFilter.StoredTurn> stored = chats.releasedTurnsBefore(scope, question.id(),
+                ExposureFilter.HISTORY_TURNS).stream().reduce((first, second) -> second);
+        return new Earlier(stored.flatMap(s -> ExposureFilter.previousTurn(level, s,
+                        s.provIds().isEmpty() ? List.of() : evidence.figures(scope, s.provIds()))),
+                stored.map(s -> Language.of(s.userText(), s.agentText())).orElse(null));
     }
 
     /**
@@ -85,7 +93,7 @@ class PromptStage {
                 statement == null ? null : statement.category(),
                 statement == null ? "" : String.join("; ", statement.conflicts()));
         PhrasingPrompt phrasing = PhrasingPrompt.build(rolePrompt.text(), rules.text(), classInstruction, payload,
-                agent.decoding().numCtx(), agent.decoding().numPredict());
+                agent.decoding().numCtx(), agent.decoding().numPredict(), turn.language());
         Map<String, String> hashes = Map.of(rolePrompt.fileName(), rolePrompt.hash(), rules.fileName(), rules.hash(),
                 instruction.fileName(), instruction.hash());
         Map<String, BigDecimal> parameters = new LinkedHashMap<>();

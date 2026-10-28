@@ -1,6 +1,7 @@
 package de.financetool.advisory.application;
 
 import de.financetool.advisory.domain.ChatMessage;
+import de.financetool.advisory.domain.Language;
 import de.financetool.advisory.domain.TurnStage;
 import de.financetool.advisory.domain.TurnState;
 import de.financetool.shared.PersonaScope;
@@ -140,7 +141,10 @@ public class TurnOrchestrator {
      * here once, through the exposure filter (FR-63), and kept for the phrasing prompt; the dialog state ran first.
      */
     TurnState nlu(RequestContext context, PersonaScope scope, ChatMessage question, TurnState turn) {
-        TurnState withPrevious = turn.withPrevious(promptStage.previousTurn(context, scope, question).orElse(null));
+        PromptStage.Earlier earlier = promptStage.earlier(context, scope, question);
+        // Story 13.1: the turn's language, once, before classification; no cues → the previous turn's, else English
+        TurnState withPrevious = turn.withPrevious(earlier.turn().orElse(null))
+                .withLanguage(Language.detect(turn.userText(), earlier.language()));
         return withPrevious.withNlu(nluExtractor.extract(context.agentConfig(), scope, withPrevious.userText(),
                         withPrevious.previous()))
                 .ran(TurnStage.NLU);

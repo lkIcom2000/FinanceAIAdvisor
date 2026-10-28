@@ -239,7 +239,7 @@ class TurnOrchestratorTest {
                 CheckId.NO_PRODUCT_NAMING, CheckId.NO_GUARANTEE_OR_TIMING, CheckId.NUMBER_MATCH);
         assertThat(answer.checks()).allMatch(ChatMessage.Check::passed);
         assertThat(sentMessages().get(0).content())
-                .isEqualTo("ROLE\n\nRULES\n\nCLASS REFUSE_OUT_OF_SCOPE derivative or certificate");
+                .isEqualTo("ROLE\nAnswer in English.\n\nRULES\n\nCLASS REFUSE_OUT_OF_SCOPE derivative or certificate");
         assertThat(body.promptHashes()).containsEntry("class-REFUSE_OUT_OF_SCOPE.txt", "h-REFUSE_OUT_OF_SCOPE");
     }
 
@@ -358,7 +358,7 @@ class TurnOrchestratorTest {
 
         List<LlmMessage> messages = sentMessages();
         assertThat(messages).hasSize(2);
-        assertThat(messages.get(0)).isEqualTo(LlmMessage.system("ROLE\n\nRULES\n\nCLASS INFORM this product"));
+        assertThat(messages.get(0)).isEqualTo(LlmMessage.system("ROLE\nAnswer in English.\n\nRULES\n\nCLASS INFORM this product"));
         assertThat(messages.get(1).author()).isEqualTo(LlmMessage.Author.USER);
         assertThat(messages.get(1).content()).isEqualTo("<user_message>\nWhat is an ETF?\n</user_message>");
     }
@@ -384,7 +384,7 @@ class TurnOrchestratorTest {
         assertThat(messages.get(1).content()).isEqualTo("EARLIER CONVERSATION (oldest first):\n"
                 + "Customer: I'm 30s and have 10,000\u201315,000 EUR.\nAssistant: Noted.\n\n"
                 + "<user_message>\nWhat is an ETF?\n</user_message>");
-        assertThat(messages.get(0).content()).startsWith("ROLE\n\nRULES\n\nCLASS INFORM");
+        assertThat(messages.get(0).content()).startsWith("ROLE\nAnswer in English.\n\nRULES\n\nCLASS INFORM");
         verify(nluExtractor).extract(any(), eq(scope), eq(question.text()), eq(new PromptPayload.HistoryTurn(
                 "I'm 30s and have 10,000\u201315,000 EUR.", "Noted.")));
     }
@@ -469,7 +469,7 @@ class TurnOrchestratorTest {
         run("An ETF is a fund.", noneContext, false);
 
         List<LlmMessage> messages = sentMessages();
-        assertThat(messages.get(0).content()).isEqualTo("ROLE\n\nRULES\n\nCLASS INFORM this product");
+        assertThat(messages.get(0).content()).isEqualTo("ROLE\nAnswer in English.\n\nRULES\n\nCLASS INFORM this product");
         assertThat(messages.get(1).content())
                 .isEqualTo("<user_message>\n" + ExposureFilter.WITHHELD + "\n</user_message>");
         ResponseAuditBody body = auditBody();
@@ -606,7 +606,7 @@ class TurnOrchestratorTest {
         ResponseAuditBody body = auditBody();
         assertThat(body.regenerated()).isTrue();
         assertThat(body.regenerationFix()).isEqualTo("Base the explanation on the SOURCES and cite each source you use "
-                + "as [S1] to [S1]. If the SOURCES do not cover the question, say so. Rewrite the whole answer.");
+                + "as [S1] to [S1]. If the SOURCES do not cover the question, say so. Rewrite the whole answer. Answer in English.");
         assertThat(body.regeneratedText()).isEqualTo("Fixed answer [S1].");
         assertThat(body.truncated()).as("the regeneration was truncated").isTrue();
         assertThat(body.firstDraft()).isEqualTo("Answer [S3].");
@@ -713,7 +713,7 @@ class TurnOrchestratorTest {
         assertThat(sent.get(2)).isEqualTo(LlmMessage.assistant("Answer [S3]."));
         assertThat(sent.get(3)).isEqualTo(LlmMessage.user("Base the explanation on the SOURCES and cite each source "
                 + "you use as [S1] to [S1]. If the SOURCES do not cover the question, say so. Rewrite the whole "
-                + "answer."));
+                + "answer. Answer in English."));
         assertThat(released.checks().regenerated()).isTrue();
         assertThat(released.checks().shadow().get(CheckId.SOURCE_VALIDITY).reasonCode())
                 .isEqualTo("invalid_citation");
@@ -1054,7 +1054,7 @@ class TurnOrchestratorTest {
         assertThat(sentMessages().get(3)).isEqualTo(LlmMessage.user("Your draft used numbers that are not in TOOL "
                 + "RESULTS, SOURCES or the user's message: 523. Use only the numbers from TOOL RESULTS, SOURCES or the "
                 + "user's message. Do not calculate. TOOL RESULTS (deterministic calculations; use these numbers "
-                + "exactly):\nwithdrawals: 522 Rewrite the whole answer."));
+                + "exactly):\nwithdrawals: 522 Rewrite the whole answer. Answer in English."));
         assertThat(released.checks().shadow().get(CheckId.NUMBER_MATCH).reasonCode()).isEqualTo("number_mismatch");
         assertThat(released.checks().finalResults().get(CheckId.NUMBER_MATCH).passed()).isTrue();
         assertThat(released.outcome()).isEqualTo(ResponseOutcome.INFORM);

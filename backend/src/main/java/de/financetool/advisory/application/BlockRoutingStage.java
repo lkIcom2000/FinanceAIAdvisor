@@ -30,7 +30,7 @@ class BlockRoutingStage {
                     .passedThrough(TurnStage.BLOCK_ROUTING);
         }
         BlockRouting.Route route = BlockRouting.route(checks.finalResults().failed(), turn.classification(),
-                turn.tools().ruleParameterError(), turn.tools().ruleForLaterYear());
+                turn.tools().ruleParameterError(), turn.tools().ruleForLaterYear(), turn.language());
         TurnState routed = turn.withChecks(checks.withRoute(route));
         if (route.released()) {
             String text = checks.routedDraft();
@@ -39,7 +39,7 @@ class BlockRoutingStage {
                     .ran(TurnStage.BLOCK_ROUTING);
         }
         List<String> chips = route.noValidSource()
-                ? List.of(NoValidSource.suggestion(turn.nlu().extraction().topic(), turn.userText()))
+                ? List.of(NoValidSource.suggestion(turn.nlu().extraction().topic(), turn.userText(), turn.language()))
                 : chips(route.outcome(), turn);
         return routed.withOutcome(route.outcome(), route.text(), chips, route.noValidSource())
                 .ran(TurnStage.BLOCK_ROUTING);
@@ -51,8 +51,9 @@ class BlockRoutingStage {
      */
     private static List<String> chips(ResponseOutcome outcome, TurnState turn) {
         return switch (outcome) {
-            case REFUSE_OUT_OF_SCOPE -> ResponseTemplates.REFUSAL_SUGGESTIONS;
-            case DETECT_TRAP -> List.of(NoValidSource.suggestion(turn.nlu().extraction().topic(), turn.userText()));
+            case REFUSE_OUT_OF_SCOPE -> ResponseTemplates.refusalSuggestions(turn.language());
+            case DETECT_TRAP -> List.of(NoValidSource.suggestion(turn.nlu().extraction().topic(), turn.userText(),
+                    turn.language()));
             default -> List.of();
         };
     }

@@ -33,3 +33,7 @@
 ## Next (after 13.6)
 
 - Open in Epic 13: 13.1 (German answers, backlog), then optional epic-13 retrospective. Before Epic 10 the open Epic 9 retro item A3 (split rule lifecycle out of `ActionService`).
+
+## State after Story 13.1 planning (2026-10-28)
+
+- Spec `spec-13-1-fine-answers-in-german-when-written-to-in-german.md` is `ready-for-dev` (approved; ~1800 tokens kept as one goal). Not implemented; nothing committed. Decisions: ambiguous message → previous turn's language, else English; only `NumberParser` gets German formats, retro A6 moved to `deferred-work.md`. Code Map carries the investigation (deterministic `Language` detector in `TurnState`, answer-language line in `role-advisor.txt`, German variants in `ResponseTemplates`/`NoValidSource`/chips, German alternatives in `CheckChain` lists as a union, `language` in `ResponseAuditBody`, no migration). Start the next session with `bmad-build` on that spec (resumes at implementation).

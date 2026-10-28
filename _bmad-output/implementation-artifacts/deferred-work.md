@@ -27,3 +27,11 @@
 
 - The monthly rule limit counts only `EXECUTED` rule transfers (`MandateRepository.executedSum`), so an undone transfer frees its budget again (net reading: the limit caps money that stays moved). Kept as is; revisit if the study needs a gross cap (`state IN ('EXECUTED','UNDONE')`).
 - `undoable` in the Notification list does not check `asOf >= executedOn`; unreachable today because the list hides items after the simulated date.
+
+- source_spec: `spec-13-1-fine-answers-in-german-when-written-to-in-german.md`
+  summary: Retro A6 — consolidate amount parsing across `ExposureFilter`, `NluExtraction` and `NumberParser` into one shared parser.
+  evidence: Commc chose option (b) for Story 13.1 (2026-10-28); 13.1 only adds German formats to `NumberParser`, merging the three would change NLU groundings and exposure values and is its own change.
+
+- source_spec: `spec-13-1-fine-answers-in-german-when-written-to-in-german.md`
+  summary: `NumberParser` does not know the turn language, so a single-separator group like German "1,234" (= 1.234) is always read as 1234.
+  evidence: `NumberParser.toDecimal` resolves "1,234" and "1.234" as thousands groups on every turn; a German draft with three decimals would be misread (rare in finance text, unverified in live drafts). Settle by passing the turn language into `parse` once Retro A6 consolidates the parsers.
