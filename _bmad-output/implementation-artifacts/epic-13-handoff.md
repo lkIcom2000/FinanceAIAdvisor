@@ -46,3 +46,14 @@
 
 - All Epic 13 stories are built; 13.1, 13.5, 13.6 wait in `review` for the live check. Run one Epic 13 live check in a fresh session (local `spring-boot:run` against compose db/ollama): German question, German out-of-scope, German follow-up "150 EUR?", English regression turn; 13.4 situation question; 13.5 follow-up; 13.6 repeated answer. German texts need a native read in that check. Then set the stories `done`, close epic-13 (retro optional).
 - Then the open Epic 9 retro item A3 (split rule lifecycle out of `ActionService`) before Epic 10; Epic 10 and 12 are the critical path to the UAT.
+
+## Epic 13 live check and close (2026-10-28)
+
+- Live check (local `spring-boot:run`, research profile, real model): German question/follow-up/"150 EUR?"/out-of-scope, English regression, 13.4 situation question (p-marco), 13.5 follow-ups, 13.6 repeated answer (same id and text, 0 s) all passed; Audit Record `language` de/en correct.
+- Two findings fixed in `spec-epic-13-live-check-fixes.md` (commit `e55a0b2`): a generic INFORM follow-up on an answer with Core figures runs the user's figures again; refusals no longer recommend their alternative (prompt + SCOPE `refusal_recommends`). Re-check: refusal fixed live; follow-up rule unit-tested, live not reached (topic `regulation_or_concept`). Two items deferred (`deferred-work.md`): topic gap for figure carry-over, "[S1]" removal artifact.
+- German texts still want a native read (e.g. "Notfallfonds", "Basierend auf …", no thousands separator).
+- 13.1, 13.5, 13.6 `done`; epic-13 `done` (retro optional).
+
+## Next (after Epic 13)
+
+- Open Epic 9 retro item A3 (split rule lifecycle out of `ActionService`) before Epic 10; Epic 10 and 12 are the critical path to the UAT.
