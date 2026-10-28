@@ -20,6 +20,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,6 +33,7 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -284,6 +290,50 @@ class ChatEndToEndTest extends PostgresIntegrationTest {
         assertThat(llm.calls()).hasSize(2);
         assertThat(responseRecords(JsonPath.read(first, "$.id"))).isEqualTo(1);
         assertThat(replies(questionId)).isEqualTo(1);
+    }
+
+    @Test
+    void twoParallelAnswerRequestsRunOneTurnAndBothGetTheSameAnswer() throws Exception {
+        MockHttpSession lena = login(mvc, "p-lena");
+        String questionId = ask(lena, QUESTION);
+        CountDownLatch phrasing = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        llm.holdPhrasing(phrasing, release);
+
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            // The first request holds the question row inside the model call; the second waits on that lock.
+            Future<MvcResult> first = pool.submit(() -> answer(lena, questionId).andReturn());
+            assertThat(phrasing.await(10, TimeUnit.SECONDS)).isTrue();
+            Future<MvcResult> second = pool.submit(() -> answer(lena, questionId).andReturn());
+            awaitOneLockWaiter();
+            release.countDown();
+
+            MvcResult firstResult = first.get(10, TimeUnit.SECONDS);
+            MvcResult secondResult = second.get(10, TimeUnit.SECONDS);
+            assertThat(firstResult.getResponse().getStatus()).isEqualTo(200);
+            assertThat(secondResult.getResponse().getStatus()).isEqualTo(200);
+            String answer = firstResult.getResponse().getContentAsString(StandardCharsets.UTF_8);
+            assertThat(secondResult.getResponse().getContentAsString(StandardCharsets.UTF_8)).isEqualTo(answer);
+            assertThat(llm.calls(LlmRole.NLU)).hasSize(1);
+            assertThat(llm.calls(LlmRole.PHRASING)).hasSize(1);
+            assertThat(responseRecords(JsonPath.read(answer, "$.id"))).isEqualTo(1);
+            assertThat(replies(questionId)).isEqualTo(1);
+        } finally {
+            release.countDown();
+            pool.close();
+        }
+    }
+
+    /** Waits until one database session waits on a row lock (the second request on the question row). */
+    void awaitOneLockWaiter() throws InterruptedException {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        String waiters = "SELECT count(*) FROM pg_stat_activity WHERE wait_event_type = 'Lock' "
+                + "AND datname = current_database() AND query LIKE '%FROM messages WHERE id = % FOR UPDATE%'";
+        while (jdbc.queryForObject(waiters, Long.class) < 1) {
+            assertThat(System.nanoTime()).as("a request waiting on the question lock").isLessThan(deadline);
+            Thread.sleep(20);
+        }
     }
 
     @Test

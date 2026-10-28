@@ -25,3 +25,11 @@
 
 - Story 13.6 (small and independent) next. Epic 10 not blocked; before Epic 10 the open Epic 9 retro item A3 (split rule lifecycle out of `ActionService`).
 - Integration tests need Docker Desktop running (`fine.it.required=true` fails otherwise).
+
+## State after Story 13.6 (2026-10-28)
+
+- Spec `spec-13-6-a-repeated-answer-request-returns-the-same-answer.md` (oneshot). `AnswerMessageUseCase` locks the question row (`ChatRepository.lock`) before `findReply`; a parallel `POST /answer` waits and returns the stored reply. Test: `ChatEndToEndTest.twoParallelAnswerRequestsRunOneTurnAndBothGetTheSameAnswer` (`StubLlm.holdPhrasing`). verify green (922 tests, 0 skipped). Blind Hunter ran; 3 low test patches, rest rejected (Triage Log). Commit: see `git log` "fix: Story 13.6".
+
+## Next (after 13.6)
+
+- Open in Epic 13: 13.1 (German answers, backlog), then optional epic-13 retrospective. Before Epic 10 the open Epic 9 retro item A3 (split rule lifecycle out of `ActionService`).

@@ -42,7 +42,7 @@
 #   configuration with a derivedFrom block (AD-25). Check E3 before 3.9, E1 before 4.2/4.3.
 
 generated: 10-21-2026 13:52
-last_updated: 10-28-2026 11:31
+last_updated: 10-28-2026 14:00
 project: FinanceTool
 project_key: NOKEY
 tracking_system: file-system
@@ -145,7 +145,7 @@ development_status:
   13-3-split-turnorchestrator-into-stage-classes: done  # 2026-10-28, spec spec-13-3-split-turnorchestrator-into-stage-classes.md; retro 6/7 C2; before 13.4, 13.5 (SCP 2026-10-27)
   13-4-fine-answers-questions-about-my-situation-with-my-data: done  # 2026-10-28, spec spec-13-4-fine-answers-questions-about-my-situation-with-my-data.md; before Epic 12
   13-5-fine-understands-a-follow-up-on-its-last-answer: review  # 2026-10-28, spec spec-13-5-fine-understands-a-follow-up-on-its-last-answer.md; before Epic 12
-  13-6-a-repeated-answer-request-returns-the-same-answer: backlog
+  13-6-a-repeated-answer-request-returns-the-same-answer: review  # 2026-10-28, spec spec-13-6-a-repeated-answer-request-returns-the-same-answer.md
   epic-13-retrospective: optional
 action_items:
   - id: "epic-1-retro-item-1-a1-archunit-rules-for-ad-21-ar3-transact"

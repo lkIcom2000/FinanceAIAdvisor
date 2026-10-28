@@ -12,6 +12,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
@@ -56,6 +58,8 @@ public class StubLlmConfiguration {
         private volatile String digest;
         private volatile RuntimeException failure;
         private volatile LlmRole failingRole;
+        private volatile CountDownLatch phrasingEntered;
+        private volatile CountDownLatch phrasingRelease;
 
         StubLlm() {
             reset();
@@ -69,7 +73,15 @@ public class StubLlmConfiguration {
             digest = DIGEST;
             failure = null;
             failingRole = null;
+            phrasingEntered = null;
+            phrasingRelease = null;
             calls.clear();
+        }
+
+        /** Every following phrasing call counts {@code entered} down, then waits until {@code release} opens. */
+        public void holdPhrasing(CountDownLatch entered, CountDownLatch release) {
+            phrasingRelease = release;
+            phrasingEntered = entered;
         }
 
         /** The phrasing role's answer. */
@@ -117,6 +129,19 @@ public class StubLlmConfiguration {
             calls.add(new Call(role, List.copyOf(messages), decoding, schema));
             if (failure != null && (failingRole == null || failingRole == role)) {
                 throw failure;
+            }
+            CountDownLatch entered = phrasingEntered;
+            CountDownLatch release = phrasingRelease;
+            if (role == LlmRole.PHRASING && entered != null) {
+                entered.countDown();
+                try {
+                    if (!release.await(10, TimeUnit.SECONDS)) {
+                        throw new IllegalStateException("The held phrasing call was never released");
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException(e);
+                }
             }
             String answer = role == LlmRole.NLU ? nluAnswer(messages) : text;
             return new LlmResult(answer, MODEL_TAG, digest, decoding, 42, false, Duration.ofMillis(5));

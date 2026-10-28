@@ -13,7 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Step two of a turn: runs the pipeline for a saved user message and releases one complete, audited answer, all in
- * this one transaction (AD-7). An already answered message returns its stored answer without a second turn.
+ * this one transaction (AD-7). An already answered message returns its stored answer without a second turn; the
+ * question row is locked first, so a parallel request for it waits and gets the same answer.
  */
 @Service
 public class AnswerMessageUseCase {
@@ -51,6 +52,8 @@ public class AnswerMessageUseCase {
         if (question.isEmpty()) {
             return Optional.empty();
         }
+        // A parallel request for the same question waits here until the first turn is released, then returns it.
+        chats.lock(scope, messageId);
         Optional<ChatMessage> stored = chats.findReply(scope, messageId);
         if (stored.isPresent()) {
             return Optional.of(handovers.attach(scope, stored.get()));
