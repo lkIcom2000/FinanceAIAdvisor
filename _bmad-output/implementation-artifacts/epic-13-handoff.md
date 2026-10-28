@@ -37,3 +37,12 @@
 ## State after Story 13.1 planning (2026-10-28)
 
 - Spec `spec-13-1-fine-answers-in-german-when-written-to-in-german.md` is `ready-for-dev` (approved; ~1800 tokens kept as one goal). Not implemented; nothing committed. Decisions: ambiguous message → previous turn's language, else English; only `NumberParser` gets German formats, retro A6 moved to `deferred-work.md`. Code Map carries the investigation (deterministic `Language` detector in `TurnState`, answer-language line in `role-advisor.txt`, German variants in `ResponseTemplates`/`NoValidSource`/chips, German alternatives in `CheckChain` lists as a union, `language` in `ResponseAuditBody`, no migration). Start the next session with `bmad-build` on that spec (resumes at implementation).
+
+## State after Story 13.1 (2026-10-28)
+
+- Spec `spec-13-1-fine-answers-in-german-when-written-to-in-german.md` done, story `review`. Deterministic `Language` (de/en) in `TurnState`, answer-language line in `role-advisor.txt` (English prompt hashes change too), German texts/chips in `ResponseTemplates`/`NoValidSource`, German alternatives in `CheckChain`, German formats in `NumberParser`, `language` in the audit body. Cards stay English. verify green (993 tests, 0 skipped), `golden.json` unchanged. One combined reviewer: 6 patches, 1 deferred ("1,234" on German turns), 1 rejected (Triage Log). Commit `2f35ffc`.
+
+## Next (after 13.1)
+
+- All Epic 13 stories are built; 13.1, 13.5, 13.6 wait in `review` for the live check. Run one Epic 13 live check in a fresh session (local `spring-boot:run` against compose db/ollama): German question, German out-of-scope, German follow-up "150 EUR?", English regression turn; 13.4 situation question; 13.5 follow-up; 13.6 repeated answer. German texts need a native read in that check. Then set the stories `done`, close epic-13 (retro optional).
+- Then the open Epic 9 retro item A3 (split rule lifecycle out of `ActionService`) before Epic 10; Epic 10 and 12 are the critical path to the UAT.
