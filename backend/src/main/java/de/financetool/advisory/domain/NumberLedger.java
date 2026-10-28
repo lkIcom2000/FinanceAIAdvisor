@@ -44,8 +44,8 @@ public record NumberLedger(List<Entry> entries) {
 
     /**
      * The ledger of a turn without Core results, in the experiment's order: Rule Parameters valid at the as-of date,
-     * the user's message, the Knowledge Base passages in the prompt, then what the exposure filter shows. Deviation:
-     * the user's earlier messages in the prompt history count as the user's own numbers too.
+     * the user's message, the previous turn's stored Core figures while the budget keeps it (FR-63; its texts are no
+     * source), the Knowledge Base passages in the prompt, then what the exposure filter shows.
      *
      * @param droppedHistoryTurns how many of the payload's history turns the prompt budget dropped (oldest first)
      * @param passagesInPrompt how many of the payload's passages the prompt budget kept
@@ -75,8 +75,9 @@ public record NumberLedger(List<Entry> entries) {
         List<PromptPayload.HistoryTurn> history = payload.history();
         for (PromptPayload.HistoryTurn turn : history.subList(Math.min(Math.max(0, droppedHistoryTurns),
                 history.size()), history.size())) {
-            ledger = ledger.with(Source.USER, "numbers in an earlier user message",
-                    NumberParser.numbersIn(turn.userText()));
+            for (SourcedNumber figure : turn.coreFigures()) {
+                ledger = ledger.with(Source.CORE, figure.provId(), List.of(figure.value()));
+            }
         }
         for (PromptPayload.Passage passage : payload.passages().subList(0,
                 Math.min(passagesInPrompt, payload.passages().size()))) {

@@ -45,6 +45,7 @@ import de.financetool.advisory.domain.TurnState;
 import de.financetool.audit.AuditEntry;
 import de.financetool.audit.AuditKind;
 import de.financetool.audit.AuditWriter;
+import de.financetool.audit.EvidenceReader;
 import de.financetool.llm.LlmMessage;
 import de.financetool.llm.LlmPort;
 import de.financetool.llm.LlmResult;
@@ -105,11 +106,12 @@ class TurnOrchestratorTest {
             inv -> inv.getMethod().getName().equals("run")
                     ? new TurnState.Tools(null, null, null, false, List.of(), false) : List.of());
     final NeedsStatements needsStatements = mock(NeedsStatements.class);
+    final EvidenceReader evidence = mock(EvidenceReader.class);
     final TurnOrchestrator orchestrator = new TurnOrchestrator(new DialogStates(chats), nluExtractor,
             new ClassifyStage(tools, profiles, (stored, stated, topic) -> profile.check(stored, stated, topic),
                     registry),
             new ToolPlanStage(tools, profiles, recommendations, needsStatements),
-            new PromptStage(chats, prompts, profiles, ruleParameters), new DraftStage(llm), new CheckStages(llm),
+            new PromptStage(chats, prompts, profiles, ruleParameters, evidence), new DraftStage(llm), new CheckStages(llm),
             new BlockRoutingStage(), new ReleaseStage(chats, audit, escalations, assessments, recommendations));
 
     final PersonaScope scope = new PersonaScope(TestContexts.LENA);
@@ -144,7 +146,7 @@ class TurnOrchestratorTest {
 
     void stubTurn(ChatMessage asked, List<String> drafts, RequestContext turnContext, boolean modelTruncated,
             NluExtraction nlu) {
-        when(nluExtractor.extract(any(), eq(scope), eq(asked.text()))).thenReturn(new TurnState.Nlu(nlu, List.of("note"),
+        when(nluExtractor.extract(any(), eq(scope), eq(asked.text()), any())).thenReturn(new TurnState.Nlu(nlu, List.of("note"),
                 "nlu-m", "sha256:n1", new java.util.TreeMap<>(NLU_HASHES), false, true));
         when(chats.dialogState(scope)).thenReturn(Optional.empty());
         when(chats.conversation(scope)).thenReturn(conversation);
@@ -361,30 +363,109 @@ class TurnOrchestratorTest {
         assertThat(messages.get(1).content()).isEqualTo("<user_message>\nWhat is an ETF?\n</user_message>");
     }
 
+    static final SourcedNumber FUND_TARGET = new SourcedNumber("00000000000000f1", new BigDecimal("12000"),
+            Unit.EUR, "Emergency fund target");
+
+    RequestContext noneContext() {
+        AgentConfiguration a = TestContexts.AGENT;
+        AgentConfiguration none = new AgentConfiguration(a.id(), a.derivedFrom(), a.llm(), a.retrieval(),
+                a.rolePrompt(), a.compliance(), DataExposureLevel.NONE, a.decoding(), a.seeds());
+        return new RequestContext(none, TestContexts.FINGERPRINT, TestContexts.THRESHOLDS,
+                RequestContext.NO_KB_SNAPSHOT, TestContexts.SEEDS, TestContexts.AS_OF, TestContexts.LENA, null);
+    }
+
     @Test
-    void theLastReleasedTurnsGoFilteredIntoTheEarlierConversation() {
-        when(chats.releasedTurnsBefore(scope, question.id(), 3)).thenReturn(List.of(
-                new PromptPayload.HistoryTurn("I'm 34 and have 12,400 EUR.", "Noted."),
-                new PromptPayload.HistoryTurn("What is a fund?", "A pool of money.")));
+    void theOnePreviousTurnGoesFilteredIntoTheNluAndTheEarlierConversation() {
+        when(chats.releasedTurnsBefore(scope, question.id(), 1)).thenReturn(List.of(
+                new ExposureFilter.StoredTurn("I'm 34 and have 12,400 EUR.", "Noted.", null)));
         run("An ETF is a fund.");
 
         List<LlmMessage> messages = sentMessages();
         assertThat(messages.get(1).content()).isEqualTo("EARLIER CONVERSATION (oldest first):\n"
-                + "Customer: I'm 30s and have 10,000\u201315,000 EUR.\nAssistant: Noted.\n"
-                + "Customer: What is a fund?\nAssistant: A pool of money.\n\n"
+                + "Customer: I'm 30s and have 10,000\u201315,000 EUR.\nAssistant: Noted.\n\n"
                 + "<user_message>\nWhat is an ETF?\n</user_message>");
         assertThat(messages.get(0).content()).startsWith("ROLE\n\nRULES\n\nCLASS INFORM");
+        verify(nluExtractor).extract(any(), eq(scope), eq(question.text()), eq(new PromptPayload.HistoryTurn(
+                "I'm 30s and have 10,000\u201315,000 EUR.", "Noted.")));
+    }
+
+    @Test
+    void atLevelNoneAPhrasedPreviousTurnIsItsDepersonalisedQuestionAndAnswerAndItsFiguresAreCore() {
+        when(chats.releasedTurnsBefore(scope, question.id(), 1)).thenReturn(List.of(new ExposureFilter.StoredTurn(
+                "I have 3,000 EUR saved, is my emergency fund enough?", "Your target is 12,000 EUR.",
+                new ChatMessage.FollowUp("Is an emergency fund enough?", true, List.of(FUND_TARGET.provId())))));
+        when(evidence.figures(scope, List.of(FUND_TARGET.provId()))).thenReturn(List.of(FUND_TARGET));
+        RequestContext noneContext = noneContext();
+        run("Because 12,000 EUR covers three months.", noneContext, false);
+
+        PromptPayload.HistoryTurn expected = new PromptPayload.HistoryTurn("Is an emergency fund enough?",
+                "Your target is 12,000 EUR.", List.of(FUND_TARGET));
+        verify(nluExtractor).extract(any(), eq(scope), eq(question.text()), eq(expected));
+        assertThat(sentMessages().get(1).content()).isEqualTo("EARLIER CONVERSATION (oldest first):\n"
+                + "Customer: Is an emergency fund enough?\nAssistant: Your target is 12,000 EUR.\n\n"
+                + "<user_message>\n" + ExposureFilter.WITHHELD + "\n</user_message>")
+                .doesNotContain("3,000");
+        ResponseAuditBody body = auditBody();
+        assertThat(body.numberLedger()).contains(new NumberLedger.Entry(new BigDecimal("12000"),
+                NumberLedger.Source.CORE, FUND_TARGET.provId()));
+        assertThat(body.numberLedger()).extracting(NumberLedger.Entry::source)
+                .doesNotContain(NumberLedger.Source.USER);
+        assertThat(body.outcome()).isEqualTo(ResponseOutcome.INFORM);
+    }
+
+    @Test
+    void aReleasedAnswerStoresItsFollowUpContext() {
+        NluExtraction withQuestion = new NluExtraction("general_explanation", "generic", "other", List.of(),
+                List.of(), false, false, Map.of(), Map.of(), "What is an exchange-traded fund?");
+        ChatMessage answer = run(question, "An ETF is a fund.", with(ComplianceLevel.A_B_C, false), false,
+                withQuestion);
+
+        // Phrased at AGGREGATED: a template for a later turn at NONE.
+        assertThat(answer.followUp()).isEqualTo(new ChatMessage.FollowUp("What is an exchange-traded fund?", false,
+                List.of()));
+        ArgumentCaptor<ChatMessage> stored = ArgumentCaptor.forClass(ChatMessage.class);
+        verify(chats).insert(eq(scope), eq(conversation), stored.capture());
+        assertThat(stored.getValue().followUp()).isEqualTo(answer.followUp());
+    }
+
+    @Test
+    void aTemplateAnswerIsNotPhrased() {
+        DataExposureLevel none = DataExposureLevel.NONE;
+        for (ResponseOutcome outcome : ResponseOutcome.values()) {
+            boolean phrased = ReleaseStage.followUp(TurnState.start("q").withOutcome(outcome, "t"), true, false, none)
+                    .phrased();
+            assertThat(phrased).as(outcome.name()).isEqualTo(outcome == ResponseOutcome.INFORM
+                    || outcome == ResponseOutcome.COMPUTE || outcome == ResponseOutcome.ASK_PROFILE);
+        }
+        assertThat(ReleaseStage.followUp(TurnState.start("q").withOutcome(ResponseOutcome.INFORM, "t"), false, false,
+                none).phrased()).as("a routed template").isFalse();
+        assertThat(ReleaseStage.followUp(TurnState.start("q").withOutcome(ResponseOutcome.COMPUTE, "t"), true, true,
+                none).phrased()).as("a parameter proposal").isFalse();
+        assertThat(ReleaseStage.followUp(TurnState.start("q").withOutcome(ResponseOutcome.INFORM, "t"), true, false,
+                DataExposureLevel.AGGREGATED).phrased()).as("phrased at AGGREGATED").isFalse();
+        assertThat(ReleaseStage.followUp(TurnState.start("q").withOutcome(ResponseOutcome.ASK_PROFILE, "t"), true,
+                false, none)).isEqualTo(new ChatMessage.FollowUp(null, true, List.of()));
+    }
+
+    @Test
+    void atLevelNoneATemplatePreviousTurnShowsOnlyItsFigures() {
+        when(chats.releasedTurnsBefore(scope, question.id(), 1)).thenReturn(List.of(new ExposureFilter.StoredTurn(
+                "Lena Example wants a fund", "I can't help with that, Lena.",
+                new ChatMessage.FollowUp(null, false, List.of()))));
+        run("An ETF is a fund.", noneContext(), false);
+
+        assertThat(sentMessages().get(1).content()).startsWith("EARLIER CONVERSATION (oldest first):\n"
+                + "Customer: " + ExposureFilter.WITHHELD + "\nAssistant: "
+                + ExposureFilter.TEMPLATE_FIGURES.formatted(ExposureFilter.NO_FIGURES) + "\n\n")
+                .doesNotContain("Lena");
     }
 
     @Test
     void atLevelNoneThePromptHoldsNoHistoryNoProfileAndNoPartOfTheMessage() {
-        when(chats.releasedTurnsBefore(scope, question.id(), 3)).thenReturn(List.of(
-                new PromptPayload.HistoryTurn("I'm 34 and have 12,400 EUR.", "Noted.")));
-        AgentConfiguration a = TestContexts.AGENT;
-        AgentConfiguration none = new AgentConfiguration(a.id(), a.derivedFrom(), a.llm(), a.retrieval(),
-                a.rolePrompt(), a.compliance(), DataExposureLevel.NONE, a.decoding(), a.seeds());
-        RequestContext noneContext = new RequestContext(none, TestContexts.FINGERPRINT, TestContexts.THRESHOLDS,
-                RequestContext.NO_KB_SNAPSHOT, TestContexts.SEEDS, TestContexts.AS_OF, TestContexts.LENA, null);
+        // a row stored before Story 13.5 has no follow-up context: no previous turn at level none
+        when(chats.releasedTurnsBefore(scope, question.id(), 1)).thenReturn(List.of(
+                new ExposureFilter.StoredTurn("I'm 34 and have 12,400 EUR.", "Noted.", null)));
+        RequestContext noneContext = noneContext();
         run("An ETF is a fund.", noneContext, false);
 
         List<LlmMessage> messages = sentMessages();
@@ -437,19 +518,20 @@ class TurnOrchestratorTest {
     }
 
     @Test
-    void aPromptOverBudgetDropsHistoryOldestFirstAndMarksTheRecordTruncated() {
-        String longText = "x".repeat(6000);
-        when(chats.releasedTurnsBefore(scope, question.id(), 3)).thenReturn(List.of(
-                new PromptPayload.HistoryTurn(longText, "a1"), new PromptPayload.HistoryTurn(longText, "a2"),
-                new PromptPayload.HistoryTurn("short", "a3")));
+    void aPromptOverBudgetDropsThePreviousTurnFirstAndMarksTheRecordTruncated() {
+        String longText = "x".repeat(12000);
+        when(chats.releasedTurnsBefore(scope, question.id(), 1)).thenReturn(List.of(new ExposureFilter.StoredTurn(
+                longText, "a1", new ChatMessage.FollowUp(null, true, List.of(FUND_TARGET.provId())))));
+        when(evidence.figures(scope, List.of(FUND_TARGET.provId()))).thenReturn(List.of(FUND_TARGET));
         run("An ETF is a fund.", context, false);
 
-        assertThat(sentMessages().get(1).content()).contains("Assistant: a2", "Customer: short")
-                .doesNotContain("a1")
-                .endsWith("<user_message>\nWhat is an ETF?\n</user_message>");
+        assertThat(sentMessages().get(1).content()).doesNotContain("a1", "EARLIER CONVERSATION")
+                .isEqualTo("<user_message>\nWhat is an ETF?\n</user_message>");
         ResponseAuditBody body = auditBody();
         assertThat(body.truncated()).isTrue();
         assertThat(body.droppedHistoryTurns()).isEqualTo(1);
+        assertThat(body.numberLedger()).extracting(NumberLedger.Entry::label)
+                .as("a dropped turn's figures are no source").doesNotContain(FUND_TARGET.provId());
         assertThat(body.droppedPassages()).isZero();
     }
 
@@ -1131,7 +1213,7 @@ class TurnOrchestratorTest {
         when(chats.openProposal(scope)).thenReturn(Optional.of(proposal.id()));
         when(chats.updateProposalStatus(scope, proposal.id(), ChatMessage.Proposal.Status.OPEN,
                 ChatMessage.Proposal.Status.CALCULATED)).thenReturn(true);
-        when(nluExtractor.extract(any(), eq(scope), eq(ITEM_40))).thenReturn(new TurnState.Nlu(ITEM_40_NLU,
+        when(nluExtractor.extract(any(), eq(scope), eq(ITEM_40), any())).thenReturn(new TurnState.Nlu(ITEM_40_NLU,
                 List.of(), "nlu-m", "sha256:n1", new java.util.TreeMap<>(NLU_HASHES), true, true));
         when(chats.conversation(scope)).thenReturn(conversation);
         when(prompts.rolePrompt("advisor")).thenReturn(new PromptFiles.Prompt("role-advisor.txt", "ROLE", "abc123"));

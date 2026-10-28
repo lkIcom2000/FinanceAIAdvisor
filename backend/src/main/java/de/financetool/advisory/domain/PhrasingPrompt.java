@@ -26,7 +26,7 @@ public record PhrasingPrompt(String system, String user, int droppedHistoryTurns
     public static final String SLOT_END = "</user_message>";
 
     /** Tokens kept free besides {@code numPredict}, as in {@code _fit_budget}. */
-    static final int RESERVE_TOKENS = 200;
+    public static final int RESERVE_TOKENS = 200;
     /** The token estimate: characters / 3.2. */
     static final double CHARS_PER_TOKEN = 3.2;
 
@@ -119,15 +119,28 @@ public record PhrasingPrompt(String system, String user, int droppedHistoryTurns
             blocks.add("CUSTOMER PROFILE ON FILE:\n" + data(json(payload.profile())));
         }
         if (!history.isEmpty()) {
-            StringBuilder earlier = new StringBuilder("EARLIER CONVERSATION (oldest first):");
-            for (PromptPayload.HistoryTurn turn : history) {
-                earlier.append("\nCustomer: ").append(oneLine(data(turn.userText())))
-                        .append("\nAssistant: ").append(oneLine(data(turn.agentText())));
-            }
-            blocks.add(earlier.toString());
+            blocks.add(historyBlock(history));
         }
         blocks.add(SLOT_START + "\n" + data(payload.message()) + "\n" + SLOT_END);
         return String.join("\n\n", blocks);
+    }
+
+    /**
+     * The {@code EARLIER CONVERSATION} block: one {@code Customer:} and one {@code Assistant:} line per turn, each
+     * text as data on one line. The NLU prompt uses the same block (FR-63).
+     */
+    public static String historyBlock(List<PromptPayload.HistoryTurn> history) {
+        StringBuilder earlier = new StringBuilder("EARLIER CONVERSATION (oldest first):");
+        for (PromptPayload.HistoryTurn turn : history) {
+            earlier.append("\nCustomer: ").append(oneLine(data(turn.userText())))
+                    .append("\nAssistant: ").append(oneLine(data(turn.agentText())));
+        }
+        return earlier.toString();
+    }
+
+    /** The token estimate of {@code text}: code points / {@value #CHARS_PER_TOKEN}. */
+    public static double estimatedTokens(String text) {
+        return text.codePointCount(0, text.length()) / CHARS_PER_TOKEN;
     }
 
     /** Text for the data part with every slot marker removed, so it cannot open or close the message slot. */

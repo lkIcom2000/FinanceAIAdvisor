@@ -30,6 +30,11 @@ public final class ToolResults {
         return String.join("\n", lines);
     }
 
+    /** One figure as {@code TOOL RESULTS} shows it, without indent: "label: value unit". */
+    public static String figure(SourcedNumber n) {
+        return (n.label() + ": " + n.value().toPlainString() + " " + unit(n.unit())).strip();
+    }
+
     /** {@code _unit}: how the prompt names a unit. */
     private static String unit(Unit unit) {
         return switch (unit) {

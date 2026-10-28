@@ -1,5 +1,6 @@
 package de.financetool.advisory.domain;
 
+import de.financetool.shared.domain.SourcedNumber;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -12,7 +13,7 @@ import java.util.Objects;
  *
  * @param message the user's message as shown to the model
  * @param messageWithheld whether level {@code NONE} withheld the message entirely (no depersonalised question)
- * @param history the earlier released turns, oldest first
+ * @param history the previous released turn, already filtered; empty without one (FR-63)
  * @param profile the customer profile context (empty at level {@code NONE})
  * @param toolResults the Deterministic Core results as text, passed in full at every level (empty without tools)
  * @param passages the Knowledge Base passages, in retrieval order
@@ -25,12 +26,23 @@ public record PromptPayload(
         String toolResults,
         List<Passage> passages) {
 
-    /** One released turn: the user's message and the agent's answer to it. */
-    public record HistoryTurn(String userText, String agentText) {
+    /**
+     * One released turn as the model may see it: the user's message and the agent's answer to it.
+     *
+     * @param coreFigures the agent message's Core figures as stored (AD-2): the only numbers of the turn the Number
+     *     Check sources, and only while the budget keeps the turn
+     */
+    public record HistoryTurn(String userText, String agentText, List<SourcedNumber> coreFigures) {
 
         public HistoryTurn {
             Objects.requireNonNull(userText, "userText");
             Objects.requireNonNull(agentText, "agentText");
+            coreFigures = coreFigures == null ? List.of() : List.copyOf(coreFigures);
+        }
+
+        /** A turn without Core figures. */
+        public HistoryTurn(String userText, String agentText) {
+            this(userText, agentText, List.of());
         }
     }
 

@@ -200,24 +200,28 @@ class ChatEndToEndTest extends PostgresIntegrationTest {
     }
 
     @Test
-    void theThirdQuestionSeesBothEarlierTurnsFilteredAndTheRecordHoldsBothPromptHashes() throws Exception {
+    void theThirdQuestionSeesOnlyThePreviousTurnFilteredInNluAndPhrasingAndTheRecordHoldsBothPromptHashes()
+            throws Exception {
         MockHttpSession lena = login(mvc, "p-lena");
         llm.nluAnswer("I'm 34 and have 12,400 EUR saved.", PERSONAL_NLU);
-        turn(lena, "I'm 34 and have 12,400 EUR saved.", "Thanks, noted your savings. What are your goals?");
         turn(lena, "What is an ETF?", "An ETF is a fund traded on an exchange.");
+        turn(lena, "I'm 34 and have 12,400 EUR saved.", "Thanks, noted your savings. What are your goals?");
 
         String questionId = ask(lena, "Should I start a savings plan?");
         llm.answer("Here is how a savings plan works.");
         String answer = content(answer(lena, questionId).andExpect(status().isOk()));
 
         String user = lastUserPart();
-        assertThat(user).contains("EARLIER CONVERSATION (oldest first):")
-                .contains("Customer: I'm 30s and have 10,000\u201315,000 EUR saved.\n"
-                        + "Assistant: " + ResponseTemplates.WHY_ASK_PROFILE
-                        + " Thanks, noted your savings. What are your goals?\n"
-                        + "Customer: What is an ETF?\nAssistant: An ETF is a fund traded on an exchange.\n\n"
-                        + "<user_message>\nShould I start a savings plan?\n</user_message>")
+        String earlier = "EARLIER CONVERSATION (oldest first):\n"
+                + "Customer: I'm 30s and have 10,000\u201315,000 EUR saved.\n"
+                + "Assistant: " + ResponseTemplates.WHY_ASK_PROFILE
+                + " Thanks, noted your savings. What are your goals?";
+        assertThat(user).endsWith(earlier + "\n\n<user_message>\nShould I start a savings plan?\n</user_message>")
+                .doesNotContain("What is an ETF?").doesNotContain("traded on an exchange")
                 .doesNotContain("12,400").doesNotContain("Lena").doesNotContain("p-lena");
+        assertThat(llm.calls(LlmRole.NLU).getLast().messages().getLast().content())
+                .as("the NLU sees the same previous turn")
+                .isEqualTo(earlier + "\n\n<user_message>Should I start a savings plan?</user_message>");
         assertThat(llm.calls(LlmRole.PHRASING).getLast().messages().get(0).content())
                 .contains("Rules you must follow:")
                 .doesNotContain("Should I start").doesNotContain("noted your savings")
@@ -244,15 +248,13 @@ class ChatEndToEndTest extends PostgresIntegrationTest {
 
         String user = lastUserPart();
         assertThat(user).isEqualTo("EARLIER CONVERSATION (oldest first):\n"
-                + "Customer: lena question one\nAssistant: lena answer one\n"
-                + "Customer: lena question two\nAssistant: lena answer two\n"
                 + "Customer: lena question three\nAssistant: lena answer three\n\n"
                 + "<user_message>\nlena current question\n</user_message>");
         assertThat(user).doesNotContain("JONAS-SECRET");
     }
 
     @Test
-    void theHistoryIsTheLastThreeReleasedTurnsWithoutUnansweredQuestions() throws Exception {
+    void theHistoryIsTheOneLastReleasedTurnWithoutUnansweredQuestions() throws Exception {
         MockHttpSession jonas = login(mvc, "p-jonas");
         for (int i = 1; i <= 5; i++) {
             // digit-free answers: "question 4" is a reference, not a sourced number, for the Number Check
@@ -264,11 +266,9 @@ class ChatEndToEndTest extends PostgresIntegrationTest {
 
         String user = lastUserPart();
         assertThat(user).contains("EARLIER CONVERSATION (oldest first):\n"
-                + "Customer: question 3\nAssistant: answer c\n"
-                + "Customer: question 4\nAssistant: answer d\n"
                 + "Customer: question 5\nAssistant: answer e\n\n"
                 + "<user_message>\ncurrent question\n</user_message>")
-                .doesNotContain("question 2").doesNotContain("unanswered");
+                .doesNotContain("question 4").doesNotContain("unanswered");
     }
 
     @Test

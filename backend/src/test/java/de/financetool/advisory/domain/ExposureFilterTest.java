@@ -3,6 +3,9 @@ package de.financetool.advisory.domain;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import de.financetool.advisory.domain.ExposureFilter.Level;
+import de.financetool.shared.domain.SourcedNumber;
+import de.financetool.shared.domain.Unit;
+import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -130,23 +133,73 @@ class ExposureFilterTest {
         assertThat(ExposureFilter.filterProfile(profile(), Level.NONE)).isEmpty();
     }
 
+    static final ExposureFilter.StoredTurn STORED = new ExposureFilter.StoredTurn("I'm 34, mail me at a@b.de",
+            "You have 12,400 EUR.", null);
     static final List<PromptPayload.HistoryTurn> HISTORY = List.of(
-            new PromptPayload.HistoryTurn("I'm 34, mail me at a@b.de", "You have 12,400 EUR."),
-            new PromptPayload.HistoryTurn("What is an ETF?", "A fund."));
+            new PromptPayload.HistoryTurn("I'm 30s, mail me at [EMAIL]", "You have 10,000–15,000 EUR."));
+    static final SourcedNumber TARGET = new SourcedNumber("00000000000000f1", new BigDecimal("12000"), Unit.EUR,
+            "Emergency fund target");
+    static final SourcedNumber MONTHS = new SourcedNumber("00000000000000f2", new BigDecimal("3"), Unit.MONTHS,
+            "Months covered");
+
+    @Test
+    void aggregatedFiltersBothTextsOfThePreviousTurnAndKeepsItsFigures() {
+        assertThat(ExposureFilter.previousTurn(Level.AGGREGATED, STORED, List.of(TARGET))).contains(
+                new PromptPayload.HistoryTurn("I'm 30s, mail me at [EMAIL]", "You have 10,000–15,000 EUR.",
+                        List.of(TARGET)));
+        assertThat(ExposureFilter.previousTurn(Level.AGGREGATED, new ExposureFilter.StoredTurn(
+                "My IBAN DE89 3704 0044 0532 0130 00", "Template text", new ChatMessage.FollowUp(null, false,
+                        List.of())), List.of()))
+                .as("aggregated shows a template's text, filtered, as today")
+                .contains(new PromptPayload.HistoryTurn("My IBAN [IBAN]", "Template text"));
+    }
+
+    @Test
+    void noneShowsThePhrasedAnswerAfterTheDepersonalisedQuestion() {
+        ExposureFilter.StoredTurn phrased = new ExposureFilter.StoredTurn("I'm Lena, 34, with 3,000 EUR saved: enough?",
+                "Your target is 12,000 EUR.", new ChatMessage.FollowUp("Is an emergency fund enough?", true,
+                        List.of(TARGET.provId())));
+
+        assertThat(ExposureFilter.previousTurn(Level.NONE, phrased, List.of(TARGET))).contains(
+                new PromptPayload.HistoryTurn("Is an emergency fund enough?", "Your target is 12,000 EUR.",
+                        List.of(TARGET)));
+    }
+
+    @Test
+    void noneShowsOnlyTheFiguresOfATemplateAndWithholdsAMissingQuestion() {
+        ExposureFilter.StoredTurn template = new ExposureFilter.StoredTurn("Lena wants a stock tip",
+                "Here is why this fits you, Lena: ...", new ChatMessage.FollowUp(" ", false,
+                        List.of(TARGET.provId(), MONTHS.provId())));
+
+        assertThat(ExposureFilter.previousTurn(Level.NONE, template, List.of(TARGET, MONTHS))).contains(
+                new PromptPayload.HistoryTurn(ExposureFilter.WITHHELD, "[fixed answer, not shown at this exposure "
+                        + "level; its Core figures: Emergency fund target: 12000 EUR; Months covered: 3 months]",
+                        List.of(TARGET, MONTHS)));
+        assertThat(ExposureFilter.previousTurn(Level.NONE, template, List.of()).orElseThrow().agentText())
+                .isEqualTo(ExposureFilter.TEMPLATE_FIGURES.formatted(ExposureFilter.NO_FIGURES));
+    }
+
+    @Test
+    void noneHasNoPreviousTurnForAMessageStoredWithoutFollowUpContext() {
+        assertThat(ExposureFilter.previousTurn(Level.NONE, STORED, List.of())).isEmpty();
+    }
+
+    @Test
+    void theHistoryHoldsOneTurn() {
+        assertThat(ExposureFilter.HISTORY_TURNS).isEqualTo(1);
+    }
     static final String CORE = "- WithdrawalDuration:\n    capital: 500000 EUR\n    full withdrawals: 522";
     static final List<PromptPayload.Passage> PASSAGES =
             List.of(new PromptPayload.Passage("ETFs (BaFin, version 1, valid 2026-01-01 to open, p. 1)", "Text."));
 
     @Test
-    void aggregatedFiltersTheHistoryTextsAndPassesCoreResultsInFull() {
+    void aggregatedPassesTheFilteredHistoryAndCoreResultsInFull() {
         PromptPayload payload = ExposureFilter.apply(Level.AGGREGATED, "I have 12,400 EUR", null, HISTORY,
                 profile(), CORE, PASSAGES);
 
         assertThat(payload.message()).isEqualTo("I have 10,000–15,000 EUR");
         assertThat(payload.messageWithheld()).isFalse();
-        assertThat(payload.history()).containsExactly(
-                new PromptPayload.HistoryTurn("I'm 30s, mail me at [EMAIL]", "You have 10,000–15,000 EUR."),
-                new PromptPayload.HistoryTurn("What is an ETF?", "A fund."));
+        assertThat(payload.history()).isEqualTo(HISTORY);
         assertThat(payload.profile()).containsEntry("age", "30s");
         assertThat(payload.toolResults()).isEqualTo(CORE);
         assertThat(payload.passages()).isEqualTo(PASSAGES);
@@ -154,7 +207,7 @@ class ExposureFilterTest {
 
     @Test
     void noneHasNoHistoryNoProfileAndOnlyTheWithheldMessageButTheCoreResultsInFull() {
-        PromptPayload payload = ExposureFilter.apply(Level.NONE, "I have 12,400 EUR", null, HISTORY, profile(),
+        PromptPayload payload = ExposureFilter.apply(Level.NONE, "I have 12,400 EUR", null, List.of(), profile(),
                 CORE, PASSAGES);
 
         assertThat(payload.message()).isEqualTo(ExposureFilter.WITHHELD);
@@ -178,7 +231,7 @@ class ExposureFilterTest {
     @Test
     void noneWithADepersonalisedQuestionShowsOnlyThatQuestion() {
         PromptPayload payload = ExposureFilter.apply(Level.NONE, "I'm 34 and have 12,400 EUR, what now?",
-                "What should someone in their 30s do with savings?", HISTORY, profile(), CORE, PASSAGES);
+                "What should someone in their 30s do with savings?", List.of(), profile(), CORE, PASSAGES);
 
         assertThat(payload.message()).isEqualTo("What should someone in their 30s do with savings?");
         assertThat(payload.messageWithheld()).isFalse();

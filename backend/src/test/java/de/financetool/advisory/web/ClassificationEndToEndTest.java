@@ -266,12 +266,15 @@ class ClassificationEndToEndTest extends PostgresIntegrationTest {
     }
 
     @Test
-    void theSameMessageTwiceMakesOneNluCallAndGetsTheSameClass() throws Exception {
+    void theSameMessageWithTheSamePreviousTurnMakesOneNluCallAndGetsTheSameClass() throws Exception {
+        turn(KNOCK_OUT);
+        // the previous turn is part of the cache key (Story 13.5): the second turn follows the first, the third
+        // follows an identical second
         Turn first = turn(KNOCK_OUT);
         Turn second = turn(KNOCK_OUT);
 
-        assertThat(llm.calls(LlmRole.NLU)).hasSize(1);
-        assertThat(llm.calls(LlmRole.PHRASING)).hasSize(2);
+        assertThat(llm.calls(LlmRole.NLU)).hasSize(2);
+        assertThat(llm.calls(LlmRole.PHRASING)).hasSize(3);
         assertThat(first.body()).containsEntry("nluCacheHit", false);
         assertThat(second.body()).containsEntry("nluCacheHit", true).containsEntry("nluParseOk", true)
                 .containsEntry("class", first.body().get("class"))

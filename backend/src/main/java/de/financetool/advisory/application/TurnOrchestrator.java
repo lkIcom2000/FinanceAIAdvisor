@@ -116,7 +116,7 @@ public class TurnOrchestrator {
             Continuation continuation, String fixtureVersion) {
         TurnState turn = TurnState.start(question.text());
         turn = dialogState(scope, turn, continuation);
-        turn = nlu(context, scope, turn);
+        turn = nlu(context, scope, question, turn);
         turn = classify(context, scope, turn, continuation instanceof Confirmation c ? c : null);
         turn = toolPlan(context, scope, turn);
         turn = kbRetrieve(turn);
@@ -135,11 +135,14 @@ public class TurnOrchestrator {
     }
 
     /**
-     * The NLU role extracts the message's data (AD-4): cached by model, prompt and message, then grounded by the
-     * deterministic rules. A failed model call fails the turn.
+     * The NLU role extracts the message's data (AD-4): cached by model, prompt, message and previous turn, then
+     * grounded by the deterministic rules. A failed model call fails the turn. The previous released turn is built
+     * here once, through the exposure filter (FR-63), and kept for the phrasing prompt; the dialog state ran first.
      */
-    TurnState nlu(RequestContext context, PersonaScope scope, TurnState turn) {
-        return turn.withNlu(nluExtractor.extract(context.agentConfig(), scope, turn.userText()))
+    TurnState nlu(RequestContext context, PersonaScope scope, ChatMessage question, TurnState turn) {
+        TurnState withPrevious = turn.withPrevious(promptStage.previousTurn(context, scope, question).orElse(null));
+        return withPrevious.withNlu(nluExtractor.extract(context.agentConfig(), scope, withPrevious.userText(),
+                        withPrevious.previous()))
                 .ran(TurnStage.NLU);
     }
 

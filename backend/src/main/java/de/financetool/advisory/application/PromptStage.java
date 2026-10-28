@@ -12,6 +12,7 @@ import de.financetool.advisory.domain.PromptPayload;
 import de.financetool.advisory.domain.ToolResults;
 import de.financetool.advisory.domain.TurnStage;
 import de.financetool.advisory.domain.TurnState;
+import de.financetool.audit.EvidenceReader;
 import de.financetool.knowledge.RuleParamPort;
 import de.financetool.profile.Profiles;
 import de.financetool.shared.PersonaScope;
@@ -22,6 +23,7 @@ import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import org.springframework.stereotype.Component;
 
@@ -36,28 +38,43 @@ class PromptStage {
     private final PromptFiles prompts;
     private final Profiles profiles;
     private final RuleParamPort ruleParameters;
+    private final EvidenceReader evidence;
 
-    PromptStage(ChatRepository chats, PromptFiles prompts, Profiles profiles, RuleParamPort ruleParameters) {
+    PromptStage(ChatRepository chats, PromptFiles prompts, Profiles profiles, RuleParamPort ruleParameters,
+            EvidenceReader evidence) {
         this.chats = chats;
         this.prompts = prompts;
         this.profiles = profiles;
         this.ruleParameters = ruleParameters;
+        this.evidence = evidence;
     }
 
     /**
-     * Applies the Data Exposure Level to the message, the last released turns, the profile context and the Core
-     * results, and fits the phrasing prompt into the context budget (FR-43, FR-45, AD-5); the system part ends with
-     * the class instruction. The Core results go in as {@code TOOL RESULTS}, the stored profile as profile context
+     * The one previous released turn before {@code question} as the exposure filter lets it through at the
+     * configured level (FR-63), with its Core figures read back from the evidence store (AD-2), never recomputed.
+     * The NLU stage builds it once; the NLU and the phrasing prompt get the same turn.
+     */
+    Optional<PromptPayload.HistoryTurn> previousTurn(RequestContext context, PersonaScope scope,
+            ChatMessage question) {
+        ExposureFilter.Level level = level(context.agentConfig().dataExposure());
+        return chats.releasedTurnsBefore(scope, question.id(), ExposureFilter.HISTORY_TURNS).stream()
+                .reduce((first, second) -> second)
+                .flatMap(stored -> ExposureFilter.previousTurn(level, stored,
+                        stored.provIds().isEmpty() ? List.of() : evidence.figures(scope, stored.provIds())));
+    }
+
+    /**
+     * Applies the Data Exposure Level to the message, the profile context and the Core results, takes the previous
+     * turn the NLU stage filtered, and fits the phrasing prompt into the context budget (FR-43, FR-45, AD-5); the
+     * system part ends with the class instruction. The Core results go in as {@code TOOL RESULTS}, the stored profile as profile context
      * (as {@code pipeline.py}); no passages exist yet. The
      * turn's {@link NumberLedger} is built from the same inputs plus the Rule Parameters valid at the as-of date, with
      * every Core number first (label: its {@code provId}).
      */
     TurnState exposureFilter(RequestContext context, PersonaScope scope, ChatMessage question, TurnState turn) {
         AgentConfiguration agent = context.agentConfig();
-        List<PromptPayload.HistoryTurn> history =
-                chats.releasedTurnsBefore(scope, question.id(), ExposureFilter.HISTORY_TURNS);
         PromptPayload payload = ExposureFilter.apply(level(agent.dataExposure()), turn.userText(),
-                turn.nlu().extraction().depersonalizedQuestion(), history, profiles.stored(scope),
+                turn.nlu().extraction().depersonalizedQuestion(), turn.history(), profiles.stored(scope),
                 ToolResults.format(turn.tools().results()), turn.passages());
         PromptFiles.Prompt rolePrompt = prompts.rolePrompt(agent.rolePrompt());
         PromptFiles.Prompt rules = prompts.complianceRules();

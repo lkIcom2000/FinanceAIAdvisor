@@ -123,9 +123,11 @@ public class StubLlmConfiguration {
         }
 
         private String nluAnswer(List<LlmMessage> messages) {
+            // the slot comes last; a previous turn's EARLIER CONVERSATION block may precede it (Story 13.5)
             String content = messages.getLast().content();
-            String message = content.startsWith(SLOT_START) && content.endsWith(SLOT_END)
-                    ? content.substring(SLOT_START.length(), content.length() - SLOT_END.length()) : content;
+            int slot = content.lastIndexOf(SLOT_START);
+            String message = slot >= 0 && content.endsWith(SLOT_END)
+                    ? content.substring(slot + SLOT_START.length(), content.length() - SLOT_END.length()) : content;
             String programmed = nluAnswers.get(message);
             if (programmed != null) {
                 return programmed;

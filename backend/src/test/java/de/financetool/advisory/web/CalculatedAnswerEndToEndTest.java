@@ -11,7 +11,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import de.financetool.PostgresIntegrationTest;
 import de.financetool.advisory.adapter.ChatRepository;
-import de.financetool.advisory.domain.PromptPayload;
 import de.financetool.shared.PersonaScope;
 import de.financetool.shared.domain.PersonaId;
 import de.financetool.llm.LlmRole;
@@ -135,7 +134,8 @@ class CalculatedAnswerEndToEndTest extends PostgresIntegrationTest {
         String followUp = JsonPath.read(ask(lena, "What is an ETF?"), "$.replyTo");
         assertThat(chats.releasedTurnsBefore(new PersonaScope(new PersonaId("p-lena")), UUID.fromString(followUp), 3))
                 .as("a later turn's history pairs the question with the calculated answer, not the proposal")
-                .containsExactly(new PromptPayload.HistoryTurn(ITEM_40, ANSWER));
+                .extracting(t -> t.userText(), t -> t.agentText(), t -> t.followUp().phrased())
+                .containsExactly(org.assertj.core.groups.Tuple.tuple(ITEM_40, ANSWER, true));
     }
 
     @Test

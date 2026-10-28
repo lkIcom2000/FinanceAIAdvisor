@@ -17,10 +17,13 @@ import de.financetool.audit.AuditWriter;
 import de.financetool.escalation.EscalationCases;
 import de.financetool.shared.PersonaScope;
 import de.financetool.shared.RequestContext;
+import de.financetool.shared.config.DataExposureLevel;
 import de.financetool.shared.domain.SourcedNumber;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
 
@@ -29,6 +32,10 @@ import org.springframework.stereotype.Component;
  */
 @Component
 class ReleaseStage {
+
+    /** The outcomes whose released draft is the LLM's phrasing, not a template. */
+    private static final Set<ResponseOutcome> PHRASED = EnumSet.of(ResponseOutcome.INFORM, ResponseOutcome.COMPUTE,
+            ResponseOutcome.ASK_PROFILE);
 
     private final ChatRepository chats;
     private final AuditWriter audit;
@@ -80,7 +87,8 @@ class ReleaseStage {
                         ? ResponseTemplates.premiseCallout(released.classification().unverifiedPremises(),
                                 released.userText()) : null, assessment,
                 recommended ? turnTools.statement() : null, needsStated ? turnTools.needsStatement() : null,
-                draftReleased ? turnTools.range() : null);
+                draftReleased ? turnTools.range() : null,
+                followUp(released, draftReleased, proposal, context.agentConfig().dataExposure()));
         UUID conversation = chats.conversation(scope);
         chats.insert(scope, conversation, answer);
         if (proposal) {
@@ -127,6 +135,22 @@ class ReleaseStage {
                                 : turnTools.recommendation().details()),
                         NeedsStatements.audit(turnTools.needs()))));
         return answer;
+    }
+
+    /**
+     * What the next turn may see of this answer (FR-63): the depersonalised question, whether the released text is
+     * the LLM's phrasing at level {@code NONE} (a released draft of an {@code INFORM}, {@code COMPUTE} or
+     * {@code ASK_PROFILE} answer, no proposal) and the keys of the turn's Core figures. A text phrased at
+     * {@code AGGREGATED} may carry banded profile data, so it counts as a template: after a switch to {@code NONE}
+     * only its figures reach the next turn.
+     */
+    static ChatMessage.FollowUp followUp(TurnState turn, boolean draftReleased, boolean proposal,
+            DataExposureLevel level) {
+        String question = turn.nlu() == null ? null : turn.nlu().extraction().depersonalizedQuestion();
+        boolean phrased = level == DataExposureLevel.NONE && draftReleased && !proposal
+                && PHRASED.contains(turn.outcome());
+        return new ChatMessage.FollowUp(question == null || question.isBlank() ? null : question, phrased,
+                turn.tools().numbers().stream().map(SourcedNumber::provId).distinct().toList());
     }
 
     /**

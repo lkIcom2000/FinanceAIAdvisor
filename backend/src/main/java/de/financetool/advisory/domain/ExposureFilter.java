@@ -1,9 +1,12 @@
 package de.financetool.advisory.domain;
 
+import de.financetool.shared.domain.SourcedNumber;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -25,8 +28,35 @@ public final class ExposureFilter {
     /** The message at level {@code NONE} while no depersonalised question exists (as {@code exposure.py}). */
     public static final String WITHHELD = "[question withheld: no personal data may be shared at this exposure level]";
 
-    /** How many released turns the history holds at most. */
-    public static final int HISTORY_TURNS = 3;
+    /** How many released turns the history holds at most: the one previous turn (FR-63). */
+    public static final int HISTORY_TURNS = 1;
+
+    /**
+     * At level {@code NONE}, the agent text of a previous turn whose text was not phrased by the LLM (a template): only
+     * its Core figures, never its text. {@code %s} is the figures, or {@link #NO_FIGURES}.
+     */
+    public static final String TEMPLATE_FIGURES =
+            "[fixed answer, not shown at this exposure level; its Core figures: %s]";
+    /** The figures part of {@link #TEMPLATE_FIGURES} for a template without Core figures. */
+    public static final String NO_FIGURES = "none";
+
+    /**
+     * One released turn as stored: the user's message, the agent text and the agent message's follow-up context.
+     *
+     * @param followUp {@code null} for a message stored before Story 13.5
+     */
+    public record StoredTurn(String userText, String agentText, ChatMessage.FollowUp followUp) {
+
+        public StoredTurn {
+            Objects.requireNonNull(userText, "userText");
+            Objects.requireNonNull(agentText, "agentText");
+        }
+
+        /** The keys of the agent message's Core figures; none without a follow-up context. */
+        public List<String> provIds() {
+            return followUp == null ? List.of() : followUp.provIds();
+        }
+    }
 
     /**
      * Matches IBANs in any case, unseparated or with single spaces or hyphens between the groups, including the
@@ -66,20 +96,48 @@ public final class ExposureFilter {
     }
 
     /**
+     * The previous turn as the NLU and the phrasing role may see it at {@code level} (FR-63). At {@code AGGREGATED}
+     * both texts go through {@link #filterMessage}. At {@code NONE} the user text is the stored depersonalised
+     * question ({@link #WITHHELD} without one) and the agent text the released text only if the LLM phrased it; a
+     * template passes only its Core figures ({@link #TEMPLATE_FIGURES}). A turn without a stored follow-up context
+     * is no previous turn at {@code NONE}. Deviation from {@code exposure.py}, which drops all history at
+     * {@code none}: E4 ran single-turn.
+     *
+     * @param figures the turn's Core figures as read back from the evidence store (AD-2)
+     */
+    public static Optional<PromptPayload.HistoryTurn> previousTurn(Level level, StoredTurn turn,
+            List<SourcedNumber> figures) {
+        if (level == Level.AGGREGATED) {
+            return Optional.of(new PromptPayload.HistoryTurn(filterMessage(turn.userText(), level, null),
+                    filterMessage(turn.agentText(), level, null), figures));
+        }
+        ChatMessage.FollowUp followUp = turn.followUp();
+        if (followUp == null) {
+            return Optional.empty();
+        }
+        String user = followUp.question() == null || followUp.question().isBlank() ? WITHHELD : followUp.question();
+        String agent = followUp.phrased() ? turn.agentText() : figuresLine(figures);
+        return Optional.of(new PromptPayload.HistoryTurn(user, agent, figures));
+    }
+
+    /** {@link #TEMPLATE_FIGURES} with each figure as {@code TOOL RESULTS} shows it. */
+    public static String figuresLine(List<SourcedNumber> figures) {
+        return TEMPLATE_FIGURES.formatted(figures.isEmpty() ? NO_FIGURES
+                : String.join("; ", figures.stream().map(ToolResults::figure).toList()));
+    }
+
+    /**
      * The payload for the phrasing role at {@code level}.
      *
      * @param depersonalisedQuestion the NLU's depersonalised question, {@code null} while none exists
-     * @param history the last released turns, oldest first
+     * @param history the previous turn, already filtered by {@link #previousTurn}; empty without one
      */
     public static PromptPayload apply(Level level, String message, String depersonalisedQuestion,
             List<PromptPayload.HistoryTurn> history, Map<String, Object> profile, String toolResults,
             List<PromptPayload.Passage> passages) {
-        List<PromptPayload.HistoryTurn> shownHistory = level == Level.NONE ? List.of()
-                : history.stream().map(turn -> new PromptPayload.HistoryTurn(filterMessage(turn.userText(), level,
-                        null), filterMessage(turn.agentText(), level, null))).toList();
         boolean withheld = level == Level.NONE
                 && (depersonalisedQuestion == null || depersonalisedQuestion.isBlank());
-        return new PromptPayload(filterMessage(message, level, depersonalisedQuestion), withheld, shownHistory,
+        return new PromptPayload(filterMessage(message, level, depersonalisedQuestion), withheld, history,
                 filterProfile(profile, level), toolResults, passages);
     }
 

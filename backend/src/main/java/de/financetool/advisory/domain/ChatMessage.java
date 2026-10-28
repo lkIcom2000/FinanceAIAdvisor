@@ -26,11 +26,13 @@ import java.util.UUID;
  * @param needsStatement the demands-and-needs statement of a {@code RECOMMEND_CATEGORY} answer on a protection topic
  *     (FR-18, UX-DR44); {@code null} otherwise
  * @param range the range chart of a calculated what-if answer (UX-DR17); {@code null} otherwise
+ * @param followUp what the next turn may see of an agent message as its previous turn (FR-63); {@code null} for
+ *     other messages and agent messages stored before Story 13.5
  */
 public record ChatMessage(UUID id, Author author, String text, ResponseOutcome outcome, UUID replyTo,
         List<String> suggestions, List<Check> checks, Handover handover, Proposal proposal,
         List<SourcedNumber> figures, String premise, Assessment assessment, Recommendation recommendation,
-        NeedsStatement needsStatement, RangeChart range) {
+        NeedsStatement needsStatement, RangeChart range, FollowUp followUp) {
 
     /** At most three chips per card (UX). */
     public static final int MAX_SUGGESTIONS = 3;
@@ -220,6 +222,22 @@ public record ChatMessage(UUID id, Author author, String text, ResponseOutcome o
         }
     }
 
+    /**
+     * The follow-up context of an agent message (FR-63).
+     *
+     * @param question the turn's depersonalised question; {@code null} while the NLU gave none
+     * @param phrased whether the released text is the LLM's phrasing at exposure level {@code NONE} (a released draft
+     *     of an {@code INFORM}, {@code COMPUTE} or {@code ASK_PROFILE} answer, no parameter proposal), not a fixed
+     *     template or a text phrased at {@code AGGREGATED}
+     * @param provIds the keys of the turn's Core figures, in run order
+     */
+    public record FollowUp(String question, boolean phrased, List<String> provIds) {
+
+        public FollowUp {
+            provIds = provIds == null ? List.of() : List.copyOf(provIds);
+        }
+    }
+
     public ChatMessage {
         Objects.requireNonNull(id, "id");
         Objects.requireNonNull(author, "author");
@@ -230,6 +248,15 @@ public record ChatMessage(UUID id, Author author, String text, ResponseOutcome o
         if (suggestions.size() > MAX_SUGGESTIONS) {
             throw new IllegalArgumentException("At most " + MAX_SUGGESTIONS + " suggestions per message");
         }
+    }
+
+    /** A message without a follow-up context. */
+    public ChatMessage(UUID id, Author author, String text, ResponseOutcome outcome, UUID replyTo,
+            List<String> suggestions, List<Check> checks, Handover handover, Proposal proposal,
+            List<SourcedNumber> figures, String premise, Assessment assessment, Recommendation recommendation,
+            NeedsStatement needsStatement, RangeChart range) {
+        this(id, author, text, outcome, replyTo, suggestions, checks, handover, proposal, figures, premise,
+                assessment, recommendation, needsStatement, range, null);
     }
 
     /** A message without a range chart. */
@@ -286,7 +313,7 @@ public record ChatMessage(UUID id, Author author, String text, ResponseOutcome o
     /** This message with the handover of its case. */
     public ChatMessage withHandover(Handover value) {
         return new ChatMessage(id, author, text, outcome, replyTo, suggestions, checks, value, proposal, figures,
-                premise, assessment, recommendation, needsStatement, range);
+                premise, assessment, recommendation, needsStatement, range, followUp);
     }
 
     /** This proposal message with a new status. */
@@ -294,14 +321,15 @@ public record ChatMessage(UUID id, Author author, String text, ResponseOutcome o
         Objects.requireNonNull(proposal, "proposal");
         return new ChatMessage(id, author, text, outcome, replyTo, suggestions, checks, handover,
                 new Proposal(proposal.spec(), value), figures, premise, assessment, recommendation, needsStatement,
-                range);
+                range, followUp);
     }
 
     /** This assessment message with a new status. */
     public ChatMessage withAssessmentStatus(Assessment.Status value) {
         Objects.requireNonNull(assessment, "assessment");
         return new ChatMessage(id, author, text, outcome, replyTo, suggestions, checks, handover, proposal, figures,
-                premise, new Assessment(assessment.fields(), value), recommendation, needsStatement, range);
+                premise, new Assessment(assessment.fields(), value), recommendation, needsStatement, range,
+                followUp);
     }
 
     /** A message without checks. */
