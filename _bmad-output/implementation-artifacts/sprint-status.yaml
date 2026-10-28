@@ -139,10 +139,10 @@ development_status:
   12-2-end-to-end-study-dry-run-on-the-study-laptop: backlog
   epic-12-retrospective: optional
 
-  epic-13: backlog  # Follow-up fixes (Commc 2026-10-26); placement relative to the UAT open
+  epic-13: in-progress  # Follow-up fixes (Commc 2026-10-26); placement relative to the UAT open
   13-1-fine-answers-in-german-when-written-to-in-german: backlog
   13-2-epic-3-seam-fixes-technical-debt: done  # 2026-10-27 (Epic 3 retro A1-A4)
-  13-3-split-turnorchestrator-into-stage-classes: backlog  # retro 6/7 C2; before 13.4, 13.5 (SCP 2026-10-27)
+  13-3-split-turnorchestrator-into-stage-classes: done  # 2026-10-28, spec spec-13-3-split-turnorchestrator-into-stage-classes.md; retro 6/7 C2; before 13.4, 13.5 (SCP 2026-10-27)
   13-4-fine-answers-questions-about-my-situation-with-my-data: backlog  # before Epic 12
   13-5-fine-understands-a-follow-up-on-its-last-answer: backlog  # before Epic 12
   13-6-a-repeated-answer-request-returns-the-same-answer: backlog
@@ -280,7 +280,7 @@ action_items:
     action: "A5: At Epic 4 start check TurnOrchestrator size before adding the retrieval
       stage; extract stage classes if it keeps growing"
     owner: "Dev (Claude)"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-10-26.md"
   - id: "epic-3-retro-item-20-a6-story-13-1-consolidates-number-parsin"
     epic: 3
@@ -315,7 +315,7 @@ action_items:
     action: "C2: Extract stage classes from TurnOrchestrator (tool plan, block routing)
       before the next stage or tool is added"  # -> Story 13.3 (sprint-change-proposal-2026-10-27.md)
     owner: "Dev (Claude)"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-6-7-retro-2026-10-26.md"
   - id: "epic-6-retro-item-25-c3-needs-statement-text-must-agree-with"
     epic: 6

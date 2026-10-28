@@ -105,10 +105,12 @@ class TurnOrchestratorTest {
             inv -> inv.getMethod().getName().equals("run")
                     ? new TurnState.Tools(null, null, null, false, List.of(), false) : List.of());
     final NeedsStatements needsStatements = mock(NeedsStatements.class);
-    final TurnOrchestrator orchestrator = new TurnOrchestrator(chats, prompts, llm, audit, nluExtractor,
-            registry, (stored, stated, topic) -> profile.check(stored, stated, topic), escalations,
-            ruleParameters, tools, profiles, new DialogStates(chats), assessments, recommendations,
-            needsStatements);
+    final TurnOrchestrator orchestrator = new TurnOrchestrator(new DialogStates(chats), nluExtractor,
+            new ClassifyStage(tools, profiles, (stored, stated, topic) -> profile.check(stored, stated, topic),
+                    registry),
+            new ToolPlanStage(tools, profiles, recommendations, needsStatements),
+            new PromptStage(chats, prompts, profiles, ruleParameters), new DraftStage(llm), new CheckStages(llm),
+            new BlockRoutingStage(), new ReleaseStage(chats, audit, escalations, assessments, recommendations));
 
     final PersonaScope scope = new PersonaScope(TestContexts.LENA);
     final RequestContext context = TestContexts.context();
@@ -429,7 +431,7 @@ class TurnOrchestratorTest {
     @Test
     void everyConfiguredExposureLevelMapsToTheSameDomainLevel() {
         for (DataExposureLevel configured : DataExposureLevel.values()) {
-            assertThat(TurnOrchestrator.level(configured).name()).isEqualTo(configured.name());
+            assertThat(PromptStage.level(configured).name()).isEqualTo(configured.name());
         }
         assertThat(ExposureFilter.Level.values()).hasSameSizeAs(DataExposureLevel.values());
     }
@@ -486,7 +488,7 @@ class TurnOrchestratorTest {
                 new PromptPayload.Passage("KID p. 2", "x".repeat(6000)),
                 new PromptPayload.Passage("KID p. 3", "y".repeat(6000)));
         TurnState turn = informDraftWithBudget("Answer [S3].", passages, 4096);
-        int kept = TurnOrchestrator.passagesInPrompt(turn);
+        int kept = PromptStage.passagesInPrompt(turn);
         assertThat(kept).as("the budget dropped passages").isBetween(1, 2);
 
         TurnState released = stages7to10(context, turn);
@@ -500,7 +502,7 @@ class TurnOrchestratorTest {
     void passagesTheBudgetDroppedEntirelyAreNoValidSource() {
         List<PromptPayload.Passage> passages = List.of(new PromptPayload.Passage("KID p. 1", "x".repeat(6000)));
         TurnState turn = informDraftWithBudget("Answer [S1].", passages, 1200);
-        assertThat(TurnOrchestrator.passagesInPrompt(turn)).isZero();
+        assertThat(PromptStage.passagesInPrompt(turn)).isZero();
 
         TurnState released = stages7to10(context, turn);
         assertThat(released.checks().shadow().get(CheckId.SOURCE_VALIDITY).reasonCode()).isEqualTo("no_valid_source");
@@ -709,7 +711,7 @@ class TurnOrchestratorTest {
     @Test
     void everyConfiguredComplianceLevelMapsToTheSameDomainLevel() {
         for (ComplianceLevel configured : ComplianceLevel.values()) {
-            assertThat(TurnOrchestrator.level(configured).name()).isEqualTo(configured.name());
+            assertThat(CheckStages.level(configured).name()).isEqualTo(configured.name());
         }
         assertThat(ComponentFlags.Level.values()).hasSameSizeAs(ComplianceLevel.values());
     }
